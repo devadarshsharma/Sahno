@@ -1,0 +1,54 @@
+# Operating system
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors
+.vs/
+.idea/
+.vscode/
+
+# .NET
+**/bin/
+**/obj/
+**/TestResults/
+**/coverage/
+*.user
+*.suo
+
+# Node, Expo and React Native
+**/node_modules/
+**/.expo/
+**/.turbo/
+**/dist/
+**/web-build/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment variables and local configuration
+.env
+.env.*
+!.env.example
+**/appsettings.Local.json
+**/appsettings.*.Local.json
+
+# Mobile credentials and signing files
+*.jks
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
+credentials.json
+google-services.json
+GoogleService-Info.plist
+
+# Local containers and data
+**/.docker-data/
+**/postgres-data/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
