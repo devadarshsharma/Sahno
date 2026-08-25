@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Sahno.Api/Sahno.Api.csproj" />
+    <Project Path="src/Sahno.Application/Sahno.Application.csproj" />
+    <Project Path="src/Sahno.Contracts/Sahno.Contracts.csproj" />
+    <Project Path="src/Sahno.Domain/Sahno.Domain.csproj" />
+    <Project Path="src/Sahno.Infrastructure/Sahno.Infrastructure.csproj" />
+  </Folder>
+</Solution>
