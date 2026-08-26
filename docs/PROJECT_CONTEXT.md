@@ -5,7 +5,7 @@
 
 ## Read this first
 
-The canonical product specification is `../Sahno_Product_Discovery_and_MVP.md`. Read it before making product, domain-model, UX, or architecture decisions. Commercial direction is in `COMMERCIAL_STRATEGY.md`; confirmed and provisional decisions are tracked in `DECISIONS.md`; the accepted MVP permission model is in `ROLES_AND_PERMISSIONS.md`.
+The canonical product specification is `../Sahno_Product_Discovery_and_MVP.md`. Read it before making product, domain-model, UX, or architecture decisions. Commercial direction is in `COMMERCIAL_STRATEGY.md`; confirmed and provisional decisions are tracked in `DECISIONS.md`; the accepted MVP permission model is in `ROLES_AND_PERMISSIONS.md`; local setup and runtime checks are documented in `LOCAL_DEVELOPMENT.md`.
 
 If documents conflict, use this precedence:
 
