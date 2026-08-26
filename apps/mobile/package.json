@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "dependencies": {
     "@expo/ui": "~57.0.13",
+    "@tanstack/react-query": "^5.102.5",
     "expo": "~57.0.16",
     "expo-constants": "~57.0.14",
     "expo-device": "~57.0.1",
