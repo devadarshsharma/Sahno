@@ -6,4 +6,7 @@
     <Project Path="src/Sahno.Domain/Sahno.Domain.csproj" />
     <Project Path="src/Sahno.Infrastructure/Sahno.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Sahno.Api.IntegrationTests/Sahno.Api.IntegrationTests.csproj" />
+  </Folder>
 </Solution>

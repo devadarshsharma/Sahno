@@ -68,3 +68,9 @@ jobs:
           dotnet build services/api/Sahno.slnx
           --configuration Release
           --no-restore
+          
+      - name: Test API
+        run: >
+          dotnet test services/api/Sahno.slnx
+          --configuration Release
+          --no-build
