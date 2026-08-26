@@ -15,7 +15,7 @@ The pipeline is intentionally being built incrementally as a learning exercise. 
 The first Sahno pull request introduced two successful CI checks:
 
 - **CI / Mobile** — installs JavaScript dependencies, lints the mobile workspace, and runs TypeScript checking.
-- **CI / API** — restores NuGet dependencies and builds the complete .NET solution in Release configuration.
+- **CI / API** — restores NuGet dependencies, builds the complete .NET solution in Release configuration, and runs automated API tests.
 
 Both jobs run on fresh GitHub-hosted Ubuntu runners. This proves the repository can be restored and built without relying on uncommitted files, globally installed project dependencies, or other hidden state on the developer's computer.
 
@@ -205,6 +205,20 @@ Restore reads the solution/project dependency information and downloads required
 
 This compiles all production projects in the configuration intended for deployment. `--no-restore` ensures the build consumes the explicit restore step and keeps dependency-resolution failures separate from compiler failures.
 
+### Run automated API tests
+
+```yaml
+- name: Test API
+  run: >
+    dotnet test services/api/Sahno.slnx
+    --configuration Release
+    --no-build
+```
+
+`dotnet test` executes the test projects in the solution. `--no-build` reuses the output from the preceding build step, so compilation failures remain clearly separated from behavioural test failures.
+
+The first integration test uses `WebApplicationFactory<Program>` to boot the real ASP.NET application inside the test process. It calls `GET /api/health`, deserializes the response contract, and verifies HTTP 200 with a status of `Healthy`. No manually running API or network port is required.
+
 ## 10. What the first green checks prove
 
 The current pipeline proves:
@@ -214,12 +228,14 @@ The current pipeline proves:
 - The mobile source passes TypeScript checking.
 - NuGet dependencies restore successfully.
 - All .NET Onion Architecture projects compile together in Release configuration.
+- The ASP.NET application can start in the integration-test host.
+- The health endpoint is registered and returns its expected HTTP and JSON contract.
 - The repository builds on clean Linux runners rather than only on the developer's Windows computer.
 
 The pipeline does **not yet** prove:
 
 - The mobile app launches on iOS or Android.
-- The API process starts or its health endpoint responds.
+- A deployed API is reachable over a real environment's network.
 - The mobile app can communicate with the API.
 - PostgreSQL mappings and migrations work.
 - Authentication, permissions, or tenant isolation work.
@@ -272,6 +288,7 @@ pnpm lint
 pnpm typecheck
 dotnet restore .\services\api\Sahno.slnx
 dotnet build .\services\api\Sahno.slnx --configuration Release --no-restore
+dotnet test .\services\api\Sahno.slnx --configuration Release --no-build
 ```
 
 CI remains necessary even when local checks pass because it provides an independent clean environment and a durable result attached to the pull request.
@@ -304,10 +321,10 @@ Do not weaken or remove a quality gate merely to make a pull request green witho
 
 The next additions should follow implementation needs:
 
-1. Backend unit and architecture test projects.
+1. Domain and Application unit tests plus architecture rules.
 2. API integration tests with PostgreSQL Testcontainers.
 3. Mobile component tests.
-4. API startup/health smoke test.
+4. Deployed Staging health smoke check.
 5. OpenAPI-generated client consistency check.
 6. Container build validation.
 7. Staging environment and DigitalOcean deployment.
@@ -315,4 +332,3 @@ The next additions should follow implementation needs:
 9. Manual Production approval and deployment safeguards.
 
 Each change should be introduced separately enough that its purpose, inputs, permissions, failure modes, and recovery procedure remain understandable.
-
