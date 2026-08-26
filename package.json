@@ -1,0 +1,17 @@
+{
+  "name": "sahno",
+  "private": true,
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=24 <25",
+    "pnpm": ">=10 <11"
+  },
+  "scripts": {
+    "mobile:start": "pnpm --filter @sahno/mobile start",
+    "mobile:android": "pnpm --filter @sahno/mobile android",
+    "mobile:ios": "pnpm --filter @sahno/mobile ios",
+    "lint": "pnpm --recursive --if-present lint",
+    "typecheck": "pnpm --recursive --if-present typecheck",
+    "test": "pnpm --recursive --if-present test"
+  }
+}
