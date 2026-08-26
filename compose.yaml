@@ -1,0 +1,23 @@
+name: sahno
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: sahno-postgres
+    environment:
+      POSTGRES_DB: sahno
+      POSTGRES_USER: sahno
+      POSTGRES_PASSWORD: sahno_local_password
+    ports:
+      - "5434:5432"
+    volumes:
+      - sahno-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sahno -d sahno"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  sahno-postgres-data:
