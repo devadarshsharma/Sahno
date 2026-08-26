@@ -84,3 +84,5 @@ The primary seven-screen mobile journey is accepted as a low-fidelity direction 
 Authentication and onboarding are accepted under D-055 through D-058 and consolidated in `AUTHENTICATION_AND_ONBOARDING.md`. The first implementation slices and acceptance criteria are maintained in `MVP_BUILD_BACKLOG.md`.
 
 Technical architecture is being defined in `TECHNICAL_ARCHITECTURE.md`. D-059 accepts Expo, Expo Router, TypeScript, Expo development builds, and EAS Build for the React Native mobile foundation.
+
+The current GitHub Actions workflow and its planned evolution are explained in `CI_CD_GUIDE.md`. Treat CI/CD as a guided learning workflow under D-072: introduce checks and deployments incrementally, explain them, observe real runs, and document operation and troubleshooting.
