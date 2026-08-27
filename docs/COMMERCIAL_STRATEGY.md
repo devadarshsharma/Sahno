@@ -1,7 +1,7 @@
 # Sahno Commercial Strategy
 
 **Status:** Working commercial strategy  
-**Last updated:** 21 August 2026  
+**Last updated:** 27 August 2026
 **Related source of truth:** `../Sahno_Product_Discovery_and_MVP.md`
 
 ## 1. Commercial intent
@@ -145,15 +145,32 @@ Useful evidence includes:
 - Do not treat a proposed tier, limit, or price as locked until it is recorded in the decision log.
 - Protect financial, customer, and private member information through explicit permissions.
 
-## 9. Open commercial decisions
+## 9. Subscription cancellation, downgrade, and data retention
+
+Cancelling Sahno Pro does not delete the organisation or its material.
+
+1. The Owner requests cancellation.
+2. Paid capabilities remain available until the current paid billing period ends.
+3. The organisation then moves to Free or a clearly labelled Restricted state.
+4. Existing organisation data is preserved. If the organisation exceeds Free-tier limits, existing over-limit material remains readable and exportable, but additional paid-only or over-limit creation may be blocked.
+5. Reactivation restores paid functionality without requiring the organisation to be rebuilt.
+
+Payment failure follows a grace and recovery path before downgrade. It does not immediately remove access or delete data.
+
+Permanent deletion is an independent Owner-only workflow. It must use re-authentication, explicit confirmation, notice to other Admins, an export opportunity, and a recovery window. Exact grace and retention periods are not yet locked.
+
+This policy is intended to make subscription cancellation safe and predictable while preserving a legitimate upgrade incentive through feature and capacity limits rather than fear of data loss.
+
+## 10. Open commercial decisions
 
 - Exact Free and Pro limits.
 - Final launch price and billing currency strategy.
 - Monthly versus annual billing and any annual discount.
 - Trial length, if any.
+- Exact failed-payment grace period and post-cancellation retention period.
+- Export formats and permanent organisation-deletion recovery window.
 - Whether payment tracking is entirely Pro or has a limited free form.
 - Whether professional organisations eventually need a second paid tier.
 - Founder-led support expectations and service boundaries.
 - Tax, business-registration, trademark, domain, and payment-provider decisions.
 - Success thresholds for moving from private pilot to paid beta and public launch.
-

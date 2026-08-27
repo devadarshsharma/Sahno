@@ -1334,3 +1334,45 @@ CI/CD and GitHub automation will be implemented as a collaborative learning work
 - Documentation explains how to operate and troubleshoot the pipeline after initial setup.
 
 **Rationale:** Sahno should gain a reliable delivery pipeline while also building the founder's practical GitHub Actions and CI/CD knowledge.
+
+---
+
+## D-073 — Subscription cancellation does not delete organisation data
+
+**Date:** 27 August 2026
+**Status:** Accepted
+
+Sahno treats subscription cancellation, downgrade, and organisation deletion as separate lifecycle actions.
+
+- Cancelling a paid subscription takes effect at the end of the current paid billing period unless a refund or immediate cancellation is explicitly required.
+- When paid access ends, the organisation moves to the Free tier or a clearly labelled Restricted state; it is not silently deleted.
+- Existing Engagements, messages, files, membership records, financial history, and other organisation material are preserved.
+- Where the organisation exceeds Free-tier limits, existing over-limit or paid-only material remains available for reading and export, while creation of additional paid-only or over-limit material may be blocked.
+- Owners can reactivate the subscription and regain paid functionality without reconstructing the organisation.
+- Owners must be offered a reasonable export path before permanent deletion.
+- **Delete organisation** is a separate, explicit Owner-only workflow requiring re-authentication, clear confirmation of consequences, notification to other Admins, and a recovery period before permanent deletion.
+- A failed payment uses a grace/recovery state before downgrade; it does not trigger immediate data deletion.
+
+Exact grace periods, retention periods, export format, refund behaviour, and permanent-deletion timing remain open commercial, operational, privacy, and legal decisions. Until those are locked, implementations must preserve data rather than infer permission to delete it.
+
+**Rationale:** Customers should be able to stop paying without risking accidental loss of their organisation's operational history. Separating billing state from data deletion reduces customer anxiety, supports reactivation, and prevents a routine commercial action from becoming destructive.
+
+---
+
+## D-074 — Sahno v0.1 brand direction selected for validation
+
+**Date:** 27 August 2026
+**Status:** Accepted
+
+Sahno will take forward a v0.1 visual-identity direction built around:
+
+- an abstract human-shaped S mark using coordinated orange and teal forms;
+- deep navy as the primary wordmark and app-icon background colour family;
+- warm off-white as the primary neutral canvas; and
+- Bricolage Grotesque as the wordmark and display-typography candidate.
+
+The exact vector geometry, production colour values, body-font decision, and platform assets are not yet final. They must pass the validation gates in `brand/BRAND_VAULT.md` before being treated as locked production assets.
+
+Earlier Quorum, Waypoint, Common Ground, and interlocking-path explorations are rejected as Sahno's primary direction. They must not be implemented unless this decision is explicitly revisited.
+
+**Rationale:** The selected direction feels more energetic, recognisable, and human than the earlier restrained explorations while retaining enough structure and contrast for a paid operational product. Bricolage Grotesque adds distinctive character without relying on decorative script or novelty typography.

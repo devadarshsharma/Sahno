@@ -1,11 +1,11 @@
 # Sahno Project Context
 
 **Purpose:** Concise memory for humans and AI coding agents  
-**Last updated:** 21 August 2026
+**Last updated:** 27 August 2026
 
 ## Read this first
 
-The canonical product specification is `../Sahno_Product_Discovery_and_MVP.md`. Read it before making product, domain-model, UX, or architecture decisions. Commercial direction is in `COMMERCIAL_STRATEGY.md`; confirmed and provisional decisions are tracked in `DECISIONS.md`; the accepted MVP permission model is in `ROLES_AND_PERMISSIONS.md`; local setup and runtime checks are documented in `LOCAL_DEVELOPMENT.md`.
+The canonical product specification is `../Sahno_Product_Discovery_and_MVP.md`. Read it before making product, domain-model, UX, or architecture decisions. Commercial direction is in `COMMERCIAL_STRATEGY.md`; confirmed and provisional decisions are tracked in `DECISIONS.md`; the accepted MVP permission model is in `ROLES_AND_PERMISSIONS.md`; local setup and runtime checks are documented in `LOCAL_DEVELOPMENT.md`; the selected visual direction and brand validation gates are in `brand/BRAND_VAULT.md`.
 
 If documents conflict, use this precedence:
 
@@ -62,7 +62,7 @@ Full CRM, accounting, invoicing, payment processing, public ticketing, contracts
 
 ## Commercial model
 
-Working principle: members participate for free; organisations pay for advanced organiser value. The current hypothesis is Free plus Sahno Pro at approximately A$15–25 per organisation per month. Packaging and pricing are not locked.
+Working principle: members participate for free; organisations pay for advanced organiser value. The current hypothesis is Free plus Sahno Pro at approximately A$15–25 per organisation per month. Packaging and pricing are not locked. Cancelling paid access downgrades the organisation without deleting its data; permanent organisation deletion is a separate, explicit Owner-only workflow. See D-073 and `COMMERCIAL_STRATEGY.md`.
 
 ## Working discipline for agents
 

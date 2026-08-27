@@ -1016,6 +1016,24 @@ benefit and is therefore the most natural paying customer.
 
 Pricing has **not** been locked.
 
+### Subscription cancellation and organisation data
+
+Cancelling Sahno Pro does not delete the organisation or its operational
+history. Paid access continues until the end of the current paid billing
+period, after which the organisation moves to Free or a clearly labelled
+Restricted state.
+
+Existing Engagements, messages, files, membership records, and financial
+history are preserved. Where Free-tier limits are exceeded, Sahno may prevent
+new paid-only or over-limit material while keeping existing material readable
+and exportable. Resubscribing restores paid functionality without requiring
+the organisation to be rebuilt.
+
+Permanent organisation deletion is a separate Owner-only workflow with
+re-authentication, explicit confirmation, Admin notification, an export
+opportunity, and a recovery period. Exact grace and retention periods remain
+open decisions.
+
 ------------------------------------------------------------------------
 
 ## 29. Brand
@@ -1029,6 +1047,18 @@ Ayvero, HyMate, Mately, Sahora, Tivra, Corda, PlanIt and numerous
 invented derivatives.
 
 The final decision was to lock **Sahno**.
+
+### Selected v0.1 visual direction
+
+The selected direction for validation uses an abstract human-shaped **S** mark
+formed by coordinated orange and teal curves, a deep navy wordmark and primary
+app-icon background, and warm off-white neutral surfaces. **Bricolage
+Grotesque** is the selected wordmark and display-typography candidate.
+
+This is a selected direction rather than a final production asset. Exact vector
+geometry, colour values, body typography, platform exports, accessibility, and
+small-size behaviour must be validated before final lock. The detailed source
+of truth is `docs/brand/BRAND_VAULT.md` and decision D-074.
 
 ### Current tagline
 
