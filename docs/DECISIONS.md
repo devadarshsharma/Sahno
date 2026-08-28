@@ -928,6 +928,12 @@ The Sahno mobile MVP supports:
 
 The MVP does not use passwords and therefore does not require password creation, storage, or password-reset flows.
 
+The authentication screen uses a single **Continue** model rather than asking people to choose between separate sign-up and sign-in flows. Each method can create a new Sahno account or return someone to their existing account as appropriate.
+
+All authentication methods resolve to one Sahno user identity. Provider identities must not become separate product accounts by default. Account linking must be explicit and secure; matching two providers only by an asserted or visible email address is not sufficient, particularly because Sign in with Apple may use a private relay address.
+
+Organisation invitations remain bound to the invited email address until the authenticated person securely proves or confirms that address. Authentication must not grant an organisation role directly; Sahno's own membership and authorisation records remain authoritative.
+
 Email authentication aligns naturally with organisation invitations. Sign in with Apple is included alongside Google for the iOS release and its login-services requirements.
 
 **Reference:** [Apple App Review Guidelines — Login Services](https://developer.apple.com/app-store/review/guidelines/#login-services)
