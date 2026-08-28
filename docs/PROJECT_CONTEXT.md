@@ -81,7 +81,7 @@ Delivery direction D-053 is accepted: Sahno is a mobile-first React Native appli
 
 The primary seven-screen mobile journey is accepted as a low-fidelity direction under D-054. Treat its information flow as the starting point, while keeping visual design and detailed interaction patterns open to iteration.
 
-Authentication and onboarding are accepted under D-055 through D-058 and consolidated in `AUTHENTICATION_AND_ONBOARDING.md`. The first implementation slices and acceptance criteria are maintained in `MVP_BUILD_BACKLOG.md`.
+Authentication and onboarding are accepted under D-055 through D-058 and consolidated in `AUTHENTICATION_AND_ONBOARDING.md`. The MVP uses Google, Apple, and passwordless email with a unified Continue flow; it does not use passwords or separate sign-up/sign-in screens. Multiple login methods resolve to one Sahno identity through explicit, secure account linking. The first implementation slices and acceptance criteria are maintained in `MVP_BUILD_BACKLOG.md`.
 
 Technical architecture is being defined in `TECHNICAL_ARCHITECTURE.md`. D-059 accepts Expo, Expo Router, TypeScript, Expo development builds, and EAS Build for the React Native mobile foundation.
 
