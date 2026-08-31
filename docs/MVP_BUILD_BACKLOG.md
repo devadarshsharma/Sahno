@@ -21,6 +21,15 @@ A person can install Sahno, authenticate, and maintain a secure session.
 - A returning authenticated person resumes their session securely.
 - Sign out is available from More/settings.
 
+### Deferred follow-up — secure account linking and duplicate-user merge
+
+The MVP accepts the Auth0 Free-plan limitation (D-075): no account linking, one Auth0 subject per Sahno user, and sign-in guidance telling returning people to reuse their original method. A wrong-method sign-in creates an empty duplicate account but never destroys data — the original account and all its material remain intact under the original method. A later slice must add, in this order:
+
+1. **Guided redirect (first story):** when sign-in would create a new Sahno user whose securely verified email already belongs to an existing user, do not create the duplicate — tell the person which method their account uses ("This email is registered with Google — Continue with Google"). This is a deliberate, documented exception to the no-account-existence-disclosure rule, limited to the person’s own verified email.
+
+2. An explicit, secure account-linking flow (both identities verified — never automatic linking by matching email addresses, which Apple private-relay addresses make unsafe).
+3. A deliberate merge workflow for the duplicate Sahno users that can exist when a person signed in through two identities before they were linked.
+
 ## Slice 2 — Organisation onboarding and switching
 
 ### Outcome
@@ -30,6 +39,7 @@ A person can create or join a private organisation and switch between organisati
 ### Acceptance criteria
 
 - A valid invitation shows the organisation identity before joining.
+- An invitation is single-use: it is matched only after the invited email is securely verified, acceptance binds it to exactly one Sahno account, and it cannot be accepted again.
 - Invitation acceptance adds the person as a Member.
 - A person without an invitation can create an organisation or enter an invite link.
 - Organisation creation requires only a name.

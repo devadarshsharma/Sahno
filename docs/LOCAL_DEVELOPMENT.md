@@ -1,6 +1,6 @@
 # Sahno Local Development
 
-**Last updated:** 27 August 2026
+**Last updated:** 28 August 2026
 
 ## Prerequisites
 
@@ -77,11 +77,84 @@ docker compose down
 
 This preserves the database volume. Use `docker compose down -v` only when intentionally deleting all local Sahno database data and recreating the database from scratch.
 
-## Current persistence state
+## Database migrations
 
-`SahnoDbContext` and PostgreSQL dependency injection are configured in `Sahno.Infrastructure`. No empty baseline migration is created. The first migration should be generated with the first real persisted domain model.
+EF Core migrations live in `services/api/src/Sahno.Infrastructure/Migrations` and are created with the repository-pinned `dotnet-ef` tool (`services/api/dotnet-tools.json`). The API **never applies migrations automatically at startup**; applying them is always an explicit step.
 
-Integration tests currently validate API liveness without requiring a developer-run database. PostgreSQL-backed integration tests will use Testcontainers so CI receives an isolated real database.
+Apply migrations to the local database (from `services/api`, with PostgreSQL running):
+
+```powershell
+dotnet tool restore
+dotnet ef database update --project src/Sahno.Infrastructure --startup-project src/Sahno.Infrastructure
+```
+
+Create a new migration after changing the persisted model:
+
+```powershell
+dotnet ef migrations add <Name> --project src/Sahno.Infrastructure --startup-project src/Sahno.Infrastructure
+```
+
+Design-time commands use `SahnoDbContextFactory`, which reads `ConnectionStrings__Sahno` or falls back to the local development connection string above.
+
+Integration tests start their own disposable PostgreSQL container (Testcontainers) and apply migrations programmatically; they never touch the developer database and require Docker to be running.
+
+## Authentication (Auth0)
+
+Auth0 proves identity (D-063). The mobile app signs in with Google, Apple, or a passwordless email one-time code through a unified **Continue** flow; the API validates Auth0-issued JWTs and maps the canonical subject to a Sahno user (`GET /api/me` creates the minimal local record on first authenticated contact).
+
+Auth0 collapses linked login methods into one canonical subject, so one Sahno user maps to one subject. **Until an explicit account-linking flow is implemented, signing in through two unlinked Auth0 identities (for example Google and Apple with the same visible email) creates two separate Sahno users.** Identities are never linked automatically by matching email addresses; a secure linking and duplicate-user merge workflow is a later slice.
+
+### Manual Auth0 Dashboard setup (you must do this yourself)
+
+These steps need your Auth0 account and cannot be automated from the repository:
+
+1. Create an Auth0 tenant (note the domain, e.g. `dev-abc123.au.auth0.com`).
+2. Create a **Native** application. Note the **Client ID**. Under application settings:
+   - **Allowed Callback URLs** and **Allowed Logout URLs** (both lists, exactly as written — lowercase, no trailing slash, replace `{domain}` with your tenant domain):
+
+     ```text
+     sahno://{domain}/android/app.sahno.mobile/callback
+     sahno://{domain}/ios/app.sahno.mobile/callback
+     ```
+
+   - Enable **Refresh Token Rotation**.
+   - Advanced Settings → Grant Types: enable **Authorization Code**, **Refresh Token**, and **Passwordless OTP**.
+3. Create an **API** (Applications → APIs) with an identifier such as `https://api.sahno.dev` — this is the audience. Type the identifier by hand (a pasted invisible character once produced persistent “Service not found” errors). Enable **Allow Offline Access**. Creating an API also auto-creates a “(Test Application)” machine-to-machine client — harmless; ignore it.
+4. **Authorize the application for the API**: newer Auth0 tenants enforce per-application API access. Under Applications → your app → **API Access**, grant **User-delegated Access** to the Sahno API (green tick). Without this, sign-in fails with “Service not found” or “Client is not authorized to access resource server”.
+5. Connections for the application:
+   - **google-oauth2**: Auth0's shared developer keys work for local testing; create a Google Cloud OAuth client before any production release.
+   - **apple**: requires an Apple Developer account (Services ID, Sign in with Apple private key, Team ID). Until configured, the Continue with Apple button fails with a recoverable error.
+   - **email** (Passwordless → Email): set to one-time code, and — like the API grant — enable it **for the application** on the connection’s Applications tab, or sign-in fails with “connection is disabled”. Auth0's built-in email sender is fine for local testing; production email uses the custom provider decided in D-066.
+
+### Mobile configuration
+
+Copy `apps/mobile/.env.example` to `.env` and fill in the Auth0 values (public client values — safe to ship, never secrets). `react-native-auth0` contains native code, so **the app no longer runs in Expo Go**; the project uses `expo-dev-client`, which gives the installed development app the Development Servers launcher (force-stop and reopen the app to reach it, then pick or type the Metro URL — useful whenever the computer’s Wi-Fi IP changes). Create a development build:
+
+```powershell
+cd apps/mobile
+npx expo run:android
+```
+
+The Auth0 config plugin reads `EXPO_PUBLIC_AUTH0_DOMAIN` at build time for the native callback registration — after changing it, rebuild the development build. Without Auth0 configuration the app still boots, but authentication actions fail with a configuration message.
+
+### API configuration
+
+Set the Auth0 values with user secrets (from `services/api/src/Sahno.Api`) or environment variables — never in committed appsettings:
+
+```powershell
+dotnet user-secrets init
+dotnet user-secrets set "Auth0:Domain" "dev-abc123.au.auth0.com"
+dotnet user-secrets set "Auth0:Audience" "https://sahno-api.local"
+```
+
+Without these the API logs a startup warning and rejects every authenticated request (health endpoints keep working).
+
+### Verifying the flow
+
+1. Start PostgreSQL, apply migrations, start the API (`--urls http://0.0.0.0:5062` so a phone can reach it), start the dev build.
+2. Sign in with Google or an email code. The home screen should show your profile and a `Sahno account <id>` line — that id comes from `GET /api/me` and proves token validation and user mapping.
+3. Kill and reopen the app: the session should restore from secure storage without showing sign-in.
+4. Sign out: the app returns to the sign-in screen; reopening does not restore the session.
 
 ## Port-conflict troubleshooting
 
