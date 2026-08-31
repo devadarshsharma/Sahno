@@ -66,6 +66,11 @@ function RootNavigator() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="onboarding" />
+        <Stack.Screen name="create-organisation" />
+        <Stack.Screen name="join" />
+        <Stack.Screen name="invitations" />
+        <Stack.Screen name="switch-organisation" />
         <Stack.Screen name="brand-preview" />
       </Stack.Protected>
       <Stack.Protected guard={!isAuthenticated}>

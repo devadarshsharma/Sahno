@@ -1416,3 +1416,19 @@ When a future engagement involves travel or ticketed booking, selected participa
 - Travel management remains outside the MVP; this decision shapes the future slice without changing MVP scope.
 
 **Rationale:** Collecting sensitive identity data at signup harms onboarding conversion, creates just-in-case PII liability, and produces stale data. Collecting it when a real booking depends on it yields accurate, ID-matching details and holds sensitive data only for people who actually travel.
+
+---
+
+## D-077 — Shareable link invitations for the MVP
+
+**Date:** 31 August 2026
+**Status:** Accepted
+
+MVP invitations are **shareable link codes**:
+
+- A link invitation is multi-use: it can onboard many Members until it is revoked or reaches its optional expiry. This matches how community groups share one invitation in an existing chat channel.
+- Only the Owner and Admins can create and revoke invitations; joining through any invitation always creates a Member (D-045).
+- Before joining, the person sees only the organisation's identity (name, group type, logo). Unknown, revoked, and expired codes are indistinguishable from each other.
+- Email-delivered invitations are modelled in the domain but not issued until the notifications slice provides durable email (D-066). When they arrive they are single-use and matched only after the invited email is securely verified.
+
+**Rationale:** Link codes deliver the invitation-only model (D-045) without requiring email infrastructure in this slice, and the multi-use link matches the real behaviour of groups that coordinate in a shared chat.

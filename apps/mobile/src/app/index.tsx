@@ -1,22 +1,21 @@
-import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Redirect, useRouter } from 'expo-router';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { getHealth } from '@/api/health';
 import { getMe } from '@/api/me';
-import { SahnoLogo } from '@/components/brand';
+import { dismissSetupChecklist } from '@/api/organisations';
+import { SahnoSymbol } from '@/components/brand';
 import { Button, Card, Screen, Text } from '@/components/ui';
+import { useActiveOrg } from '@/hooks/use-organisations';
 import { useSession } from '@/providers/auth-provider';
 import { colors, spacing } from '@/theme';
 
 export default function Index() {
   const router = useRouter();
   const session = useSession();
-
-  const healthQuery = useQuery({
-    queryKey: ['health'],
-    queryFn: ({ signal }) => getHealth(signal),
-  });
+  const queryClient = useQueryClient();
+  const { organisations, active, isPending, isFetching } = useActiveOrg();
 
   const meQuery = useQuery({
     queryKey: ['me'],
@@ -27,11 +26,91 @@ export default function Index() {
     enabled: session.status === 'authenticated',
   });
 
+  const healthQuery = useQuery({
+    queryKey: ['health'],
+    queryFn: ({ signal }) => getHealth(signal),
+  });
+
+  const dismissChecklist = useMutation({
+    mutationFn: async () => {
+      const accessToken = await session.getAccessToken();
+      await dismissSetupChecklist(accessToken, active!.id);
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['organisations'] }),
+  });
+
+  // Never decide "no organisations" from a stale or in-flight list — that
+  // caused a bounce back to onboarding right after creating one.
+  if (isPending || (organisations.length === 0 && isFetching)) {
+    return (
+      <Screen>
+        <View style={styles.loading}>
+          <ActivityIndicator color={colors.tealText} />
+        </View>
+      </Screen>
+    );
+  }
+
+  // First-time branching (D-056): no organisations yet.
+  if (organisations.length === 0) {
+    return <Redirect href="/onboarding" />;
+  }
+
+  const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
+
   return (
     <Screen scroll>
-      <View style={styles.logo}>
-        <SahnoLogo size={64} tagline />
+      {/* Active-organisation header (D-044). */}
+      <View style={styles.orgHeader}>
+        <SahnoSymbol size={36} />
+        <View style={styles.orgHeaderText}>
+          <Text variant="heading" numberOfLines={1}>
+            {active?.name}
+          </Text>
+          <Text variant="caption" color="muted">
+            {active?.role}
+            {organisations.length > 1
+              ? ` · ${organisations.length} organisations`
+              : ''}
+          </Text>
+        </View>
+        <Button
+          label="Switch"
+          variant="ghost"
+          onPress={() => router.push('/switch-organisation')}
+        />
       </View>
+
+      {active?.showSetupChecklist ? (
+        <Card style={styles.card}>
+          <Text variant="subheading">Get {active.name} going</Text>
+          <View style={styles.checklist}>
+            <ChecklistItem
+              label="Invite your Members"
+              actionLabel="Invite"
+              onPress={() => router.push('/invitations')}
+            />
+            <ChecklistItem label="Create your first Enquiry" comingSoon />
+            <ChecklistItem label="Add an organisation logo" comingSoon />
+            <ChecklistItem label="Review organisation settings" comingSoon />
+          </View>
+          <Button
+            label="Dismiss checklist"
+            variant="ghost"
+            onPress={() => dismissChecklist.mutate()}
+            loading={dismissChecklist.isPending}
+          />
+        </Card>
+      ) : null}
+
+      {isOrganiser && !active?.showSetupChecklist ? (
+        <Button
+          label="Invite members"
+          variant="secondary"
+          onPress={() => router.push('/invitations')}
+        />
+      ) : null}
 
       <Card style={styles.card}>
         <Text variant="subheading">Signed in</Text>
@@ -39,65 +118,29 @@ export default function Index() {
         {session.user?.email ? (
           <Text color="secondary">{session.user.email}</Text>
         ) : null}
-
-        {meQuery.isPending ? (
-          <Text color="muted" variant="bodySmall">
-            Loading your Sahno account…
-          </Text>
-        ) : null}
         {meQuery.isSuccess ? (
           <Text color="muted" variant="caption">
             Sahno account {meQuery.data.userId}
           </Text>
         ) : null}
-        {meQuery.isError ? (
-          <>
-            <Text color="error" variant="bodySmall">
-              Could not load your Sahno account.
-            </Text>
-            <Button
-              label="Retry"
-              variant="secondary"
-              onPress={() => meQuery.refetch()}
-            />
-          </>
-        ) : null}
-
         <Button label="Sign out" variant="secondary" onPress={session.signOut} />
       </Card>
 
       <Card style={styles.card}>
         {healthQuery.isPending ? (
+          <ActivityIndicator color={colors.tealText} />
+        ) : healthQuery.isError ? (
           <>
-            <ActivityIndicator color={colors.tealText} />
-            <Text color="secondary" style={styles.centeredText}>
-              Connecting to Sahno API…
-            </Text>
-          </>
-        ) : null}
-
-        {healthQuery.isError ? (
-          <>
-            <Text variant="heading" color="error" style={styles.centeredText}>
-              Could not connect
-            </Text>
-            <Text color="secondary" style={styles.centeredText}>
-              {healthQuery.error.message}
+            <Text color="error" style={styles.centeredText}>
+              API not reachable
             </Text>
             <Button label="Try again" onPress={() => healthQuery.refetch()} />
           </>
-        ) : null}
-
-        {healthQuery.isSuccess ? (
-          <>
-            <Text variant="heading" color="accent" style={styles.centeredText}>
-              API connected
-            </Text>
-            <Text color="secondary" style={styles.centeredText}>
-              Status: {healthQuery.data.status}
-            </Text>
-          </>
-        ) : null}
+        ) : (
+          <Text color="accent" variant="bodySmall" style={styles.centeredText}>
+            API connected — {healthQuery.data?.status}
+          </Text>
+        )}
       </Card>
 
       {/* Temporary entry point for the visual-foundation preview. */}
@@ -110,15 +153,72 @@ export default function Index() {
   );
 }
 
+function ChecklistItem({
+  label,
+  actionLabel,
+  onPress,
+  comingSoon = false,
+}: {
+  label: string;
+  actionLabel?: string;
+  onPress?: () => void;
+  comingSoon?: boolean;
+}) {
+  return (
+    <View style={styles.checklistItem}>
+      <Text
+        variant="body"
+        color={comingSoon ? 'muted' : 'primary'}
+        style={styles.checklistLabel}
+      >
+        {label}
+      </Text>
+      {comingSoon ? (
+        <Text variant="caption" color="muted">
+          coming soon
+        </Text>
+      ) : (
+        <Button
+          label={actionLabel ?? 'Open'}
+          variant="ghost"
+          onPress={onPress ?? (() => {})}
+        />
+      )}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  logo: {
+  loading: {
+    flex: 1,
     alignItems: 'center',
-    marginTop: spacing.xl,
-    marginBottom: spacing.xxl,
+    justifyContent: 'center',
+  },
+  orgHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.xl,
+  },
+  orgHeaderText: {
+    flex: 1,
+    gap: 2,
   },
   card: {
     gap: spacing.md,
     marginBottom: spacing.lg,
+  },
+  checklist: {
+    gap: spacing.xs,
+  },
+  checklistItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 44,
+    gap: spacing.md,
+  },
+  checklistLabel: {
+    flex: 1,
   },
   centeredText: {
     textAlign: 'center',

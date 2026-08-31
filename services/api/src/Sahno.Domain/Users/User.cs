@@ -33,11 +33,36 @@ public sealed class User
 
     public string ExternalSubject { get; }
 
-    public string? Email { get; }
+    public string? Email { get; private set; }
 
-    public string? DisplayName { get; }
+    public string? DisplayName { get; private set; }
 
     public DateTimeOffset CreatedAtUtc { get; }
+
+    /// <summary>
+    /// Refreshes the optional profile hints from a newer login. Values are
+    /// only ever improved — an absent claim never erases a stored hint.
+    /// </summary>
+    public bool RefreshProfileHints(string? email, string? displayName)
+    {
+        var changed = false;
+
+        var normalizedEmail = NormalizeOptional(email);
+        if (normalizedEmail is not null && normalizedEmail != Email)
+        {
+            Email = normalizedEmail;
+            changed = true;
+        }
+
+        var normalizedName = NormalizeOptional(displayName);
+        if (normalizedName is not null && normalizedName != DisplayName)
+        {
+            DisplayName = normalizedName;
+            changed = true;
+        }
+
+        return changed;
+    }
 
     public static User Create(
         string externalSubject,

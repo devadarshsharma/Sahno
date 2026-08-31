@@ -126,6 +126,21 @@ These steps need your Auth0 account and cannot be automated from the repository:
    - **apple**: requires an Apple Developer account (Services ID, Sign in with Apple private key, Team ID). Until configured, the Continue with Apple button fails with a recoverable error.
    - **email** (Passwordless → Email): set to one-time code, and — like the API grant — enable it **for the application** on the connection’s Applications tab, or sign-in fails with “connection is disabled”. Auth0's built-in email sender is fine for local testing; production email uses the custom provider decided in D-066.
 
+### Auth0 post-login Action (profile claims)
+
+Custom-API access tokens carry no profile claims by default, so the API cannot see email or name. Add a post-login Action once per tenant: Dashboard → Actions → Library → Create Action (“Add Sahno claims”, Login / Post Login trigger) with:
+
+```javascript
+exports.onExecutePostLogin = async (event, api) => {
+  const ns = "https://sahno.app/";
+  api.accessToken.setCustomClaim(ns + "email", event.user.email);
+  api.accessToken.setCustomClaim(ns + "email_verified", event.user.email_verified);
+  api.accessToken.setCustomClaim(ns + "name", event.user.name);
+};
+```
+
+Deploy it, then drag it into the Login flow (Actions → Triggers → post-login) and Apply. The API reads these namespaced claims and refreshes each user’s stored profile hints on login; `email_verified` is also what future email-bound invitations will match on.
+
 ### Mobile configuration
 
 Copy `apps/mobile/.env.example` to `.env` and fill in the Auth0 values (public client values — safe to ship, never secrets). `react-native-auth0` contains native code, so **the app no longer runs in Expo Go**; the project uses `expo-dev-client`, which gives the installed development app the Development Servers launcher (force-stop and reopen the app to reach it, then pick or type the Metro URL — useful whenever the computer’s Wi-Fi IP changes). Create a development build:

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Sahno.Api.Authentication;
 using Sahno.Application.Users;
 using Sahno.Contracts.Users;
 
@@ -17,19 +18,11 @@ public sealed class MeController : ControllerBase
         [FromServices] EnsureUserService ensureUserService,
         CancellationToken cancellationToken)
     {
-        // The only place token claims are read. The subject comes from the
-        // validated token — never from client-supplied values — and email and
-        // name are optional profile hints.
-        var subject = User.FindFirst("sub")?.Value;
-        if (string.IsNullOrWhiteSpace(subject))
+        var identity = User.ToExternalIdentity();
+        if (identity is null)
         {
             return Unauthorized();
         }
-
-        var identity = new ExternalIdentity(
-            subject,
-            User.FindFirst("email")?.Value,
-            User.FindFirst("name")?.Value);
 
         var user = await ensureUserService.EnsureAsync(identity, cancellationToken);
 

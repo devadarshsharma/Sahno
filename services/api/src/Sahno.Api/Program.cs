@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Sahno.Api.Authentication;
 using Sahno.Api.Health;
+using Sahno.Application.Organisations;
 using Sahno.Application.Users;
 using Sahno.Infrastructure;
 
@@ -17,6 +18,9 @@ var connectionString = builder.Configuration.GetConnectionString("Sahno")
 builder.Services.AddControllers();
 builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddScoped<EnsureUserService>();
+builder.Services.AddScoped<OrganisationService>();
+builder.Services.AddScoped<InvitationService>();
+builder.Services.AddScoped<OrganisationAuthorizationService>();
 builder.Services
     .AddHealthChecks()
     .AddCheck<PostgresHealthCheck>("postgresql");

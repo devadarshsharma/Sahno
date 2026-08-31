@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Sahno.Application.Organisations;
 using Sahno.Application.Users;
+using Sahno.Infrastructure.Organisations;
 using Sahno.Infrastructure.Persistence;
 using Sahno.Infrastructure.Users;
 
@@ -16,6 +18,9 @@ public static class DependencyInjection
             options.UseNpgsql(connectionString));
 
         services.AddScoped<IUserStore, UserStore>();
+        services.AddScoped<IOrganisationStore, OrganisationStore>();
+        services.AddScoped<IMembershipStore, MembershipStore>();
+        services.AddScoped<IInvitationStore, InvitationStore>();
 
         return services;
     }

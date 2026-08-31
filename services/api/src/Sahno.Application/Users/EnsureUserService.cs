@@ -20,6 +20,13 @@ public sealed class EnsureUserService(IUserStore userStore)
 
         if (existing is not null)
         {
+            // Later logins may carry newer or previously missing profile
+            // hints (e.g. once access tokens include email/name claims).
+            if (existing.RefreshProfileHints(identity.Email, identity.DisplayName))
+            {
+                await userStore.SaveAsync(existing, cancellationToken);
+            }
+
             return existing;
         }
 

@@ -49,6 +49,8 @@ A person can create or join a private organisation and switch between organisati
 - Switching organisations strictly changes the data and permissions context.
 - A new Owner sees the dismissible setup checklist.
 
+**Delivery note (31 Aug 2026):** implemented with shareable link-code invitations (D-077). Deferred within this slice: logo upload (needs DigitalOcean Spaces), email-delivered invitations (needs the notifications slice), and the checklist actions for enquiries, logo, and settings (features arrive in later slices).
+
 ## Slice 3 — Membership, roles, and privacy
 
 ### Outcome

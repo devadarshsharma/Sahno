@@ -12,11 +12,16 @@ public sealed class UserStore(SahnoDbContext dbContext) : IUserStore
         string externalSubject,
         CancellationToken cancellationToken)
     {
+        // Tracked so profile-hint refreshes can be saved.
         return dbContext.Users
-            .AsNoTracking()
             .SingleOrDefaultAsync(
                 user => user.ExternalSubject == externalSubject,
                 cancellationToken);
+    }
+
+    public Task SaveAsync(User user, CancellationToken cancellationToken)
+    {
+        return dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<bool> AddAsync(User user, CancellationToken cancellationToken)

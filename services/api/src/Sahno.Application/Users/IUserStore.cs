@@ -17,4 +17,7 @@ public interface IUserStore
     /// the database); the caller should re-read the existing record.
     /// </summary>
     Task<bool> AddAsync(User user, CancellationToken cancellationToken);
+
+    /// <summary>Persists changes to a tracked user (profile-hint refresh).</summary>
+    Task SaveAsync(User user, CancellationToken cancellationToken);
 }
