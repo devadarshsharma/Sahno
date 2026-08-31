@@ -1382,3 +1382,37 @@ The exact vector geometry, production colour values, body-font decision, and pla
 Earlier Quorum, Waypoint, Common Ground, and interlocking-path explorations are rejected as Sahno's primary direction. They must not be implemented unless this decision is explicitly revisited.
 
 **Rationale:** The selected direction feels more energetic, recognisable, and human than the earlier restrained explorations while retaining enough structure and contrast for a paid operational product. Bricolage Grotesque adds distinctive character without relying on decorative script or novelty typography.
+
+---
+
+## D-075 — MVP accepts no account linking on the Auth0 Free plan
+
+**Date:** 29 August 2026
+**Status:** Accepted
+
+The Sahno MVP runs on the Auth0 Free plan and does not implement account linking. Each sign-in method (Google, Apple, passwordless email) resolves to its own Auth0 subject, and the API maps one canonical subject to one Sahno user. Signing in through a different, unlinked method therefore creates a separate Sahno account during the MVP.
+
+- The sign-in screen tells returning people to use the same sign-in method they originally chose.
+- Identities are never matched or merged automatically by email address, and no Auth0 Action performs automatic linking. Apple private-relay addresses make email matching unsafe.
+- The sign-in method is retained implicitly in the stored Auth0 subject prefix (`google-oauth2|`, `apple|`, `email|`) so account settings can later show "Signed in with Google/Apple/Email". An account-settings feature is not part of the first authentication slice.
+- Secure, explicit account linking and a deliberate duplicate-user merge workflow are deferred backlog work (`MVP_BUILD_BACKLOG.md`, Slice 1 deferred follow-up).
+
+**Rationale:** Explicit linking requires additional product surface and verified-identity flows that the MVP does not need for Customer Zero, while automatic email-based linking is a security risk. Accepting the limitation keeps the identity model simple and honest, with a documented path to linking later.
+
+---
+
+## D-076 — Travel profile collected just-in-time, not at onboarding
+
+**Date:** 31 August 2026
+**Status:** Provisional
+
+Sahno will not collect legal names, dates of birth, or other travel-grade personal details during onboarding. Onboarding remains minimal per D-046 and D-056 through D-058.
+
+When a future engagement involves travel or ticketed booking, selected participants complete a one-time **travel profile**: legal first/middle/last name, date of birth, phone number, and contact email, with explicit copy that these **must exactly match the traveller's government ID** (as required for airline tickets and similar bookings).
+
+- Visible to the Owner and authorised Admins only, consistent with the privacy boundaries of D-016, D-018, and D-022.
+- Entered and editable by the member themselves; reused for later bookings.
+- Passport details remain excluded pending a separate security decision (product specification §15).
+- Travel management remains outside the MVP; this decision shapes the future slice without changing MVP scope.
+
+**Rationale:** Collecting sensitive identity data at signup harms onboarding conversion, creates just-in-case PII liability, and produces stale data. Collecting it when a real booking depends on it yields accurate, ID-matching details and holds sensitive data only for people who actually travel.
