@@ -10,7 +10,7 @@ import {
   type Engagement,
   type EngagementStatus,
 } from '@/api/engagements';
-import { Button, Card, Screen, Text, TextInput } from '@/components/ui';
+import { Button, Card, DateField, Screen, Text, TextInput } from '@/components/ui';
 import {
   formatEngagementDate,
   STATUS_LABELS,
@@ -105,7 +105,7 @@ export default function EngagementDetail() {
  * postponing (D-038), so the card explains that rather than hiding.
  */
 function DatesCard({ engagement }: { engagement: Engagement }) {
-  const [startDate, setStartDate] = useState(engagement.startDate ?? '');
+  const [startDate, setStartDate] = useState(engagement.startDate);
   const [error, setError] = useState<string | null>(null);
 
   const save = useEngagementMutation<string | null>(
@@ -131,35 +131,32 @@ function DatesCard({ engagement }: { engagement: Engagement }) {
       </Card>
     );
   }
-
   return (
     <Card style={styles.card}>
       <Text variant="subheading">Date</Text>
-      <TextInput
+      <DateField
         label="Proposed date"
-        placeholder="2027-05-20"
         value={startDate}
-        onChangeText={setStartDate}
-        helperText="YYYY-MM-DD. Leave blank while it is still unknown."
-        autoCapitalize="none"
-        keyboardType="numbers-and-punctuation"
-      />
-      <Button
-        label="Save date"
-        variant="secondary"
-        loading={save.isPending}
-        onPress={() => {
-          const trimmed = startDate.trim();
-          if (trimmed !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-            setError('Use YYYY-MM-DD, or leave it blank.');
-            return;
-          }
+        onChange={(next) => {
+          setStartDate(next);
           setError(null);
-          save.mutate(trimmed === '' ? null : trimmed, {
+          save.mutate(next, {
             onError: () => setError('Could not save that date.'),
           });
         }}
+        placeholder="Not set yet"
+        helperText={
+          engagement.status === 'Postponed'
+            ? 'Setting a replacement date asks members for their availability again.'
+            : 'Members are not told until you request availability.'
+        }
+        clearable
       />
+      {save.isPending ? (
+        <Text color="muted" variant="caption">
+          Saving…
+        </Text>
+      ) : null}
       {error ? (
         <Text color="error" variant="bodySmall">
           {error}

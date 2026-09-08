@@ -6,7 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { z } from 'zod';
 
 import { createEngagement } from '@/api/engagements';
-import { Button, Card, Screen, Text, TextInput } from '@/components/ui';
+import { Button, Card, DateField, Screen, Text, TextInput } from '@/components/ui';
 import { useEngagementMutation } from '@/hooks/use-engagements';
 import { spacing } from '@/theme';
 
@@ -21,12 +21,7 @@ const schema = z.object({
     .trim()
     .min(1, 'Give the enquiry a name you will recognise.')
     .max(200, 'Keep the title under 200 characters.'),
-  startDate: z
-    .string()
-    .trim()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD, or leave it blank.')
-    .optional()
-    .or(z.literal('')),
+  startDate: z.string().nullable(),
   venue: z.string().trim().max(200, 'Keep the venue under 200 characters.'),
 });
 
@@ -46,7 +41,7 @@ export default function CreateEngagement() {
 
   const { control, handleSubmit, formState } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { title: '', startDate: '', venue: '' },
+    defaultValues: { title: '', startDate: null, venue: '' },
   });
 
   const onSubmit = handleSubmit((values) => {
@@ -54,7 +49,7 @@ export default function CreateEngagement() {
     create.mutate(
       {
         title: values.title,
-        startDate: values.startDate ? values.startDate : null,
+        startDate: values.startDate,
         venue: values.venue ? values.venue : null,
       },
       {
@@ -97,15 +92,13 @@ export default function CreateEngagement() {
           control={control}
           name="startDate"
           render={({ field }) => (
-            <TextInput
-              label="Proposed date (optional)"
-              placeholder="2027-05-20"
-              value={field.value ?? ''}
-              onChangeText={field.onChange}
-              error={formState.errors.startDate?.message}
-              helperText="You will need a date before you can ask members for availability."
-              autoCapitalize="none"
-              keyboardType="numbers-and-punctuation"
+            <DateField
+              label="Proposed date"
+              value={field.value}
+              onChange={field.onChange}
+              placeholder="Not set yet"
+              helperText="You will need one before you can ask members for availability."
+              clearable
             />
           )}
         />
