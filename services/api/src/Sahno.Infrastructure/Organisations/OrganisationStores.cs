@@ -112,6 +112,7 @@ public sealed class MembershipStore(SahnoDbContext dbContext) : IMembershipStore
                     membership,
                     user.DisplayName,
                     user.Email,
+                    user.PhoneNumber,
                 })
             .ToListAsync(cancellationToken);
 
@@ -120,7 +121,8 @@ public sealed class MembershipStore(SahnoDbContext dbContext) : IMembershipStore
             .Select(row => new OrganisationMember(
                 row.membership,
                 row.DisplayName,
-                row.Email))
+                row.Email,
+                row.PhoneNumber))
             .ToList();
     }
 

@@ -20,12 +20,18 @@ public enum MembershipRole
 /// </summary>
 public sealed class Membership
 {
+    public const int FunctionMaxLength = 80;
+
+    public const int InternalNotesMaxLength = 2000;
     private Membership(
         Guid id,
         Guid organisationId,
         Guid userId,
         MembershipRole role,
         bool canManageFinances,
+        string? function,
+        bool sharesContactDetails,
+        string? internalNotes,
         DateTimeOffset joinedAtUtc,
         DateTimeOffset? setupChecklistDismissedAtUtc)
     {
@@ -34,6 +40,9 @@ public sealed class Membership
         UserId = userId;
         Role = role;
         CanManageFinances = canManageFinances;
+        Function = function;
+        SharesContactDetails = sharesContactDetails;
+        InternalNotes = internalNotes;
         JoinedAtUtc = joinedAtUtc;
         SetupChecklistDismissedAtUtc = setupChecklistDismissedAtUtc;
     }
@@ -47,6 +56,27 @@ public sealed class Membership
     public MembershipRole Role { get; private set; }
 
     public bool CanManageFinances { get; private set; }
+
+    /// <summary>
+    /// What this person does in this organisation — singer, tabla player,
+    /// volunteer (D-046). Per organisation rather than per account: the same
+    /// person can hold a different function in each.
+    /// </summary>
+    public string? Function { get; private set; }
+
+    /// <summary>
+    /// Whether this person has chosen to show their contact details to
+    /// ordinary Members of this organisation (D-018). Off by default, theirs
+    /// alone to change, and per organisation — sharing with one group is not
+    /// sharing with another.
+    /// </summary>
+    public bool SharesContactDetails { get; private set; }
+
+    /// <summary>
+    /// Organiser-only notes about this member (D-046). Never shown to
+    /// Members, including the person they are about.
+    /// </summary>
+    public string? InternalNotes { get; private set; }
 
     public DateTimeOffset JoinedAtUtc { get; }
 
@@ -76,6 +106,34 @@ public sealed class Membership
         return Create(organisationId, userId, MembershipRole.Member);
     }
 
+
+    /// <summary>
+    /// Updates what this person shows about themselves in this organisation.
+    /// Theirs to set: the function others see, and whether ordinary Members
+    /// may see their contact details (D-018).
+    /// </summary>
+    public void SetOwnProfile(string? function, bool sharesContactDetails)
+    {
+        Function = Normalize(function, FunctionMaxLength);
+        SharesContactDetails = sharesContactDetails;
+    }
+
+    /// <summary>Records organiser-only notes about this member (D-046).</summary>
+    public void SetInternalNotes(string? internalNotes)
+    {
+        InternalNotes = Normalize(internalNotes, InternalNotesMaxLength);
+    }
+
+    private static string? Normalize(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var trimmed = value.Trim();
+        return trimmed.Length > maxLength ? trimmed[..maxLength] : trimmed;
+    }
     public void DismissSetupChecklist()
     {
         SetupChecklistDismissedAtUtc ??= DateTimeOffset.UtcNow;
@@ -190,6 +248,9 @@ public sealed class Membership
             userId,
             role,
             canManageFinances: false,
+            function: null,
+            sharesContactDetails: false,
+            internalNotes: null,
             DateTimeOffset.UtcNow,
             setupChecklistDismissedAtUtc: null);
     }

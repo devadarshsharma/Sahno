@@ -42,10 +42,10 @@ public sealed class MembersController(
 
         var rows = await membershipService.ListAsync(organisationId, cancellationToken);
 
-        var seesContactDetails = OrganisationAuthorizationService.IsOrganiser(caller);
+        var callerIsOrganiser = OrganisationAuthorizationService.IsOrganiser(caller);
 
         return Ok(rows
-            .Select(row => ToResponse(row, caller, seesContactDetails))
+            .Select(row => ToResponse(row, caller, callerIsOrganiser))
             .ToList());
     }
 
@@ -70,11 +70,15 @@ public sealed class MembersController(
             return NotFound();
         }
 
-        if (request.Role is null == request.CanManageFinances is null)
+        var fieldsSent =
+            (request.Role is null ? 0 : 1)
+            + (request.CanManageFinances is null ? 0 : 1)
+            + (request.InternalNotes is null ? 0 : 1);
+        if (fieldsSent != 1)
         {
             ModelState.AddModelError(
                 nameof(request.Role),
-                "Send exactly one of role or canManageFinances.");
+                "Send exactly one of role, canManageFinances, or internalNotes.");
             return ValidationProblem(ModelState);
         }
 
@@ -94,14 +98,60 @@ public sealed class MembersController(
                 role,
                 cancellationToken);
         }
-        else
+        else if (request.CanManageFinances is not null)
         {
             result = await membershipService.SetFinancialAccessAsync(
                 caller,
                 membershipId,
-                request.CanManageFinances!.Value,
+                request.CanManageFinances.Value,
                 cancellationToken);
         }
+        else
+        {
+            result = await membershipService.SetInternalNotesAsync(
+                caller,
+                membershipId,
+                request.InternalNotes,
+                cancellationToken);
+        }
+
+        return FromResult(result);
+    }
+
+    /// <summary>
+    /// Updates the caller's own function and contact-sharing choice. Separate
+    /// from the management route because it needs no authority over anyone —
+    /// and because sharing your details is yours to decide, not an organiser's
+    /// (D-018).
+    /// </summary>
+    [HttpPatch("me")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateOwn(
+        Guid organisationId,
+        UpdateOwnMembershipRequest request,
+        CancellationToken cancellationToken)
+    {
+        var caller = await CallerAsync(organisationId, cancellationToken);
+        if (caller is null)
+        {
+            return NotFound();
+        }
+
+        if (request.Function is null && request.SharesContactDetails is null)
+        {
+            ModelState.AddModelError(
+                nameof(request.Function),
+                "Send a function or a sharing choice.");
+            return ValidationProblem(ModelState);
+        }
+
+        var result = await membershipService.UpdateOwnProfileAsync(
+            caller,
+            request.Function,
+            request.SharesContactDetails,
+            cancellationToken);
 
         return FromResult(result);
     }
@@ -190,20 +240,33 @@ public sealed class MembersController(
         };
     }
 
+    /// <summary>
+    /// Applies D-018 to one row. Name and function are shared with everyone in
+    /// the organisation; contact details are not, unless the caller is an
+    /// organiser, is looking at their own row, or the person has chosen to
+    /// share them here. Internal notes never leave the organiser view — not
+    /// even to the member they describe.
+    /// </summary>
     private static MemberResponse ToResponse(
         OrganisationMember row,
         Membership caller,
-        bool seesContactDetails)
+        bool callerIsOrganiser)
     {
         var isYou = row.Membership.UserId == caller.UserId;
+        var seesContactDetails =
+            isYou || callerIsOrganiser || row.Membership.SharesContactDetails;
 
         return new MemberResponse(
             row.Membership.Id,
             row.Membership.UserId,
             row.DisplayName,
-            seesContactDetails || isYou ? row.Email : null,
+            row.Membership.Function,
+            seesContactDetails ? row.Email : null,
+            seesContactDetails ? row.PhoneNumber : null,
             row.Membership.Role.ToString(),
             row.Membership.HasFinancialAccess,
+            row.Membership.SharesContactDetails,
+            callerIsOrganiser ? row.Membership.InternalNotes : null,
             isYou,
             row.Membership.JoinedAtUtc);
     }

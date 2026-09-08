@@ -15,12 +15,15 @@ namespace Sahno.Domain.Users;
 /// </summary>
 public sealed class User
 {
+    public const int PhoneNumberMaxLength = 40;
+
     private User(
         Guid id,
         string externalSubject,
         string? email,
         string? displayName,
         bool displayNameSetByUser,
+        string? phoneNumber,
         DateTimeOffset createdAtUtc)
     {
         Id = id;
@@ -28,6 +31,7 @@ public sealed class User
         Email = email;
         DisplayName = displayName;
         DisplayNameSetByUser = displayNameSetByUser;
+        PhoneNumber = phoneNumber;
         CreatedAtUtc = createdAtUtc;
     }
 
@@ -45,6 +49,13 @@ public sealed class User
     /// later provider hint (D-046).
     /// </summary>
     public bool DisplayNameSetByUser { get; private set; }
+
+    /// <summary>
+    /// Optional and private by default (D-046): an ordinary Member of an
+    /// organisation only sees it once this person chooses to share their
+    /// contact details with that organisation (D-018).
+    /// </summary>
+    public string? PhoneNumber { get; private set; }
 
     public DateTimeOffset CreatedAtUtc { get; }
 
@@ -93,6 +104,19 @@ public sealed class User
     /// Records the display name the person chose. From this point provider
     /// hints no longer touch it.
     /// </summary>
+
+    /// <summary>
+    /// Sets or clears this person's own phone number. Pass null or blank to
+    /// remove it; sharing it with an organisation is a separate, per-
+    /// organisation choice (D-018).
+    /// </summary>
+    public void SetPhoneNumber(string? phoneNumber)
+    {
+        var normalized = NormalizeOptional(phoneNumber);
+        PhoneNumber = normalized is { Length: > PhoneNumberMaxLength }
+            ? normalized[..PhoneNumberMaxLength]
+            : normalized;
+    }
     public void SetDisplayName(string displayName)
     {
         var normalized = NormalizeOptional(displayName);
@@ -125,6 +149,7 @@ public sealed class User
             NormalizeOptional(email),
             NormalizeOptional(displayName),
             displayNameSetByUser: false,
+            phoneNumber: null,
             DateTimeOffset.UtcNow);
     }
 

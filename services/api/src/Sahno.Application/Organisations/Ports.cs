@@ -16,7 +16,8 @@ public sealed record OrganisationMembership(
 public sealed record OrganisationMember(
     Membership Membership,
     string? DisplayName,
-    string? Email);
+    string? Email,
+    string? PhoneNumber);
 
 public interface IOrganisationStore
 {

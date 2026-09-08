@@ -52,27 +52,42 @@ public sealed class MeController : ControllerBase
         }
 
         var displayName = request.DisplayName?.Trim();
-        if (string.IsNullOrEmpty(displayName))
+
+        if (request.DisplayName is null && request.PhoneNumber is null)
         {
             ModelState.AddModelError(
                 nameof(request.DisplayName),
-                "A display name is required.");
+                "Send a display name or a phone number.");
             return ValidationProblem(ModelState);
         }
 
-        if (displayName.Length > UserProfileService.MaxDisplayNameLength)
+        if (request.DisplayName is not null)
         {
-            ModelState.AddModelError(
-                nameof(request.DisplayName),
-                $"Keep the name under {UserProfileService.MaxDisplayNameLength} characters.");
-            return ValidationProblem(ModelState);
+            // A display name is required (D-046), so it can be replaced but
+            // never blanked out.
+            if (string.IsNullOrEmpty(displayName))
+            {
+                ModelState.AddModelError(
+                    nameof(request.DisplayName),
+                    "A display name is required.");
+                return ValidationProblem(ModelState);
+            }
+
+            if (displayName.Length > UserProfileService.MaxDisplayNameLength)
+            {
+                ModelState.AddModelError(
+                    nameof(request.DisplayName),
+                    $"Keep the name under {UserProfileService.MaxDisplayNameLength} characters.");
+                return ValidationProblem(ModelState);
+            }
         }
 
         var user = await ensureUserService.EnsureAsync(identity, cancellationToken);
 
-        await userProfileService.SetDisplayNameAsync(
+        await userProfileService.UpdateAsync(
             user,
             displayName,
+            request.PhoneNumber,
             cancellationToken);
 
         return Ok(ToResponse(user));
@@ -86,6 +101,7 @@ public sealed class MeController : ControllerBase
             // Presentable, not raw: an email-address "name" hint is reported
             // as absent so the client asks for a real one.
             user.PresentableDisplayName,
+            user.PhoneNumber,
             user.CreatedAtUtc);
     }
 }

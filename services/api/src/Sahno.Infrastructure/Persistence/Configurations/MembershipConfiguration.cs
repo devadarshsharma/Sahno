@@ -34,6 +34,19 @@ public sealed class MembershipConfiguration : IEntityTypeConfiguration<Membershi
             .HasColumnName("can_manage_finances")
             .IsRequired();
 
+        builder.Property(membership => membership.Function)
+            .HasColumnName("function")
+            .HasMaxLength(80);
+
+        builder.Property(membership => membership.SharesContactDetails)
+            .HasColumnName("shares_contact_details")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(membership => membership.InternalNotes)
+            .HasColumnName("internal_notes")
+            .HasMaxLength(2000);
+
         builder.Property(membership => membership.JoinedAtUtc)
             .HasColumnName("joined_at_utc")
             .IsRequired();

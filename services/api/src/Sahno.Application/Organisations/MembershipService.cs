@@ -47,6 +47,62 @@ public sealed class MembershipService(IMembershipStore memberships)
     }
 
     /// <summary>
+    /// Updates what the caller shows about themselves here. Self-service by
+    /// definition: no role is required and no one else's membership is
+    /// reachable, so this is the one membership edit that is not a management
+    /// action.
+    /// </summary>
+    public async Task<MembershipChangeResult> UpdateOwnProfileAsync(
+        Membership actor,
+        string? function,
+        bool? sharesContactDetails,
+        CancellationToken cancellationToken)
+    {
+        actor.SetOwnProfile(
+            function ?? actor.Function,
+            sharesContactDetails ?? actor.SharesContactDetails);
+
+        await memberships.SaveAsync(actor, cancellationToken);
+        return MembershipChangeResult.Success;
+    }
+
+    /// <summary>
+    /// Records organiser-only notes about a member (D-046). Admins may note
+    /// ordinary Members; only the Owner may note an Admin, matching who may
+    /// manage whom.
+    /// </summary>
+    public async Task<MembershipChangeResult> SetInternalNotesAsync(
+        Membership actor,
+        Guid targetMembershipId,
+        string? internalNotes,
+        CancellationToken cancellationToken)
+    {
+        if (!OrganisationAuthorizationService.IsOrganiser(actor))
+        {
+            return MembershipChangeResult.Forbidden;
+        }
+
+        var target = await memberships.FindByIdAsync(
+            actor.OrganisationId,
+            targetMembershipId,
+            cancellationToken);
+        if (target is null)
+        {
+            return MembershipChangeResult.NotFound;
+        }
+
+        if (target.Role != MembershipRole.Member
+            && actor.Role != MembershipRole.Owner)
+        {
+            return MembershipChangeResult.Forbidden;
+        }
+
+        target.SetInternalNotes(internalNotes);
+        await memberships.SaveAsync(target, cancellationToken);
+        return MembershipChangeResult.Success;
+    }
+
+    /// <summary>
     /// Moves a member between Admin and Member. Appointing or removing an
     /// Admin is the Owner's alone (D-014); an Admin may only act on ordinary
     /// Members, and so cannot promote anyone to their own level.

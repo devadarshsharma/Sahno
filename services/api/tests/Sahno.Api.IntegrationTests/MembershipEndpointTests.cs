@@ -46,13 +46,13 @@ public sealed class MembershipEndpointTests(SahnoApiFactory factory)
 
         var promote = await org.Owner.PatchAsJsonAsync(
             $"/api/organisations/{org.Id}/members/{target}",
-            new UpdateMemberRequest("Admin", null));
+            new UpdateMemberRequest("Admin", null, null));
         Assert.Equal(HttpStatusCode.NoContent, promote.StatusCode);
         Assert.Equal("Admin", await RoleOfAsync(org, target));
 
         var demote = await org.Owner.PatchAsJsonAsync(
             $"/api/organisations/{org.Id}/members/{target}",
-            new UpdateMemberRequest("Member", null));
+            new UpdateMemberRequest("Member", null, null));
         Assert.Equal(HttpStatusCode.NoContent, demote.StatusCode);
         Assert.Equal("Member", await RoleOfAsync(org, target));
     }
@@ -67,7 +67,7 @@ public sealed class MembershipEndpointTests(SahnoApiFactory factory)
 
         var attempt = await org.Members[0].PatchAsJsonAsync(
             $"/api/organisations/{org.Id}/members/{otherMembership}",
-            new UpdateMemberRequest("Admin", null));
+            new UpdateMemberRequest("Admin", null, null));
 
         Assert.Equal(HttpStatusCode.Forbidden, attempt.StatusCode);
         Assert.Equal("Member", await RoleOfAsync(org, otherMembership));
@@ -84,7 +84,7 @@ public sealed class MembershipEndpointTests(SahnoApiFactory factory)
 
         var attempt = await org.Members[0].PatchAsJsonAsync(
             $"/api/organisations/{org.Id}/members/{secondAdmin}",
-            new UpdateMemberRequest("Member", null));
+            new UpdateMemberRequest("Member", null, null));
 
         Assert.Equal(HttpStatusCode.Forbidden, attempt.StatusCode);
         Assert.Equal("Admin", await RoleOfAsync(org, secondAdmin));
@@ -103,7 +103,7 @@ public sealed class MembershipEndpointTests(SahnoApiFactory factory)
 
         var attempt = await org.Members[0].PatchAsJsonAsync(
             $"/api/organisations/{org.Id}/members/{own}",
-            new UpdateMemberRequest("Admin", null));
+            new UpdateMemberRequest("Admin", null, null));
 
         Assert.Equal(HttpStatusCode.Forbidden, attempt.StatusCode);
     }
@@ -116,7 +116,7 @@ public sealed class MembershipEndpointTests(SahnoApiFactory factory)
 
         var attempt = await org.Members[0].PatchAsJsonAsync(
             $"/api/organisations/{org.Id}/members/{target}",
-            new UpdateMemberRequest("Admin", null));
+            new UpdateMemberRequest("Admin", null, null));
 
         Assert.Equal(HttpStatusCode.Forbidden, attempt.StatusCode);
     }
@@ -131,12 +131,12 @@ public sealed class MembershipEndpointTests(SahnoApiFactory factory)
 
         var byAdmin = await org.Members[0].PatchAsJsonAsync(
             $"/api/organisations/{org.Id}/members/{ownerMembership}",
-            new UpdateMemberRequest("Member", null));
+            new UpdateMemberRequest("Member", null, null));
         Assert.Equal(HttpStatusCode.Forbidden, byAdmin.StatusCode);
 
         var byOwner = await org.Owner.PatchAsJsonAsync(
             $"/api/organisations/{org.Id}/members/{ownerMembership}",
-            new UpdateMemberRequest("Member", null));
+            new UpdateMemberRequest("Member", null, null));
         Assert.Equal(HttpStatusCode.Forbidden, byOwner.StatusCode);
 
         Assert.Equal("Owner", await RoleOfAsync(org, ownerMembership));
@@ -150,7 +150,7 @@ public sealed class MembershipEndpointTests(SahnoApiFactory factory)
 
         var attempt = await org.Owner.PatchAsJsonAsync(
             $"/api/organisations/{org.Id}/members/{target}",
-            new UpdateMemberRequest("Owner", null));
+            new UpdateMemberRequest("Owner", null, null));
 
         Assert.Equal(HttpStatusCode.BadRequest, attempt.StatusCode);
         Assert.Equal("Member", await RoleOfAsync(org, target));
@@ -168,7 +168,7 @@ public sealed class MembershipEndpointTests(SahnoApiFactory factory)
 
         var granted = await org.Owner.PatchAsJsonAsync(
             $"/api/organisations/{org.Id}/members/{adminMembership}",
-            new UpdateMemberRequest(null, true));
+            new UpdateMemberRequest(null, true, null));
         Assert.Equal(HttpStatusCode.NoContent, granted.StatusCode);
         Assert.True(await CanManageFinancesAsync(org, adminMembership));
 
@@ -177,12 +177,12 @@ public sealed class MembershipEndpointTests(SahnoApiFactory factory)
         await PromoteToAdminAsync(org, otherMembership);
         var byAdmin = await org.Members[0].PatchAsJsonAsync(
             $"/api/organisations/{org.Id}/members/{otherMembership}",
-            new UpdateMemberRequest(null, true));
+            new UpdateMemberRequest(null, true, null));
         Assert.Equal(HttpStatusCode.Forbidden, byAdmin.StatusCode);
 
         var revoked = await org.Owner.PatchAsJsonAsync(
             $"/api/organisations/{org.Id}/members/{adminMembership}",
-            new UpdateMemberRequest(null, false));
+            new UpdateMemberRequest(null, false, null));
         Assert.Equal(HttpStatusCode.NoContent, revoked.StatusCode);
         Assert.False(await CanManageFinancesAsync(org, adminMembership));
     }
@@ -195,12 +195,12 @@ public sealed class MembershipEndpointTests(SahnoApiFactory factory)
         await PromoteToAdminAsync(org, target);
         await org.Owner.PatchAsJsonAsync(
             $"/api/organisations/{org.Id}/members/{target}",
-            new UpdateMemberRequest(null, true));
+            new UpdateMemberRequest(null, true, null));
         Assert.True(await CanManageFinancesAsync(org, target));
 
         await org.Owner.PatchAsJsonAsync(
             $"/api/organisations/{org.Id}/members/{target}",
-            new UpdateMemberRequest("Member", null));
+            new UpdateMemberRequest("Member", null, null));
 
         // Re-appointment must not silently restore the old grant.
         await PromoteToAdminAsync(org, target);
@@ -215,7 +215,7 @@ public sealed class MembershipEndpointTests(SahnoApiFactory factory)
 
         var attempt = await org.Owner.PatchAsJsonAsync(
             $"/api/organisations/{org.Id}/members/{target}",
-            new UpdateMemberRequest(null, true));
+            new UpdateMemberRequest(null, true, null));
 
         Assert.Equal(HttpStatusCode.BadRequest, attempt.StatusCode);
     }
@@ -341,7 +341,7 @@ public sealed class MembershipEndpointTests(SahnoApiFactory factory)
 
         var attempt = await first.Owner.PatchAsJsonAsync(
             $"/api/organisations/{first.Id}/members/{foreignMembership}",
-            new UpdateMemberRequest("Admin", null));
+            new UpdateMemberRequest("Admin", null, null));
 
         Assert.Equal(HttpStatusCode.NotFound, attempt.StatusCode);
     }
@@ -433,7 +433,7 @@ public sealed class MembershipEndpointTests(SahnoApiFactory factory)
     {
         var response = await org.Owner.PatchAsJsonAsync(
             $"/api/organisations/{org.Id}/members/{membershipId}",
-            new UpdateMemberRequest("Admin", null));
+            new UpdateMemberRequest("Admin", null, null));
         response.EnsureSuccessStatusCode();
     }
 

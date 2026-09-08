@@ -109,7 +109,7 @@ public sealed class MeEndpointTests(SahnoApiFactory factory)
 
         var response = await client.PatchAsJsonAsync(
             "/api/me",
-            new UpdateMeRequest("A Person"));
+            new UpdateMeRequest("A Person", null));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -124,7 +124,7 @@ public sealed class MeEndpointTests(SahnoApiFactory factory)
 
         var response = await client.PatchAsJsonAsync(
             "/api/me",
-            new UpdateMeRequest("  Adarsh Sharma  "));
+            new UpdateMeRequest("  Adarsh Sharma  ", null));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -149,7 +149,7 @@ public sealed class MeEndpointTests(SahnoApiFactory factory)
             email: "keeps@example.com",
             name: "keeps@example.com");
 
-        await client.PatchAsJsonAsync("/api/me", new UpdateMeRequest("Real Person"));
+        await client.PatchAsJsonAsync("/api/me", new UpdateMeRequest("Real Person", null));
 
         var afterNextLogin = await client.GetFromJsonAsync<MeResponse>("/api/me");
 
@@ -166,7 +166,7 @@ public sealed class MeEndpointTests(SahnoApiFactory factory)
             email: "chooser@example.com",
             name: "Provider Name");
 
-        await initial.PatchAsJsonAsync("/api/me", new UpdateMeRequest("Chosen Name"));
+        await initial.PatchAsJsonAsync("/api/me", new UpdateMeRequest("Chosen Name", null));
 
         using var later = CreateAuthenticatedClient(
             subject,
@@ -188,7 +188,7 @@ public sealed class MeEndpointTests(SahnoApiFactory factory)
 
         var response = await client.PatchAsJsonAsync(
             "/api/me",
-            new UpdateMeRequest(displayName));
+            new UpdateMeRequest(displayName, null));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -200,7 +200,7 @@ public sealed class MeEndpointTests(SahnoApiFactory factory)
 
         var response = await client.PatchAsJsonAsync(
             "/api/me",
-            new UpdateMeRequest(new string('a', 201)));
+            new UpdateMeRequest(new string('a', 201), null));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

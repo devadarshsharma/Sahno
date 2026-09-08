@@ -39,6 +39,10 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasDefaultValue(false)
             .IsRequired();
 
+        builder.Property(user => user.PhoneNumber)
+            .HasColumnName("phone_number")
+            .HasMaxLength(40);
+
         // Derived from the stored name and email; never persisted.
         builder.Ignore(user => user.PresentableDisplayName);
 

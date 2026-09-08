@@ -1,7 +1,8 @@
 namespace Sahno.Contracts.Users;
 
 /// <summary>
-/// Sets the person's own display name (D-046 — required, and the only
-/// identity detail onboarding collects).
+/// Updates the caller's own account. A null field is left as it is; a blank
+/// <see cref="PhoneNumber"/> clears it. The display name is required by D-046
+/// and so cannot be cleared, only replaced.
 /// </summary>
-public sealed record UpdateMeRequest(string DisplayName);
+public sealed record UpdateMeRequest(string? DisplayName, string? PhoneNumber);

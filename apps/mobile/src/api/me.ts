@@ -9,6 +9,8 @@ export type MeResponse = {
    * name, which the API reports as absent rather than presenting it.
    */
   displayName: string | null;
+  /** Optional and private by default (D-046). */
+  phoneNumber: string | null;
   createdAtUtc: string;
 };
 
