@@ -84,11 +84,11 @@ export async function postAuthorizedJson<T>(
   return data;
 }
 
-/** POST/DELETE where no response body is expected. */
+/** POST/PATCH/DELETE where no response body is expected. */
 export async function sendAuthorized(
   path: string,
   accessToken: string,
-  method: 'POST' | 'DELETE',
+  method: 'POST' | 'PATCH' | 'DELETE',
   signal?: AbortSignal,
 ): Promise<void> {
   await authorizedRequest(path, accessToken, { method, signal });
@@ -113,4 +113,15 @@ export async function patchAuthorizedJson<T>(
   }
 
   return data;
+}
+
+/** POST/PATCH with a body where no response body is expected. */
+export async function sendAuthorizedJson(
+  path: string,
+  accessToken: string,
+  method: 'POST' | 'PATCH',
+  body: unknown,
+  signal?: AbortSignal,
+): Promise<void> {
+  await authorizedRequest(path, accessToken, { method, body, signal });
 }
