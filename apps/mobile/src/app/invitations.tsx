@@ -1,18 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { Share, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import {
   createInvitation,
   listInvitations,
   revokeInvitation,
+  type Invitation,
 } from '@/api/organisations';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { useActiveOrg } from '@/hooks/use-organisations';
+import { shareInvite } from '@/lib/invite';
 import { useSession } from '@/providers/auth-provider';
 import { spacing } from '@/theme';
 
-/** Owner/Admin invite management: create a shareable link, list, revoke (D-045, D-077). */
+/**
+ * Owner/Admin invite management (D-045, D-077). Codes are multi-use until
+ * revoked, so every active code can be shared again as often as needed —
+ * dismissing the share sheet loses nothing.
+ */
 export default function Invitations() {
   const router = useRouter();
   const session = useSession();
@@ -37,13 +43,7 @@ export default function Invitations() {
       await queryClient.invalidateQueries({
         queryKey: ['org', active!.id, 'invitations'],
       });
-      await Share.share({
-        message:
-          `You're invited to join ${active!.name} on Sahno!\n\n` +
-          `1. Install the Sahno app and sign in\n` +
-          `2. Choose "I have an invite code"\n` +
-          `3. Enter this code: ${invitation.token}`,
-      });
+      await shareInvite(active!.name, invitation.token);
     },
   });
 
@@ -65,19 +65,37 @@ export default function Invitations() {
   const activeInvitations = (invitationsQuery.data ?? []).filter(
     (invitation) => invitation.revokedAtUtc === null,
   );
+  const hasCodes = activeInvitations.length > 0;
+
+  function confirmRevoke(invitation: Invitation) {
+    Alert.alert(
+      'Revoke this code?',
+      'Anyone still holding it will not be able to join. People who already joined stay members.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Revoke',
+          style: 'destructive',
+          onPress: () => revokeMutation.mutate(invitation.id),
+        },
+      ],
+    );
+  }
 
   return (
     <Screen scroll>
       <View style={styles.header}>
         <Text variant="title">Invite members</Text>
         <Text color="secondary">
-          Share a link code for {active.name}. Anyone with an active code joins
-          as a Member — codes work until you revoke them.
+          Share a code for {active.name}. Anyone with an active code joins as a
+          Member, and a code keeps working until you revoke it — so you can
+          share the same one with as many people as you like.
         </Text>
       </View>
 
       <Button
-        label="Create and share an invite code"
+        label={hasCodes ? 'Create another code' : 'Create an invite code'}
+        variant={hasCodes ? 'secondary' : 'primary'}
         onPress={() => createMutation.mutate()}
         loading={createMutation.isPending}
       />
@@ -93,26 +111,31 @@ export default function Invitations() {
           <Text color="muted" variant="bodySmall">
             Loading…
           </Text>
-        ) : activeInvitations.length === 0 ? (
+        ) : !hasCodes ? (
           <Text color="muted" variant="bodySmall">
             No active invite codes yet.
           </Text>
         ) : (
           activeInvitations.map((invitation) => (
             <Card key={invitation.id} style={styles.inviteCard}>
-              <View style={styles.inviteRow}>
-                <View style={styles.inviteText}>
-                  <Text variant="label">{invitation.token}</Text>
-                  <Text variant="caption" color="muted">
-                    Created{' '}
-                    {new Date(invitation.createdAtUtc).toLocaleDateString()}
-                  </Text>
-                </View>
+              <Text variant="subheading" selectable style={styles.token}>
+                {invitation.token}
+              </Text>
+              <Text variant="caption" color="muted">
+                Created {new Date(invitation.createdAtUtc).toLocaleDateString()}
+              </Text>
+              <View style={styles.inviteActions}>
+                <Button
+                  label="Share"
+                  onPress={() => shareInvite(active.name, invitation.token)}
+                  style={styles.action}
+                />
                 <Button
                   label="Revoke"
                   variant="secondary"
-                  onPress={() => revokeMutation.mutate(invitation.id)}
+                  onPress={() => confirmRevoke(invitation)}
                   disabled={revokeMutation.isPending}
+                  style={styles.action}
                 />
               </View>
             </Card>
@@ -140,14 +163,17 @@ const styles = StyleSheet.create({
   },
   inviteCard: {
     paddingVertical: spacing.md,
+    gap: spacing.xs,
   },
-  inviteRow: {
+  token: {
+    letterSpacing: 1,
+  },
+  inviteActions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
   },
-  inviteText: {
+  action: {
     flex: 1,
-    gap: 2,
   },
 });

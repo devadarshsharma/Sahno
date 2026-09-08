@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Pressable, Share, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { z } from 'zod';
 
 import {
@@ -12,6 +12,7 @@ import {
   type Organisation,
 } from '@/api/organisations';
 import { Button, Card, Screen, Text, TextInput } from '@/components/ui';
+import { shareInvite } from '@/lib/invite';
 import { useSession } from '@/providers/auth-provider';
 import { useActiveOrganisation } from '@/stores/active-organisation';
 import { colors, radii, spacing } from '@/theme';
@@ -84,7 +85,7 @@ export default function CreateOrganisation() {
     }
   });
 
-  async function shareInvite() {
+  async function shareFirstInvite() {
     if (!created) {
       return;
     }
@@ -92,13 +93,9 @@ export default function CreateOrganisation() {
     try {
       const accessToken = await session.getAccessToken();
       const invitation = await createInvitation(accessToken, created.id);
-      await Share.share({
-        message:
-          `You're invited to join ${created.name} on Sahno!\n\n` +
-          `1. Install the Sahno app and sign in\n` +
-          `2. Choose "Join an organisation"\n` +
-          `3. Enter this code: ${invitation.token}`,
-      });
+      // Dismissing the share sheet is fine: the code stays active and can be
+      // shared again from Invite members.
+      await shareInvite(created.name, invitation.token);
     } catch {
       setSubmitError('Could not create the invite. You can invite from Home.');
     } finally {
@@ -121,7 +118,7 @@ export default function CreateOrganisation() {
           <View style={styles.successActions}>
             <Button
               label="Share an invite"
-              onPress={shareInvite}
+              onPress={shareFirstInvite}
               loading={sharing}
             />
             <Button
