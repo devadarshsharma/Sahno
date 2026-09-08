@@ -11,10 +11,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import type { Member } from '@/api/members';
 import { dismissSetupChecklist, listInvitations } from '@/api/organisations';
 import { SahnoSymbol } from '@/components/brand';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { firstNameOf, useMe, useNeedsDisplayName } from '@/hooks/use-me';
+import { useMembers } from '@/hooks/use-members';
 import { useActiveOrg } from '@/hooks/use-organisations';
 import { useSession } from '@/providers/auth-provider';
 import { colors, fontFamilies, radii, shadows, spacing } from '@/theme';
@@ -40,6 +42,7 @@ export default function Index() {
 
   const meQuery = useMe();
   const needsDisplayName = useNeedsDisplayName();
+  const membersQuery = useMembers();
 
   const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
 
@@ -100,6 +103,7 @@ export default function Index() {
   const firstName = firstNameOf(meQuery.data);
   function refreshAll() {
     refetch();
+    membersQuery.refetch();
     if (invitationsQuery.isSuccess || invitationsQuery.isError) {
       invitationsQuery.refetch();
     }
@@ -117,7 +121,7 @@ export default function Index() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={isFetching || invitationsQuery.isRefetching}
+            refreshing={isFetching || membersQuery.isRefetching}
             onRefresh={refreshAll}
             tintColor={colors.offWhite}
             colors={[colors.tealText]}
@@ -217,6 +221,11 @@ export default function Index() {
                   missing details, and follow-ups will appear here.
                 </Text>
               </View>
+
+              <RecentJoins
+                members={membersQuery.data ?? []}
+                onSeeAll={() => router.push('/(tabs)/people')}
+              />
 
               <HomeSection title="Upcoming bookings">
                 No bookings yet — enquiries and bookings arrive in an upcoming
@@ -479,3 +488,68 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+
+/**
+ * Who has joined lately (Slice 10's "recent activity", D-042). Until push
+ * exists, an organiser has no way of learning that an invite was accepted, so
+ * the fact is surfaced where they already look rather than announced.
+ */
+function RecentJoins({
+  members,
+  onSeeAll,
+}: {
+  members: Member[];
+  onSeeAll: () => void;
+}) {
+  const cutoff = Date.now() - RECENT_JOIN_WINDOW_MS;
+
+  const recent = members
+    .filter((member) => !member.isYou)
+    .filter((member) => Date.parse(member.joinedAtUtc) >= cutoff)
+    .sort((a, b) => Date.parse(b.joinedAtUtc) - Date.parse(a.joinedAtUtc))
+    .slice(0, 3);
+
+  if (recent.length === 0) {
+    return null;
+  }
+
+  return (
+    <View style={styles.attention}>
+      <View style={styles.attentionHeader}>
+        <View style={styles.attentionIcon}>
+          <Text style={styles.attentionEmoji}>👋</Text>
+        </View>
+        <Text variant="subheading">Recently joined</Text>
+      </View>
+
+      {recent.map((member) => (
+        <Text key={member.membershipId} variant="bodySmall">
+          {member.displayName ?? 'Someone'}
+          <Text color="muted" variant="bodySmall">
+            {' · '}
+            {joinedLabel(member.joinedAtUtc)}
+          </Text>
+        </Text>
+      ))}
+
+      <Button label="See everyone" variant="ghost" onPress={onSeeAll} />
+    </View>
+  );
+}
+
+/** How long a join stays worth pointing out on Home. */
+const RECENT_JOIN_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+
+function joinedLabel(joinedAtUtc: string): string {
+  const days = Math.floor(
+    (Date.now() - Date.parse(joinedAtUtc)) / (24 * 60 * 60 * 1000),
+  );
+
+  if (days <= 0) {
+    return 'joined today';
+  }
+  if (days === 1) {
+    return 'joined yesterday';
+  }
+  return `joined ${days} days ago`;
+}
