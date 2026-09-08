@@ -12,6 +12,7 @@ export type Organisation = {
   logoUrl: string | null;
   role: 'Owner' | 'Admin' | 'Member';
   showSetupChecklist: boolean;
+  memberCount: number;
 };
 
 export type Invitation = {

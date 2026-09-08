@@ -54,13 +54,32 @@ public sealed class MembershipStore(SahnoDbContext dbContext) : IMembershipStore
                 dbContext.Set<Organisation>().AsNoTracking(),
                 membership => membership.OrganisationId,
                 organisation => organisation.Id,
-                (membership, organisation) =>
-                    new OrganisationMembership(organisation, membership))
+                (membership, organisation) => new
+                {
+                    membership,
+                    organisation,
+                    memberCount = dbContext.Set<Membership>().Count(
+                        other => other.OrganisationId == organisation.Id),
+                })
             .ToListAsync(cancellationToken);
 
         return rows
-            .OrderBy(row => row.Membership.JoinedAtUtc)
+            .OrderBy(row => row.membership.JoinedAtUtc)
+            .Select(row => new OrganisationMembership(
+                row.organisation,
+                row.membership,
+                row.memberCount))
             .ToList();
+    }
+
+    public Task<int> CountForOrganisationAsync(
+        Guid organisationId,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.Set<Membership>()
+            .CountAsync(
+                membership => membership.OrganisationId == organisationId,
+                cancellationToken);
     }
 
     public async Task<bool> AddAsync(

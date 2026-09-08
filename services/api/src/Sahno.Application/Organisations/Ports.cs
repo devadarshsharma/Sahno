@@ -5,7 +5,8 @@ namespace Sahno.Application.Organisations;
 /// <summary>An organisation together with the caller's role in it.</summary>
 public sealed record OrganisationMembership(
     Organisation Organisation,
-    Membership Membership);
+    Membership Membership,
+    int MemberCount = 1);
 
 public interface IOrganisationStore
 {
@@ -27,6 +28,10 @@ public interface IMembershipStore
 
     Task<IReadOnlyList<OrganisationMembership>> ListForUserAsync(
         Guid userId,
+        CancellationToken cancellationToken);
+
+    Task<int> CountForOrganisationAsync(
+        Guid organisationId,
         CancellationToken cancellationToken);
 
     /// <summary>

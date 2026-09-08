@@ -238,7 +238,8 @@ public sealed class OrganisationsController(
             row.Membership.Role.ToString(),
             ShowSetupChecklist:
                 row.Membership.Role == MembershipRole.Owner
-                && row.Membership.SetupChecklistDismissedAtUtc is null);
+                && row.Membership.SetupChecklistDismissedAtUtc is null,
+            row.MemberCount);
     }
 
     private static InvitationResponse ToResponse(Invitation invitation)

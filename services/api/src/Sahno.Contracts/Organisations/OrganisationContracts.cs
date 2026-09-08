@@ -12,7 +12,8 @@ public sealed record OrganisationResponse(
     string TimeZoneId,
     string? LogoUrl,
     string Role,
-    bool ShowSetupChecklist);
+    bool ShowSetupChecklist,
+    int MemberCount);
 
 public sealed record CreateInvitationRequest(DateTimeOffset? ExpiresAtUtc);
 

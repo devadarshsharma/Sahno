@@ -47,8 +47,7 @@ Exact production HEX, RGB, HSL, and platform colour tokens are not yet locked. T
 
 ### To validate
 
-- Test Bricolage Grotesque Regular/400 for body and dense operational UI.
-- If it is tiring or unclear at smaller sizes, pair it with a quieter UI family such as Instrument Sans.
+- Bricolage Grotesque Regular/400 was tried for body and dense operational UI and judged too characterful there (31 Aug 2026). The app now pairs **Instrument Sans** (Regular/Medium) for body, labels, and captions, keeping Bricolage Grotesque for headings, buttons, wordmark, and tagline. The pairing is implemented as a candidate and still requires on-device validation before being locked.
 - Verify real font rendering, line height, truncation, numerals, and Android/iOS differences inside Expo.
 - Confirm commercial-use licensing and package the chosen font files with documented attribution where required.
 

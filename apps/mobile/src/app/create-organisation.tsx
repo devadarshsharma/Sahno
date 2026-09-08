@@ -3,10 +3,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, Share, StyleSheet, View } from 'react-native';
 import { z } from 'zod';
 
-import { createOrganisation } from '@/api/organisations';
+import {
+  createInvitation,
+  createOrganisation,
+  type Organisation,
+} from '@/api/organisations';
 import { Button, Card, Screen, Text, TextInput } from '@/components/ui';
 import { useSession } from '@/providers/auth-provider';
 import { useActiveOrganisation } from '@/stores/active-organisation';
@@ -40,6 +44,8 @@ export default function CreateOrganisation() {
   const queryClient = useQueryClient();
   const { setActiveOrganisation } = useActiveOrganisation();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [created, setCreated] = useState<Organisation | null>(null);
+  const [sharing, setSharing] = useState(false);
 
   const detectedTimeZone =
     Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
@@ -63,20 +69,77 @@ export default function CreateOrganisation() {
         timeZoneId: values.timeZoneId,
       });
       setActiveOrganisation(organisation.id);
-      // Refetch (not just invalidate) so home sees the new organisation
-      // immediately — the list query is inactive while this screen is open,
-      // and navigating against the stale empty cache bounced back here.
+      // Refetch (not just invalidate): the list query is inactive while this
+      // screen is open, and navigating against a stale empty cache would
+      // bounce home back to onboarding.
       await queryClient.refetchQueries({
         queryKey: ['organisations'],
         type: 'all',
       });
-      router.dismissTo('/');
+      setCreated(organisation);
     } catch {
       setSubmitError(
         'We could not create the organisation. Check your connection and try again.',
       );
     }
   });
+
+  async function shareInvite() {
+    if (!created) {
+      return;
+    }
+    setSharing(true);
+    try {
+      const accessToken = await session.getAccessToken();
+      const invitation = await createInvitation(accessToken, created.id);
+      await Share.share({
+        message:
+          `You're invited to join ${created.name} on Sahno!\n\n` +
+          `1. Install the Sahno app and sign in\n` +
+          `2. Choose "Join an organisation"\n` +
+          `3. Enter this code: ${invitation.token}`,
+      });
+    } catch {
+      setSubmitError('Could not create the invite. You can invite from Home.');
+    } finally {
+      setSharing(false);
+    }
+  }
+
+  if (created) {
+    return (
+      <Screen>
+        <View style={styles.success}>
+          <Text style={styles.successEmoji}>🎉</Text>
+          <Text variant="title" style={styles.centeredText}>
+            {created.name} is ready
+          </Text>
+          <Text color="secondary" style={styles.centeredText}>
+            You are its Owner. Invite your members now, or set things up later
+            from Home.
+          </Text>
+          <View style={styles.successActions}>
+            <Button
+              label="Share an invite"
+              onPress={shareInvite}
+              loading={sharing}
+            />
+            <Button
+              label="Set up later"
+              variant="ghost"
+              onPress={() => router.dismissTo('/(tabs)')}
+              disabled={sharing}
+            />
+          </View>
+          {submitError ? (
+            <Text color="error" variant="bodySmall" style={styles.centeredText}>
+              {submitError}
+            </Text>
+          ) : null}
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen scroll>
@@ -196,5 +259,22 @@ const styles = StyleSheet.create({
   chipSelected: {
     backgroundColor: colors.interactive.primary,
     borderColor: colors.interactive.primary,
+  },
+  success: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
+  successEmoji: {
+    fontSize: 56,
+    lineHeight: 68,
+    textAlign: 'center',
+  },
+  successActions: {
+    gap: spacing.md,
+    marginTop: spacing.lg,
+  },
+  centeredText: {
+    textAlign: 'center',
   },
 });

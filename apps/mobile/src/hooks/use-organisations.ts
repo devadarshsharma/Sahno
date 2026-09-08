@@ -26,6 +26,8 @@ export function useActiveOrg(): {
   active: Organisation | null;
   isPending: boolean;
   isFetching: boolean;
+  isError: boolean;
+  refetch: () => void;
   switchTo: (organisationId: string) => void;
 } {
   const organisationsQuery = useOrganisations();
@@ -44,6 +46,8 @@ export function useActiveOrg(): {
     active,
     isPending: organisationsQuery.isPending,
     isFetching: organisationsQuery.isFetching,
+    isError: organisationsQuery.isError,
+    refetch: organisationsQuery.refetch,
     switchTo: (organisationId: string) => {
       setActiveOrganisation(organisationId);
       // Switching strictly changes the data context (D-044): drop every

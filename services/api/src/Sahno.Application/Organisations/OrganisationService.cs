@@ -58,7 +58,11 @@ public sealed class OrganisationService(
             return null;
         }
 
-        return new OrganisationMembership(organisation, membership);
+        var memberCount = await memberships.CountForOrganisationAsync(
+            organisationId,
+            cancellationToken);
+
+        return new OrganisationMembership(organisation, membership, memberCount);
     }
 
     public async Task<bool> DismissSetupChecklistAsync(

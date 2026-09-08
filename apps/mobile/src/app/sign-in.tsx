@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     backgroundColor: dark.field,
     color: dark.text,
     paddingHorizontal: spacing.lg,
-    fontFamily: fontFamilies.regular,
+    fontFamily: fontFamilies.uiRegular,
     fontSize: 16,
   },
   inputError: {

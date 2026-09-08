@@ -12,7 +12,7 @@ import { ApiError } from '@/api/client';
 import { Button, Card, Screen, Text, TextInput } from '@/components/ui';
 import { useSession } from '@/providers/auth-provider';
 import { useActiveOrganisation } from '@/stores/active-organisation';
-import { spacing } from '@/theme';
+import { colors, spacing } from '@/theme';
 
 /**
  * Join with an invite code (D-045, D-056): the organisation's identity is
@@ -28,6 +28,8 @@ export default function Join() {
   const [preview, setPreview] = useState<InvitationPreview | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [joinedName, setJoinedName] = useState<string | null>(null);
+  const [showCodeHelp, setShowCodeHelp] = useState(false);
 
   async function handlePreview() {
     setBusy(true);
@@ -58,19 +60,43 @@ export default function Join() {
         queryKey: ['organisations'],
         type: 'all',
       });
-      router.dismissTo('/');
+      setJoinedName(joined.organisationName);
+      setBusy(false);
     } catch {
       setError('Joining did not work. Please try again.');
       setBusy(false);
     }
   }
 
+  if (joinedName) {
+    return (
+      <Screen>
+        <View style={styles.success}>
+          <Text style={styles.successEmoji}>🎉</Text>
+          <Text variant="title" style={styles.centeredText}>
+            You&apos;re in!
+          </Text>
+          <Text color="secondary" style={styles.centeredText}>
+            Welcome to {joinedName}. Your events, tasks, and updates will show
+            up on Home.
+          </Text>
+          <Button label="Go to Home" onPress={() => router.dismissTo('/(tabs)')} />
+        </View>
+      </Screen>
+    );
+  }
+
   return (
     <Screen scroll>
       <View style={styles.header}>
-        <Text variant="title">Join an organisation</Text>
-        <Text color="secondary">
-          Paste the invite code your organiser shared with you.
+        <View style={styles.headerIllustration}>
+          <Text style={styles.headerEmoji}>🔒</Text>
+        </View>
+        <Text variant="title" style={styles.centeredText}>
+          Join an organisation
+        </Text>
+        <Text color="secondary" variant="bodySmall" style={styles.centeredText}>
+          Ask your organiser for the invite code to join their organisation.
         </Text>
       </View>
 
@@ -115,6 +141,18 @@ export default function Join() {
         )}
 
         <Button
+          label="How do I get an invite code?"
+          variant="ghost"
+          onPress={() => setShowCodeHelp((value) => !value)}
+          disabled={busy}
+        />
+        {showCodeHelp ? (
+          <Text variant="bodySmall" color="secondary">
+            Ask your organiser — they can create and share an invite code from
+            Sahno under Invite members. Codes are private to your group.
+          </Text>
+        ) : null}
+        <Button
           label="Back"
           variant="ghost"
           onPress={() => router.back()}
@@ -127,8 +165,22 @@ export default function Join() {
 
 const styles = StyleSheet.create({
   header: {
+    alignItems: 'center',
     gap: spacing.sm,
     marginBottom: spacing.xl,
+  },
+  headerIllustration: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: colors.tealSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  headerEmoji: {
+    fontSize: 40,
+    lineHeight: 50,
   },
   card: {
     gap: spacing.md,
@@ -136,5 +188,18 @@ const styles = StyleSheet.create({
   previewBox: {
     gap: spacing.xs,
     paddingVertical: spacing.sm,
+  },
+  success: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
+  successEmoji: {
+    fontSize: 56,
+    lineHeight: 68,
+    textAlign: 'center',
+  },
+  centeredText: {
+    textAlign: 'center',
   },
 });
