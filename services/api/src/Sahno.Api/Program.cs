@@ -93,6 +93,14 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
+// Authorised responses must never be cached by any intermediary or client
+// HTTP layer — account data changes with the bearer token, not the URL.
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.CacheControl = "no-store";
+    await next();
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 
