@@ -8,6 +8,16 @@ public sealed record OrganisationMembership(
     Membership Membership,
     int MemberCount = 1);
 
+/// <summary>
+/// A directory row: one membership with the identity details from its account.
+/// Contact details travel with the row so the caller's own role can decide
+/// what to reveal (D-018); they are never revealed by the store itself.
+/// </summary>
+public sealed record OrganisationMember(
+    Membership Membership,
+    string? DisplayName,
+    string? Email);
+
 public interface IOrganisationStore
 {
     Task<Organisation?> FindByIdAsync(Guid id, CancellationToken cancellationToken);
@@ -26,8 +36,19 @@ public interface IMembershipStore
         Guid userId,
         CancellationToken cancellationToken);
 
+    /// <summary>One membership of an organisation, addressed by membership id.</summary>
+    Task<Membership?> FindByIdAsync(
+        Guid organisationId,
+        Guid membershipId,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<OrganisationMembership>> ListForUserAsync(
         Guid userId,
+        CancellationToken cancellationToken);
+
+    /// <summary>The member directory for one organisation, oldest first.</summary>
+    Task<IReadOnlyList<OrganisationMember>> ListForOrganisationAsync(
+        Guid organisationId,
         CancellationToken cancellationToken);
 
     Task<int> CountForOrganisationAsync(
@@ -42,6 +63,19 @@ public interface IMembershipStore
     Task<bool> AddAsync(Membership membership, CancellationToken cancellationToken);
 
     Task SaveAsync(Membership membership, CancellationToken cancellationToken);
+
+    Task RemoveAsync(Membership membership, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Persists both sides of an ownership transfer. The outgoing Owner is
+    /// demoted before the incoming Owner is promoted, so the single-Owner
+    /// index (D-013) is never transiently violated, and both moves land in one
+    /// transaction so the organisation cannot be left without an Owner.
+    /// </summary>
+    Task TransferOwnershipAsync(
+        Membership outgoingOwner,
+        Membership incomingOwner,
+        CancellationToken cancellationToken);
 }
 
 public interface IInvitationStore

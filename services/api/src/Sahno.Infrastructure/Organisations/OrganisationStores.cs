@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Sahno.Application.Organisations;
 using Sahno.Domain.Organisations;
+using Sahno.Domain.Users;
 using Sahno.Infrastructure.Persistence;
 
 namespace Sahno.Infrastructure.Organisations;
@@ -80,6 +81,93 @@ public sealed class MembershipStore(SahnoDbContext dbContext) : IMembershipStore
             .CountAsync(
                 membership => membership.OrganisationId == organisationId,
                 cancellationToken);
+    }
+
+    public Task<Membership?> FindByIdAsync(
+        Guid organisationId,
+        Guid membershipId,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.Set<Membership>()
+            .SingleOrDefaultAsync(
+                membership =>
+                    membership.Id == membershipId
+                    && membership.OrganisationId == organisationId,
+                cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<OrganisationMember>> ListForOrganisationAsync(
+        Guid organisationId,
+        CancellationToken cancellationToken)
+    {
+        var rows = await dbContext.Set<Membership>()
+            .AsNoTracking()
+            .Where(membership => membership.OrganisationId == organisationId)
+            .Join(
+                dbContext.Set<User>().AsNoTracking(),
+                membership => membership.UserId,
+                user => user.Id,
+                (membership, user) => new
+                {
+                    membership,
+                    user.DisplayName,
+                    user.Email,
+                })
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .OrderBy(row => row.membership.JoinedAtUtc)
+            .Select(row => new OrganisationMember(
+                row.membership,
+                row.DisplayName,
+                row.Email))
+            .ToList();
+    }
+
+    public Task RemoveAsync(Membership membership, CancellationToken cancellationToken)
+    {
+        dbContext.Set<Membership>().Remove(membership);
+        return dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task TransferOwnershipAsync(
+        Membership outgoingOwner,
+        Membership incomingOwner,
+        CancellationToken cancellationToken)
+    {
+        // The single-Owner index (D-013) is checked per statement, so the two
+        // rows cannot move in one SaveChanges: the organisation would briefly
+        // hold two Owners. They are written as ordered statements instead —
+        // demote, then promote — inside one transaction, so a failure between
+        // them leaves the original Owner in place rather than none at all.
+        //
+        // Written directly rather than through the change tracker: marking one
+        // side unmodified to hold it back would revert the very change being
+        // saved, since clearing IsModified restores the original value.
+        await using var transaction =
+            await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        await dbContext.Set<Membership>()
+            .Where(membership => membership.Id == outgoingOwner.Id)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(membership => membership.Role, outgoingOwner.Role)
+                    .SetProperty(
+                        membership => membership.CanManageFinances,
+                        outgoingOwner.CanManageFinances),
+                cancellationToken);
+
+        await dbContext.Set<Membership>()
+            .Where(membership => membership.Id == incomingOwner.Id)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(membership => membership.Role, incomingOwner.Role)
+                    .SetProperty(
+                        membership => membership.CanManageFinances,
+                        incomingOwner.CanManageFinances),
+                cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task<bool> AddAsync(
