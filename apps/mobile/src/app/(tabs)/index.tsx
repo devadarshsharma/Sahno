@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { dismissSetupChecklist, listInvitations } from '@/api/organisations';
 import { SahnoSymbol } from '@/components/brand';
 import { Button, Card, Screen, Text } from '@/components/ui';
+import { firstNameOf, useMe, useNeedsDisplayName } from '@/hooks/use-me';
 import { useActiveOrg } from '@/hooks/use-organisations';
 import { useSession } from '@/providers/auth-provider';
 import { colors, fontFamilies, radii, shadows, spacing } from '@/theme';
@@ -35,6 +36,9 @@ export default function Index() {
   const insets = useSafeAreaInsets();
   const { organisations, active, isPending, isFetching, isError, refetch } =
     useActiveOrg();
+
+  const meQuery = useMe();
+  const needsDisplayName = useNeedsDisplayName();
 
   const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
 
@@ -82,11 +86,17 @@ export default function Index() {
     );
   }
 
+  // Existing accounts predating the name step, and anyone whose only sign-in
+  // method supplied no usable name (D-046).
+  if (needsDisplayName) {
+    return <Redirect href="/set-name" />;
+  }
+
   if (organisations.length === 0) {
     return <Redirect href="/onboarding" />;
   }
 
-  const firstName = session.user?.name?.split(' ')[0];
+  const firstName = firstNameOf(meQuery.data);
   const activeInvites = (invitationsQuery.data ?? []).filter(
     (invitation) => invitation.revokedAtUtc === null,
   ).length;

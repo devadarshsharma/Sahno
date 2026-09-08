@@ -34,6 +34,14 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasColumnName("display_name")
             .HasMaxLength(200);
 
+        builder.Property(user => user.DisplayNameSetByUser)
+            .HasColumnName("display_name_set_by_user")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        // Derived from the stored name and email; never persisted.
+        builder.Ignore(user => user.PresentableDisplayName);
+
         builder.Property(user => user.CreatedAtUtc)
             .HasColumnName("created_at_utc")
             .IsRequired();

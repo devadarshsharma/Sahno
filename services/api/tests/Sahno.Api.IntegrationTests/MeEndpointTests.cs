@@ -82,6 +82,129 @@ public sealed class MeEndpointTests(SahnoApiFactory factory)
         Assert.Null(payload.DisplayName);
     }
 
+    /// <summary>
+    /// The passwordless email connection sets the provider "name" claim to the
+    /// email address itself. That is not a name, and showing it would expose an
+    /// address D-018 keeps private, so it is reported as no name at all.
+    /// </summary>
+    [Fact]
+    public async Task GetMe_WhenProviderNameEchoesTheEmail_ReportsNoDisplayName()
+    {
+        using var client = CreateAuthenticatedClient(
+            "email|echoes-address",
+            email: "echo@example.com",
+            name: "echo@example.com");
+
+        var payload = await client.GetFromJsonAsync<MeResponse>("/api/me");
+
+        Assert.NotNull(payload);
+        Assert.Equal("echo@example.com", payload.Email);
+        Assert.Null(payload.DisplayName);
+    }
+
+    [Fact]
+    public async Task PatchMe_WithoutAuthentication_ReturnsUnauthorized()
+    {
+        using var client = factory.CreateClient();
+
+        var response = await client.PatchAsJsonAsync(
+            "/api/me",
+            new UpdateMeRequest("A Person"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PatchMe_SetsDisplayName()
+    {
+        using var client = CreateAuthenticatedClient(
+            "email|sets-name",
+            email: "sets@example.com",
+            name: "sets@example.com");
+
+        var response = await client.PatchAsJsonAsync(
+            "/api/me",
+            new UpdateMeRequest("  Adarsh Sharma  "));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<MeResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal("Adarsh Sharma", payload.DisplayName);
+
+        var reread = await client.GetFromJsonAsync<MeResponse>("/api/me");
+        Assert.NotNull(reread);
+        Assert.Equal("Adarsh Sharma", reread.DisplayName);
+    }
+
+    /// <summary>
+    /// Every login carries the provider hint again. Without precedence for the
+    /// chosen name, the next request would silently revert it to the email.
+    /// </summary>
+    [Fact]
+    public async Task PatchMe_ChosenName_SurvivesLaterLoginsCarryingTheProviderHint()
+    {
+        using var client = CreateAuthenticatedClient(
+            "email|keeps-chosen-name",
+            email: "keeps@example.com",
+            name: "keeps@example.com");
+
+        await client.PatchAsJsonAsync("/api/me", new UpdateMeRequest("Real Person"));
+
+        var afterNextLogin = await client.GetFromJsonAsync<MeResponse>("/api/me");
+
+        Assert.NotNull(afterNextLogin);
+        Assert.Equal("Real Person", afterNextLogin.DisplayName);
+    }
+
+    [Fact]
+    public async Task PatchMe_ChosenName_IsNotOverwrittenByAGenuineProviderName()
+    {
+        const string subject = "google-oauth2|keeps-chosen-over-provider";
+        using var initial = CreateAuthenticatedClient(
+            subject,
+            email: "chooser@example.com",
+            name: "Provider Name");
+
+        await initial.PatchAsJsonAsync("/api/me", new UpdateMeRequest("Chosen Name"));
+
+        using var later = CreateAuthenticatedClient(
+            subject,
+            email: "chooser@example.com",
+            name: "Renamed At Provider");
+
+        var payload = await later.GetFromJsonAsync<MeResponse>("/api/me");
+
+        Assert.NotNull(payload);
+        Assert.Equal("Chosen Name", payload.DisplayName);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task PatchMe_WithBlankName_ReturnsBadRequest(string displayName)
+    {
+        using var client = CreateAuthenticatedClient("email|blank-name");
+
+        var response = await client.PatchAsJsonAsync(
+            "/api/me",
+            new UpdateMeRequest(displayName));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PatchMe_WithOverlongName_ReturnsBadRequest()
+    {
+        using var client = CreateAuthenticatedClient("email|overlong-name");
+
+        var response = await client.PatchAsJsonAsync(
+            "/api/me",
+            new UpdateMeRequest(new string('a', 201)));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     private HttpClient CreateAuthenticatedClient(
         string subject,
         string? email = null,

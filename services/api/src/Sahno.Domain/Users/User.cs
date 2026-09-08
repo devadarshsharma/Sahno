@@ -20,12 +20,14 @@ public sealed class User
         string externalSubject,
         string? email,
         string? displayName,
+        bool displayNameSetByUser,
         DateTimeOffset createdAtUtc)
     {
         Id = id;
         ExternalSubject = externalSubject;
         Email = email;
         DisplayName = displayName;
+        DisplayNameSetByUser = displayNameSetByUser;
         CreatedAtUtc = createdAtUtc;
     }
 
@@ -37,11 +39,29 @@ public sealed class User
 
     public string? DisplayName { get; private set; }
 
+    /// <summary>
+    /// Whether <see cref="DisplayName"/> was chosen by the person rather than
+    /// taken from an identity-provider claim. A chosen name always outranks a
+    /// later provider hint (D-046).
+    /// </summary>
+    public bool DisplayNameSetByUser { get; private set; }
+
     public DateTimeOffset CreatedAtUtc { get; }
 
     /// <summary>
+    /// The display name that can actually be shown to people. The passwordless
+    /// email connection sets the provider's "name" claim to the email address
+    /// itself, which is not a name — and showing it would leak an address that
+    /// D-018 keeps private from other Members by default. Such a hint is
+    /// reported as absent so the person is asked for a real name instead.
+    /// </summary>
+    public string? PresentableDisplayName =>
+        DisplayNameSetByUser || !EchoesEmail(DisplayName) ? DisplayName : null;
+
+    /// <summary>
     /// Refreshes the optional profile hints from a newer login. Values are
-    /// only ever improved — an absent claim never erases a stored hint.
+    /// only ever improved — an absent claim never erases a stored hint, and a
+    /// provider hint never overwrites a name the person chose themselves.
     /// </summary>
     public bool RefreshProfileHints(string? email, string? displayName)
     {
@@ -54,6 +74,11 @@ public sealed class User
             changed = true;
         }
 
+        if (DisplayNameSetByUser)
+        {
+            return changed;
+        }
+
         var normalizedName = NormalizeOptional(displayName);
         if (normalizedName is not null && normalizedName != DisplayName)
         {
@@ -62,6 +87,24 @@ public sealed class User
         }
 
         return changed;
+    }
+
+    /// <summary>
+    /// Records the display name the person chose. From this point provider
+    /// hints no longer touch it.
+    /// </summary>
+    public void SetDisplayName(string displayName)
+    {
+        var normalized = NormalizeOptional(displayName);
+        if (normalized is null)
+        {
+            throw new ArgumentException(
+                "A display name is required.",
+                nameof(displayName));
+        }
+
+        DisplayName = normalized;
+        DisplayNameSetByUser = true;
     }
 
     public static User Create(
@@ -81,7 +124,15 @@ public sealed class User
             externalSubject,
             NormalizeOptional(email),
             NormalizeOptional(displayName),
+            displayNameSetByUser: false,
             DateTimeOffset.UtcNow);
+    }
+
+    private bool EchoesEmail(string? displayName)
+    {
+        return displayName is not null
+            && Email is not null
+            && string.Equals(displayName, Email, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? NormalizeOptional(string? value)

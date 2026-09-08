@@ -1,9 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
-import { getMe } from '@/api/me';
 import { Button, Card, Screen, Text } from '@/components/ui';
+import { useMe } from '@/hooks/use-me';
 import { useActiveOrg } from '@/hooks/use-organisations';
 import { useSession } from '@/providers/auth-provider';
 import { spacing } from '@/theme';
@@ -16,15 +15,7 @@ export default function More() {
   const router = useRouter();
   const session = useSession();
   const { active, organisations } = useActiveOrg();
-
-  const meQuery = useQuery({
-    queryKey: ['me'],
-    queryFn: async ({ signal }) => {
-      const accessToken = await session.getAccessToken();
-      return getMe(accessToken, signal);
-    },
-    enabled: session.status === 'authenticated',
-  });
+  const meQuery = useMe();
 
   const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
 
@@ -36,15 +27,19 @@ export default function More() {
 
       <Card style={styles.card}>
         <Text variant="subheading">Account</Text>
-        {session.user?.name ? <Text>{session.user.name}</Text> : null}
-        {session.user?.email ? (
-          <Text color="secondary">{session.user.email}</Text>
+        {/* The Sahno record, not the identity-provider claim: for email
+            sign-ins the provider's name is just the address again. */}
+        {meQuery.data?.displayName ? (
+          <Text>{meQuery.data.displayName}</Text>
         ) : null}
-        {meQuery.isSuccess ? (
-          <Text color="muted" variant="caption">
-            Sahno account {meQuery.data.userId}
-          </Text>
+        {meQuery.data?.email ? (
+          <Text color="secondary">{meQuery.data.email}</Text>
         ) : null}
+        <Button
+          label="Change your name"
+          variant="secondary"
+          onPress={() => router.push('/set-name')}
+        />
       </Card>
 
       <Card style={styles.card}>

@@ -50,6 +50,16 @@ Account deletion is separate from leaving an organisation, cancelling an organis
 
 Onboarding deliberately collects no legal names, dates of birth, or other travel-grade identity details. Those are collected just-in-time when a booking actually requires them, under D-076 in `DECISIONS.md`.
 
+## Display name
+
+Every account needs a display name before it can go further (D-046). Sahno's own record is the only source for it: the client never shows the identity provider's `name` claim, because the passwordless email connection sets that claim to the email address itself — not a name, and an address that D-018 keeps private from other Members by default.
+
+The API takes email and name from the namespaced claims added by the Auth0 post-login Action. While that Action is not populating them, `users.display_name` stays null for every account regardless of sign-in method, so everyone is asked to choose a name after signing in. Once the Action delivers a genuine name (Google and Apple both supply one), those people are no longer asked; a `name` claim that merely repeats the account email is reported as no name at all.
+
+A name the person chose always outranks a later provider hint: without that precedence, the next sign-in would carry the email-as-name claim again and silently revert it.
+
+The name is the only identity detail collected here. The remaining profile fields in D-046 are optional and arrive with the membership-directory slice.
+
 ## First-time branching
 
 ### Valid invitation

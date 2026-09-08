@@ -18,6 +18,7 @@ var connectionString = builder.Configuration.GetConnectionString("Sahno")
 builder.Services.AddControllers();
 builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddScoped<EnsureUserService>();
+builder.Services.AddScoped<UserProfileService>();
 builder.Services.AddScoped<OrganisationService>();
 builder.Services.AddScoped<InvitationService>();
 builder.Services.AddScoped<OrganisationAuthorizationService>();

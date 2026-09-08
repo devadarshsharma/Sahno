@@ -1,7 +1,7 @@
 import { environment } from '@/config/environment';
 
 type RequestOptions = {
-  method?: 'GET' | 'POST' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
   signal?: AbortSignal;
 };
@@ -92,4 +92,25 @@ export async function sendAuthorized(
   signal?: AbortSignal,
 ): Promise<void> {
   await authorizedRequest(path, accessToken, { method, signal });
+}
+
+/** PATCH with payload validation via a type guard. */
+export async function patchAuthorizedJson<T>(
+  path: string,
+  accessToken: string,
+  body: unknown,
+  isValid: (value: unknown) => value is T,
+  signal?: AbortSignal,
+): Promise<T> {
+  const data = await authorizedRequest(path, accessToken, {
+    method: 'PATCH',
+    body,
+    signal,
+  });
+
+  if (!isValid(data)) {
+    throw new Error(`Response from ${path} has an unexpected format.`);
+  }
+
+  return data;
 }

@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -6,6 +6,7 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 
 import { SahnoSymbol } from '@/components/brand';
 import { Button, Screen, Text } from '@/components/ui';
+import { firstNameOf, useMe, useNeedsDisplayName } from '@/hooks/use-me';
 import { useSession } from '@/providers/auth-provider';
 import { colors, fontFamilies, radii, shadows, spacing } from '@/theme';
 
@@ -18,7 +19,15 @@ export default function Onboarding() {
   const router = useRouter();
   const session = useSession();
   const [step, setStep] = useState<'welcome' | 'choose'>('welcome');
-  const firstName = session.user?.name?.split(' ')[0];
+  const meQuery = useMe();
+  const needsDisplayName = useNeedsDisplayName();
+  const firstName = firstNameOf(meQuery.data);
+
+  // A name comes before the welcome: D-046 requires one, and the greeting
+  // below is the first thing that uses it.
+  if (needsDisplayName) {
+    return <Redirect href="/set-name" />;
+  }
 
   if (step === 'welcome') {
     return (
