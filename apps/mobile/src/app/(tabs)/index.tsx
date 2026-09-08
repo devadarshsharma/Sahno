@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   View,
@@ -97,6 +98,13 @@ export default function Index() {
   }
 
   const firstName = firstNameOf(meQuery.data);
+  function refreshAll() {
+    refetch();
+    if (invitationsQuery.isSuccess || invitationsQuery.isError) {
+      invitationsQuery.refetch();
+    }
+  }
+
   const activeInvites = (invitationsQuery.data ?? []).filter(
     (invitation) => invitation.revokedAtUtc === null,
   ).length;
@@ -107,6 +115,14 @@ export default function Index() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching || invitationsQuery.isRefetching}
+            onRefresh={refreshAll}
+            tintColor={colors.offWhite}
+            colors={[colors.tealText]}
+          />
+        }
       >
         {/* Navy hero header. */}
         <View style={[styles.hero, { paddingTop: insets.top + spacing.md }]}>

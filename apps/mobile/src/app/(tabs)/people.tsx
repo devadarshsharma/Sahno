@@ -46,9 +46,14 @@ export default function People() {
   }
 
   const members = sortedForDisplay(membersQuery.data);
+  const refresh = () => membersQuery.refetch();
 
   return (
-    <Screen scroll>
+    <Screen
+      scroll
+      onRefresh={refresh}
+      refreshing={membersQuery.isRefetching}
+    >
       <View style={styles.header}>
         <Text variant="title">People</Text>
         <Text color="secondary" variant="bodySmall">

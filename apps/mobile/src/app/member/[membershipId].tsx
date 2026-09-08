@@ -70,7 +70,11 @@ export default function MemberDetail() {
   const canWriteNotes = canManageThem;
 
   return (
-    <Screen scroll>
+    <Screen
+      scroll
+      onRefresh={() => membersQuery.refetch()}
+      refreshing={membersQuery.isRefetching}
+    >
       <View style={styles.header}>
         <Text variant="title">{member.displayName ?? 'Member'}</Text>
         <Text color="secondary">

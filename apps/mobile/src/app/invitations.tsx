@@ -83,7 +83,11 @@ export default function Invitations() {
   }
 
   return (
-    <Screen scroll>
+    <Screen
+      scroll
+      onRefresh={() => invitationsQuery.refetch()}
+      refreshing={invitationsQuery.isRefetching}
+    >
       <View style={styles.header}>
         <Text variant="title">Invite members</Text>
         <Text color="secondary">
