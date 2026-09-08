@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Sahno.Api.Authentication;
 using Sahno.Api.Health;
+using Sahno.Application.Engagements;
 using Sahno.Application.Organisations;
 using Sahno.Application.Users;
 using Sahno.Infrastructure;
@@ -22,6 +23,7 @@ builder.Services.AddScoped<UserProfileService>();
 builder.Services.AddScoped<OrganisationService>();
 builder.Services.AddScoped<InvitationService>();
 builder.Services.AddScoped<MembershipService>();
+builder.Services.AddScoped<EngagementService>();
 builder.Services.AddScoped<OrganisationAuthorizationService>();
 builder.Services
     .AddHealthChecks()

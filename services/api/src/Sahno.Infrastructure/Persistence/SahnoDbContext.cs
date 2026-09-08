@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sahno.Domain.Engagements;
 using Sahno.Domain.Organisations;
 using Sahno.Domain.Users;
 
@@ -14,6 +15,11 @@ public sealed class SahnoDbContext(DbContextOptions<SahnoDbContext> options)
     public DbSet<Membership> Memberships => Set<Membership>();
 
     public DbSet<Invitation> Invitations => Set<Invitation>();
+
+    public DbSet<Engagement> Engagements => Set<Engagement>();
+
+    public DbSet<EngagementActivity> EngagementActivities =>
+        Set<EngagementActivity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
