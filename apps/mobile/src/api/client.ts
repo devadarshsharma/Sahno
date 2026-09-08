@@ -1,7 +1,7 @@
 import { environment } from '@/config/environment';
 
 type RequestOptions = {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   signal?: AbortSignal;
 };
@@ -115,11 +115,11 @@ export async function patchAuthorizedJson<T>(
   return data;
 }
 
-/** POST/PATCH with a body where no response body is expected. */
+/** POST/PUT/PATCH with a body where no response body is expected. */
 export async function sendAuthorizedJson(
   path: string,
   accessToken: string,
-  method: 'POST' | 'PATCH',
+  method: 'POST' | 'PUT' | 'PATCH',
   body: unknown,
   signal?: AbortSignal,
 ): Promise<void> {
