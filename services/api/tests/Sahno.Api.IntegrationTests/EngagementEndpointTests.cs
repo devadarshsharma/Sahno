@@ -336,15 +336,24 @@ public sealed class EngagementEndpointTests(SahnoApiFactory factory)
         Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
     }
 
+    /// <summary>
+    /// A Member's list is scoped to the engagements they are on, so one they
+    /// were never selected for is simply absent (D-020). Creating and moving
+    /// engagements stays organisers' work (D-019).
+    /// </summary>
     [Fact]
-    public async Task MembersCannotSeeOrCreateEngagements()
+    public async Task MembersSeeNoEngagementsTheyAreNotOn_AndCannotCreateOrMoveAny()
     {
         var org = await NewOrganisationAsync("member-blocked", withMember: true);
         var engagement = await NewDatedDraftAsync(org, "Organisers only");
 
-        Assert.Equal(
-            HttpStatusCode.Forbidden,
-            (await org.Member!.GetAsync(Engagements(org))).StatusCode);
+        var visible = await org.Member!.GetFromJsonAsync<List<EngagementResponse>>(
+            Engagements(org));
+        Assert.NotNull(visible);
+        Assert.Empty(visible);
+
+        var peek = await org.Member!.GetAsync($"{Engagements(org)}/{engagement.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, peek.StatusCode);
 
         var create = await org.Member!.PostAsJsonAsync(
             Engagements(org),

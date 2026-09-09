@@ -39,12 +39,9 @@ public sealed class EngagementsController(
             return NotFound();
         }
 
-        if (!OrganisationAuthorizationService.IsOrganiser(caller))
-        {
-            return Forbid();
-        }
-
-        var rows = await engagementService.ListAsync(organisationId, cancellationToken);
+        // Members see the engagements they are on the lineup for, and nothing
+        // else (D-020); organisers see everything.
+        var rows = await engagementService.ListVisibleAsync(caller, cancellationToken);
         return Ok(rows.Select(ToResponse).ToList());
     }
 
@@ -63,13 +60,8 @@ public sealed class EngagementsController(
             return NotFound();
         }
 
-        if (!OrganisationAuthorizationService.IsOrganiser(caller))
-        {
-            return Forbid();
-        }
-
-        var engagement = await engagementService.FindAsync(
-            organisationId,
+        var engagement = await engagementService.FindVisibleAsync(
+            caller,
             engagementId,
             cancellationToken);
 
@@ -242,6 +234,7 @@ public sealed class EngagementsController(
             engagementId,
             target,
             request.Reason,
+            request.AcknowledgeOutstanding,
             cancellationToken);
 
         return FromResult(result);
@@ -300,6 +293,15 @@ public sealed class EngagementsController(
             EngagementResult.Success => NoContent(),
             EngagementResult.NotFound => NotFound(),
             EngagementResult.Forbidden => Forbid(),
+            EngagementResult.OutstandingAcknowledgementRequired => Conflict(
+                new ProblemDetails
+                {
+                    Title = "Availability is still outstanding",
+                    Detail =
+                        "Some selected members have not answered yet. Confirm again "
+                        + "with acknowledgeOutstanding to record the booking anyway.",
+                    Status = StatusCodes.Status409Conflict,
+                }),
             _ => ValidationProblem("That change is not allowed for this engagement."),
         };
     }

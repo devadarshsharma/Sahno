@@ -21,6 +21,9 @@ public sealed class SahnoDbContext(DbContextOptions<SahnoDbContext> options)
     public DbSet<EngagementActivity> EngagementActivities =>
         Set<EngagementActivity>();
 
+    public DbSet<EngagementParticipant> EngagementParticipants =>
+        Set<EngagementParticipant>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(

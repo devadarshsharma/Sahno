@@ -16,6 +16,12 @@ public enum EngagementResult
 
     /// <summary>The lifecycle does not allow it, whoever asked.</summary>
     Invalid,
+
+    /// <summary>
+    /// Confirming while selected Members have not answered. Allowed, but only
+    /// once the organiser has said they know (D-029).
+    /// </summary>
+    OutstandingAcknowledgementRequired,
 }
 
 /// <summary>
@@ -27,13 +33,63 @@ public enum EngagementResult
 /// answers who may ask, and makes sure the history entry a change produces is
 /// saved with it.
 /// </summary>
-public sealed class EngagementService(IEngagementStore engagements)
+public sealed class EngagementService(
+    IEngagementStore engagements,
+    IEngagementParticipantStore participants)
 {
-    public Task<IReadOnlyList<Engagement>> ListAsync(
-        Guid organisationId,
+    /// <summary>
+    /// What this person may see. Organisers see everything the organisation
+    /// holds; a Member sees only the engagements they are currently on the
+    /// lineup for, so early enquiries and other lineups stay private (D-020).
+    /// </summary>
+    public async Task<IReadOnlyList<Engagement>> ListVisibleAsync(
+        Membership actor,
         CancellationToken cancellationToken)
     {
-        return engagements.ListForOrganisationAsync(organisationId, cancellationToken);
+        var all = await engagements.ListForOrganisationAsync(
+            actor.OrganisationId,
+            cancellationToken);
+
+        if (OrganisationAuthorizationService.IsOrganiser(actor))
+        {
+            return all;
+        }
+
+        var mine = await participants.ListEngagementIdsForUserAsync(
+            actor.OrganisationId,
+            actor.UserId,
+            cancellationToken);
+        var visible = mine.ToHashSet();
+
+        return all.Where(engagement => visible.Contains(engagement.Id)).ToList();
+    }
+
+    /// <summary>One engagement, if this person is allowed to see it.</summary>
+    public async Task<Engagement?> FindVisibleAsync(
+        Membership actor,
+        Guid engagementId,
+        CancellationToken cancellationToken)
+    {
+        var engagement = await engagements.FindByIdAsync(
+            actor.OrganisationId,
+            engagementId,
+            cancellationToken);
+        if (engagement is null)
+        {
+            return null;
+        }
+
+        if (OrganisationAuthorizationService.IsOrganiser(actor))
+        {
+            return engagement;
+        }
+
+        var participant = await participants.FindAsync(
+            engagementId,
+            actor.UserId,
+            cancellationToken);
+
+        return participant is { IsActive: true } ? engagement : null;
     }
 
     public Task<Engagement?> FindAsync(
@@ -142,12 +198,27 @@ public sealed class EngagementService(IEngagementStore engagements)
         Guid engagementId,
         EngagementStatus target,
         string? reason,
+        bool acknowledgeOutstanding,
         CancellationToken cancellationToken)
     {
         var engagement = await FindForOrganiserAsync(actor, engagementId, cancellationToken);
         if (engagement is null)
         {
             return MissingOrForbidden(actor);
+        }
+
+        // Confirming with people still to answer is allowed, but not by
+        // accident: the organiser has to say they know (D-029). The booking
+        // status is a fact about the customer, not about the lineup.
+        if (target == EngagementStatus.Confirmed && !acknowledgeOutstanding)
+        {
+            var outstanding = await participants.CountOutstandingAsync(
+                engagementId,
+                cancellationToken);
+            if (outstanding > 0)
+            {
+                return EngagementResult.OutstandingAcknowledgementRequired;
+            }
         }
 
         EngagementActivity activity;

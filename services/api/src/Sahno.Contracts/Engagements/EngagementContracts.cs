@@ -45,9 +45,14 @@ public sealed record SetEngagementDatesRequest(DateOnly? StartDate, DateOnly? En
 
 /// <summary>
 /// Moves the engagement. Cancelling, postponing, reopening, and reversing a
-/// completion each require a reason.
+/// completion each require a reason. Confirming while selected Members have
+/// not answered requires AcknowledgeOutstanding (D-029).
 /// </summary>
-public sealed record TransitionEngagementRequest(string Status, string? Reason);
+public sealed record TransitionEngagementRequest(
+    string Status,
+    string? Reason,
+    bool AcknowledgeOutstanding = false);
+
 
 /// <summary>One entry of the engagement's history.</summary>
 public sealed record EngagementActivityResponse(

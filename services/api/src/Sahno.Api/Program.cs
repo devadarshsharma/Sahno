@@ -24,6 +24,7 @@ builder.Services.AddScoped<OrganisationService>();
 builder.Services.AddScoped<InvitationService>();
 builder.Services.AddScoped<MembershipService>();
 builder.Services.AddScoped<EngagementService>();
+builder.Services.AddScoped<AvailabilityService>();
 builder.Services.AddScoped<OrganisationAuthorizationService>();
 builder.Services
     .AddHealthChecks()

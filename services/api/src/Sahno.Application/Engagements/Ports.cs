@@ -40,3 +40,40 @@ public interface IEngagementStore
     /// <summary>Removes a discarded Draft and its history (D-034).</summary>
     Task RemoveAsync(Engagement engagement, CancellationToken cancellationToken);
 }
+
+public interface IEngagementParticipantStore
+{
+    /// <summary>
+    /// Everyone ever selected, including those since removed. Callers decide
+    /// which they need: the lineup is the active ones, the internal history is
+    /// all of them (D-027).
+    /// </summary>
+    Task<IReadOnlyList<EngagementParticipant>> ListForEngagementAsync(
+        Guid engagementId,
+        CancellationToken cancellationToken);
+
+    Task<EngagementParticipant?> FindAsync(
+        Guid engagementId,
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The engagements this person is currently on the lineup for. Members see
+    /// these and nothing else (D-020).
+    /// </summary>
+    Task<IReadOnlyList<Guid>> ListEngagementIdsForUserAsync(
+        Guid organisationId,
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    /// <summary>How many selected people have still not answered (D-029).</summary>
+    Task<int> CountOutstandingAsync(
+        Guid engagementId,
+        CancellationToken cancellationToken);
+
+    Task AddAsync(
+        IReadOnlyList<EngagementParticipant> participants,
+        CancellationToken cancellationToken);
+
+    Task SaveAsync(CancellationToken cancellationToken);
+}

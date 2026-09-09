@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<IMembershipStore, MembershipStore>();
         services.AddScoped<IInvitationStore, InvitationStore>();
         services.AddScoped<IEngagementStore, EngagementStore>();
+        services.AddScoped<IEngagementParticipantStore, EngagementParticipantStore>();
 
         return services;
     }
