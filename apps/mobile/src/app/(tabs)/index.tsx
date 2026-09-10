@@ -121,15 +121,28 @@ export default function Index() {
   const confirmed = byStatus('Confirmed');
   const tentative = byStatus('Tentative');
   const enquiries = byStatus('Draft');
-
-  // Anything shared that is still waiting on somebody. Counted in bookings,
   // not people, so the tile and the list beneath it say the same thing.
-  const waiting = engagements.filter(
-    (engagement) =>
-      (engagement.outstandingCount ?? 0) > 0 &&
-      engagement.status !== 'Cancelled' &&
-      engagement.status !== 'Completed',
-  );
+  // Unresolved work, which D-041 puts first. Three things qualify, and a
+  // booking in any of them is invisible everywhere else on Home:
+  //   - somebody has still to answer;
+  //   - everyone has answered and the lineup is now the organiser's call,
+  //     because Sahno never advances to Tentative on its own (D-026);
+  //   - it is postponed, so it needs a new date or a decision to resume.
+  const waiting = engagements.filter((engagement) => {
+    if (engagement.status === 'Cancelled' || engagement.status === 'Completed') {
+      return false;
+    }
+    if ((engagement.outstandingCount ?? 0) > 0) {
+      return true;
+    }
+    if (
+      engagement.status === 'CheckingAvailability' &&
+      (engagement.selectedCount ?? 0) > 0
+    ) {
+      return true;
+    }
+    return engagement.status === 'Postponed';
+  });
 
   // A member's own list: the ones nobody has heard back from them about.
   const needsYourAnswer = engagements.filter(
@@ -210,7 +223,7 @@ export default function Index() {
             reads as one scale rather than four unrelated numbers. */}
         {isOrganiser ? (
           <View style={styles.statsRow}>
-            <StatTile value={String(waiting.length)} label="Bookings waiting" />
+            <StatTile value={String(waiting.length)} label="Needs attention" />
             <StatTile value={String(confirmed.length)} label="Confirmed" />
             <StatTile value={String(tentative.length)} label="Tentative" />
             <StatTile value={String(enquiries.length)} label="Enquiries" />
@@ -260,7 +273,7 @@ export default function Index() {
                     <Pressable
                       key={engagement.id}
                       accessibilityRole="button"
-                      accessibilityLabel={`${engagement.title}. ${engagement.outstandingCount} still to answer.`}
+                      accessibilityLabel={`${engagement.title}. ${attentionReason(engagement)}.`}
                       onPress={() =>
                         router.push({
                           pathname: '/engagement/[engagementId]',
@@ -272,9 +285,7 @@ export default function Index() {
                       <View style={styles.attentionText}>
                         <Text numberOfLines={1}>{engagement.title}</Text>
                         <Text variant="caption" color="secondary">
-                          {engagement.outstandingCount === 1
-                            ? '1 member still to answer'
-                            : `${engagement.outstandingCount} members still to answer`}
+                          {attentionReason(engagement)}
                           {' · '}
                           {formatEngagementDate(engagement)}
                         </Text>
@@ -347,6 +358,35 @@ export default function Index() {
  * how many people are still to answer, since that is usually the reason to
  * open one.
  */
+
+/**
+ * Why this booking is on the attention list. Naming the reason matters more
+ * than flagging it: "still to answer" and "ready to decide" need opposite
+ * actions from the organiser.
+ */
+function attentionReason(engagement: Engagement): string {
+  const waiting = engagement.outstandingCount ?? 0;
+  if (waiting > 0) {
+    return waiting === 1
+      ? '1 member still to answer'
+      : `${waiting} members still to answer`;
+  }
+
+  if (engagement.status === 'CheckingAvailability') {
+    const answered = engagement.selectedCount ?? 0;
+    return answered === 1
+      ? 'Answered · ready to decide'
+      : `All ${answered} answered · ready to decide`;
+  }
+
+  if (engagement.status === 'Postponed') {
+    return engagement.startDate === null
+      ? 'Postponed · needs a new date'
+      : 'Postponed · resume when ready';
+  }
+
+  return 'Needs a look';
+}
 function EngagementList({
   title,
   engagements,
