@@ -24,6 +24,7 @@ import {
 import { useMembers } from '@/hooks/use-members';
 import { useActiveOrg } from '@/hooks/use-organisations';
 import { useSession } from '@/providers/auth-provider';
+import { useSeenPeople } from '@/stores/seen-people';
 import { colors, fontFamilies, radii, shadows, spacing } from '@/theme';
 
 function greetingForNow(): string {
@@ -144,6 +145,15 @@ export default function Index() {
     return engagement.status === 'Postponed';
   });
 
+  // With every section hiding itself when empty, a quiet organisation would
+  // show a bare screen. One honest line is better than five "nothing yet"
+  // cards or an empty page.
+  const organiserHasNothing =
+    waiting.length === 0 &&
+    confirmed.length === 0 &&
+    tentative.length === 0 &&
+    enquiries.length === 0;
+
   // A member's own list: the ones nobody has heard back from them about.
   const needsYourAnswer = engagements.filter(
     (engagement) =>
@@ -171,6 +181,9 @@ export default function Index() {
   const yourTentative = yourEvents.filter(
     (engagement) => engagement.status === 'Tentative',
   );
+
+  const memberHasNothing =
+    needsYourAnswer.length === 0 && yourEvents.length === 0;
 
   return (
     <View style={styles.screen}>
@@ -267,6 +280,7 @@ export default function Index() {
 
           {isOrganiser ? (
             <>
+              {waiting.length > 0 ? (
               <View style={styles.attention}>
                 <View style={styles.attentionHeader}>
                   <View style={styles.attentionIcon}>
@@ -275,13 +289,7 @@ export default function Index() {
                   <Text variant="subheading">Needs your attention</Text>
                 </View>
 
-                {waiting.length === 0 ? (
-                  <Text color="secondary" variant="bodySmall">
-                    Nothing needs your attention right now. Unanswered requests,
-                    missing details, and follow-ups will appear here.
-                  </Text>
-                ) : (
-                  waiting.map((engagement) => (
+                {waiting.map((engagement) => (
                     <Pressable
                       key={engagement.id}
                       accessibilityRole="button"
@@ -304,30 +312,34 @@ export default function Index() {
                       </View>
                       <Text color="muted">›</Text>
                     </Pressable>
-                  ))
-                )}
+                ))}
               </View>
+              ) : null}
+
+              {organiserHasNothing ? (
+                <HomeSection title="Nothing on yet">
+                  Start an enquiry from the Bookings tab — a title is all you
+                  need, and everything else can come later.
+                </HomeSection>
+              ) : null}
 
               {/* D-041 order: exceptions first, then confirmed, tentative,
                   new enquiries, and recent activity last. */}
               <EngagementList
                 title="Upcoming confirmed bookings"
                 engagements={confirmed}
-                empty="Nothing confirmed yet."
                 onOpen={openEngagement}
               />
 
               <EngagementList
                 title="Tentative bookings"
                 engagements={tentative}
-                empty="Nothing tentative right now."
                 onOpen={openEngagement}
               />
 
               <EngagementList
                 title="New enquiries"
                 engagements={enquiries}
-                empty="No open enquiries. Start one from the Bookings tab — a title is all you need."
                 onOpen={openEngagement}
               />
 
@@ -344,29 +356,32 @@ export default function Index() {
             </>
           ) : (
             <>
+              {memberHasNothing ? (
+                <HomeSection title="Nothing on yet">
+                  Your events appear here as soon as an organiser asks whether
+                  you are available.
+                </HomeSection>
+              ) : null}
+
               {/* D-040 order: what must I do, then where do I need to be. */}
               <EngagementList
                 title="Needs your response"
                 engagements={needsYourAnswer}
-                empty="Nothing needs your response right now."
                 onOpen={openEngagement}
               />
               <EngagementList
                 title="Next confirmed event"
                 engagements={nextConfirmed}
-                empty="Nothing confirmed yet."
                 onOpen={openEngagement}
               />
               <EngagementList
                 title="Tentative events"
                 engagements={yourTentative}
-                empty="Nothing tentative right now."
                 onOpen={openEngagement}
               />
               <EngagementList
                 title="Later events"
                 engagements={laterEvents}
-                empty="Nothing else in the diary yet."
                 onOpen={openEngagement}
               />
             </>
@@ -415,16 +430,16 @@ function attentionReason(engagement: Engagement): string {
 function EngagementList({
   title,
   engagements,
-  empty,
   onOpen,
 }: {
   title: string;
   engagements: Engagement[];
-  empty: string;
   onOpen: (engagementId: string) => void;
 }) {
+  // A section with nothing in it says nothing. Home is read at a glance, and
+  // five "nothing yet" cards make the one that does matter harder to find.
   if (engagements.length === 0) {
-    return <HomeSection title={title}>{empty}</HomeSection>;
+    return null;
   }
 
   return (
@@ -709,7 +724,14 @@ function RecentJoins({
   members: Member[];
   onSeeAll: () => void;
 }) {
-  const cutoff = Date.now() - RECENT_JOIN_WINDOW_MS;
+  const seenAtUtc = useSeenPeople((state) => state.seenAtUtc);
+
+  // Anything since they last looked at People, within the outer window. Once
+  // they have looked, the notice has done its job and goes.
+  const cutoff = Math.max(
+    Date.now() - RECENT_JOIN_WINDOW_MS,
+    seenAtUtc ? Date.parse(seenAtUtc) : 0,
+  );
 
   const recent = members
     .filter((member) => !member.isYou)

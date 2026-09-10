@@ -1,10 +1,12 @@
 import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import type { Member } from '@/api/members';
 import { Button, Screen, Text } from '@/components/ui';
 import { sortedForDisplay, useMembers } from '@/hooks/use-members';
 import { useActiveOrg } from '@/hooks/use-organisations';
+import { useSeenPeople } from '@/stores/seen-people';
 import { colors, radii, shadows, spacing } from '@/theme';
 
 /**
@@ -16,6 +18,13 @@ export default function People() {
   const router = useRouter();
   const { active } = useActiveOrg();
   const membersQuery = useMembers();
+  const markPeopleSeen = useSeenPeople((state) => state.markPeopleSeen);
+
+  // Looking at People is the acknowledgement that clears the "recently
+  // joined" notice on Home.
+  useEffect(() => {
+    markPeopleSeen();
+  }, [markPeopleSeen]);
 
   const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
 
