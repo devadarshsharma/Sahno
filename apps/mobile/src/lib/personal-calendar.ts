@@ -1,5 +1,8 @@
-import * as Calendar from 'expo-calendar';
-import { Platform } from 'react-native';
+import {
+  EntityTypes,
+  getCalendars,
+  requestCalendarPermissions,
+} from 'expo-calendar';
 
 import type { Engagement } from '@/api/engagements';
 
@@ -45,30 +48,16 @@ function notesFor(engagement: Engagement, organisationName: string): string {
 
 /** The device calendar Sahno should write to. */
 async function defaultCalendarAsync() {
-  const calendars = await Calendar.getCalendarsAsync(
-    Calendar.EntityTypes.EVENT,
-  );
+  const calendars = await getCalendars(EntityTypes.EVENT);
 
-  const writable = calendars.filter(
-    (calendar) => calendar.allowsModifications,
-  );
+  const writable = calendars.filter((calendar) => calendar.allowsModifications);
   if (writable.length === 0) {
     return null;
   }
 
-  if (Platform.OS === 'ios') {
-    const preferred = await Calendar.getDefaultCalendarAsync();
-    return (
-      writable.find((calendar) => calendar.id === preferred?.id) ?? writable[0]
-    );
-  }
-
-  // Android has no single "default", so prefer the primary local account.
-  return (
-    writable.find((calendar) => calendar.isPrimary) ??
-    writable.find((calendar) => calendar.accessLevel === Calendar.CalendarAccessLevel.OWNER) ??
-    writable[0]
-  );
+  // Neither platform guarantees a single obvious target, so prefer the
+  // person's primary account and fall back to whatever can be written to.
+  return writable.find((calendar) => calendar.isPrimary) ?? writable[0];
 }
 
 /**
@@ -84,7 +73,9 @@ export async function addToPersonalCalendar(
     return { ok: false, reason: 'no-date' };
   }
 
-  const permission = await Calendar.requestCalendarPermissionsAsync();
+  // writeOnly: Sahno only ever adds an entry, so it does not ask to read
+  // someone's diary to do it.
+  const permission = await requestCalendarPermissions(true);
   if (permission.status !== 'granted') {
     return { ok: false, reason: 'permission' };
   }
@@ -102,7 +93,7 @@ export async function addToPersonalCalendar(
     // An all-day event ends at the start of the following day.
     end.setDate(end.getDate() + 1);
 
-    await Calendar.createEventAsync(calendar.id, {
+    await calendar.createEvent({
       title: personalCalendarTitle(engagement),
       startDate: start,
       endDate: end,
