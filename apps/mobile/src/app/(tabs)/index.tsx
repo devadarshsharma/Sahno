@@ -52,15 +52,6 @@ export default function Index() {
 
   const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
 
-  const invitationsQuery = useQuery({
-    queryKey: ['org', active?.id, 'invitations'],
-    queryFn: async ({ signal }) => {
-      const accessToken = await session.getAccessToken();
-      return listInvitations(accessToken, active!.id, signal);
-    },
-    enabled: active !== null && isOrganiser,
-  });
-
   const dismissChecklist = useMutation({
     mutationFn: async () => {
       const accessToken = await session.getAccessToken();
@@ -111,34 +102,33 @@ export default function Index() {
     refetch();
     membersQuery.refetch();
     engagementsQuery.refetch();
-    if (invitationsQuery.isSuccess || invitationsQuery.isError) {
-      invitationsQuery.refetch();
-    }
   }
 
-  const activeInvites = (invitationsQuery.data ?? []).filter(
-    (invitation) => invitation.revokedAtUtc === null,
-  ).length;
+  const openEngagement = (engagementId: string) =>
+    router.push({
+      pathname: '/engagement/[engagementId]',
+      params: { engagementId },
+    });
 
   const engagements = engagementsQuery.data ?? [];
 
-  // Live work: everything from the first availability request up to the event
-  // itself. Drafts are private and finished ones are history, so neither is
-  // something to act on today.
-  const live = engagements.filter((engagement) =>
-    ['CheckingAvailability', 'Tentative', 'Confirmed'].includes(
-      engagement.status,
-    ),
-  );
+  // The pipeline as D-041 ranks it, kept as separate lists rather than one
+  // "live" pile: provisionally on and actually booked mean different things to
+  // a group deciding whether to take other work.
+  const byStatus = (status: Engagement['status']) =>
+    engagements.filter((engagement) => engagement.status === status);
 
-  // Bookings still waiting on somebody. This is what "awaiting responses"
-  // counts, and what an organiser most often opens Home to find.
-  const awaiting = live.filter(
-    (engagement) => (engagement.outstandingCount ?? 0) > 0,
-  );
-  const awaitingPeople = awaiting.reduce(
-    (total, engagement) => total + (engagement.outstandingCount ?? 0),
-    0,
+  const confirmed = byStatus('Confirmed');
+  const tentative = byStatus('Tentative');
+  const enquiries = byStatus('Draft');
+
+  // Anything shared that is still waiting on somebody. Counted in bookings,
+  // not people, so the tile and the list beneath it say the same thing.
+  const waiting = engagements.filter(
+    (engagement) =>
+      (engagement.outstandingCount ?? 0) > 0 &&
+      engagement.status !== 'Cancelled' &&
+      engagement.status !== 'Completed',
   );
 
   // A member's own list: the ones nobody has heard back from them about.
@@ -146,6 +136,15 @@ export default function Index() {
     (engagement) =>
       engagement.yourResponse === null &&
       engagement.status === 'CheckingAvailability',
+  );
+
+  // What a member has already replied to and is still on.
+  const yourEvents = engagements.filter(
+    (engagement) =>
+      engagement.yourResponse !== null &&
+      ['CheckingAvailability', 'Tentative', 'Confirmed'].includes(
+        engagement.status,
+      ),
   );
 
   return (
@@ -206,19 +205,15 @@ export default function Index() {
           </Text>
         </View>
 
-        {/* Stat tiles overlap the hero (organisers only). */}
+        {/* Stat tiles overlap the hero (organisers only). Four counts of the
+            same thing — bookings — in the order D-041 ranks them, so the row
+            reads as one scale rather than four unrelated numbers. */}
         {isOrganiser ? (
           <View style={styles.statsRow}>
-            <StatTile value={String(live.length)} label="Live bookings" />
-            <StatTile value={String(active?.memberCount ?? 1)} label="Members" />
-            <StatTile
-              value={String(awaitingPeople)}
-              label="Awaiting responses"
-            />
-            <StatTile
-              value={invitationsQuery.isSuccess ? String(activeInvites) : '–'}
-              label="Active invites"
-            />
+            <StatTile value={String(waiting.length)} label="Bookings waiting" />
+            <StatTile value={String(confirmed.length)} label="Confirmed" />
+            <StatTile value={String(tentative.length)} label="Tentative" />
+            <StatTile value={String(enquiries.length)} label="Enquiries" />
           </View>
         ) : null}
 
@@ -255,13 +250,13 @@ export default function Index() {
                   <Text variant="subheading">Needs your attention</Text>
                 </View>
 
-                {awaiting.length === 0 ? (
+                {waiting.length === 0 ? (
                   <Text color="secondary" variant="bodySmall">
                     Nothing needs your attention right now. Unanswered requests,
                     missing details, and follow-ups will appear here.
                   </Text>
                 ) : (
-                  awaiting.map((engagement) => (
+                  waiting.map((engagement) => (
                     <Pressable
                       key={engagement.id}
                       accessibilityRole="button"
@@ -290,28 +285,34 @@ export default function Index() {
                 )}
               </View>
 
+              {/* D-041 order: exceptions first, then confirmed, tentative,
+                  new enquiries, and recent activity last. */}
+              <EngagementList
+                title="Upcoming confirmed bookings"
+                engagements={confirmed}
+                empty="Nothing confirmed yet."
+                onOpen={openEngagement}
+              />
+
+              <EngagementList
+                title="Tentative bookings"
+                engagements={tentative}
+                empty="Nothing tentative right now."
+                onOpen={openEngagement}
+              />
+
+              <EngagementList
+                title="New enquiries"
+                engagements={enquiries}
+                empty="No open enquiries. Start one from the Bookings tab — a title is all you need."
+                onOpen={openEngagement}
+              />
+
               <RecentJoins
                 members={membersQuery.data ?? []}
                 onSeeAll={() => router.push('/(tabs)/people')}
               />
 
-              <EngagementList
-                title="Upcoming bookings"
-                engagements={live}
-                empty="No bookings yet. Start an enquiry from the Bookings tab — a title is all you need."
-                onOpen={(id) =>
-                  router.push({
-                    pathname: '/engagement/[engagementId]',
-                    params: { engagementId: id },
-                  })
-                }
-              />
-
-              <Button
-                label="Create event — coming soon"
-                disabled
-                onPress={() => {}}
-              />
               <Button
                 label="Invite members"
                 variant="secondary"
@@ -324,25 +325,13 @@ export default function Index() {
                 title="Needs your response"
                 engagements={needsYourAnswer}
                 empty="Nothing needs your response right now."
-                onOpen={(id) =>
-                  router.push({
-                    pathname: '/engagement/[engagementId]',
-                    params: { engagementId: id },
-                  })
-                }
+                onOpen={openEngagement}
               />
               <EngagementList
                 title="Your events"
-                engagements={live.filter(
-                  (engagement) => engagement.yourResponse !== null,
-                )}
+                engagements={yourEvents}
                 empty="No upcoming events yet — you will see them here as soon as an organiser adds you to one."
-                onOpen={(id) =>
-                  router.push({
-                    pathname: '/engagement/[engagementId]',
-                    params: { engagementId: id },
-                  })
-                }
+                onOpen={openEngagement}
               />
             </>
           )}
