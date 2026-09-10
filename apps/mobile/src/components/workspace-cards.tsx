@@ -180,14 +180,21 @@ export function ReadinessCard({ engagementId }: { engagementId: string }) {
   }
 
   const entries = readinessQuery.data;
-  const outstanding = entries.filter((entry) => entry.state === 'Outstanding');
+
+  // The same count Home shows, arrived at the same way: the Slice 8 rows are
+  // listed but not counted, because nothing an organiser does today can tick
+  // them and a number that never falls is not a to-do list.
+  const outstanding = entries.filter(
+    (entry) =>
+      entry.state === 'Outstanding' && !READINESS_NOT_BUILT.includes(entry.item),
+  );
 
   return (
     <Card style={styles.card}>
       <Text variant="subheading">Readiness</Text>
       <Text color="secondary" variant="bodySmall">
         {outstanding.length === 0
-          ? 'Everything is either done or set aside.'
+          ? 'Nothing left to sort out.'
           : `${outstanding.length} still to sort out.`}
       </Text>
 
@@ -228,8 +235,7 @@ function ReadinessRow({
   busy: boolean;
   onToggle: () => void;
 }) {
-  const notBuiltYet =
-    READINESS_NOT_BUILT.includes(entry.item) && entry.state === 'Outstanding';
+  const notBuiltYet = READINESS_NOT_BUILT.includes(entry.item);
 
   return (
     <View style={styles.readinessRow}>
@@ -242,7 +248,9 @@ function ReadinessRow({
       <View style={styles.rowValue}>
         <Text
           variant="bodySmall"
-          color={entry.state === 'Outstanding' ? 'primary' : 'muted'}
+          color={
+            entry.state === 'Outstanding' && !notBuiltYet ? 'primary' : 'muted'
+          }
         >
           {READINESS_LABELS[entry.item]}
         </Text>
@@ -253,14 +261,18 @@ function ReadinessRow({
         ) : null}
       </View>
 
-      <Text
-        variant="caption"
-        color="accent"
-        onPress={busy ? undefined : onToggle}
-        suppressHighlighting
-      >
-        {entry.state === 'NotRequired' ? 'Put back' : 'Not required'}
-      </Text>
+      {/* Nothing to set aside on a row Sahno cannot yet tick: an organiser
+          waiving "rehearsal organised" changes nothing they can see. */}
+      {notBuiltYet && entry.state === 'Outstanding' ? null : (
+        <Text
+          variant="caption"
+          color="accent"
+          onPress={busy ? undefined : onToggle}
+          suppressHighlighting
+        >
+          {entry.state === 'NotRequired' ? 'Put back' : 'Not required'}
+        </Text>
+      )}
     </View>
   );
 }
