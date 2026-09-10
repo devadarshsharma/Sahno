@@ -15,7 +15,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Appearance, StyleSheet, View } from 'react-native';
 
 import { SahnoSymbol } from '@/components/brand';
 import { AuthProvider, useSession } from '@/providers/auth-provider';
@@ -24,6 +24,13 @@ import { useActiveOrganisation } from '@/stores/active-organisation';
 import { colors } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
+
+// Sahno has one palette and it is a light one, so the app says so rather than
+// following the device. Without this, anything the platform themes for itself —
+// date pickers, dialogs, keyboards — turns dark against light Sahno surfaces.
+// app.json and the Android theme declare the same thing for a fresh build; this
+// is what makes it true in an already-installed one.
+Appearance.setColorScheme('light');
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
