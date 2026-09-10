@@ -290,7 +290,10 @@ const styles = StyleSheet.create({
   },
   cell: {
     width: `${100 / 7}%`,
-    aspectRatio: 1,
+    // A touch target, not a square. Square cells are as tall as a seventh of
+    // the screen is wide, which spreads five rows over most of the page and
+    // pushes everything below the grid out of sight.
+    height: 46,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
