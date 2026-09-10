@@ -160,6 +160,18 @@ export default function Index() {
       ),
   );
 
+  // A member's own diary, in D-040's order. "Next confirmed" is deliberately
+  // one event: the question it answers is where they need to be next, and a
+  // list of six does not answer it.
+  const yourConfirmed = yourEvents.filter(
+    (engagement) => engagement.status === 'Confirmed',
+  );
+  const nextConfirmed = yourConfirmed.slice(0, 1);
+  const laterEvents = yourConfirmed.slice(1);
+  const yourTentative = yourEvents.filter(
+    (engagement) => engagement.status === 'Tentative',
+  );
+
   return (
     <View style={styles.screen}>
       <StatusBar style="light" />
@@ -332,6 +344,7 @@ export default function Index() {
             </>
           ) : (
             <>
+              {/* D-040 order: what must I do, then where do I need to be. */}
               <EngagementList
                 title="Needs your response"
                 engagements={needsYourAnswer}
@@ -339,9 +352,21 @@ export default function Index() {
                 onOpen={openEngagement}
               />
               <EngagementList
-                title="Your events"
-                engagements={yourEvents}
-                empty="No upcoming events yet — you will see them here as soon as an organiser adds you to one."
+                title="Next confirmed event"
+                engagements={nextConfirmed}
+                empty="Nothing confirmed yet."
+                onOpen={openEngagement}
+              />
+              <EngagementList
+                title="Tentative events"
+                engagements={yourTentative}
+                empty="Nothing tentative right now."
+                onOpen={openEngagement}
+              />
+              <EngagementList
+                title="Later events"
+                engagements={laterEvents}
+                empty="Nothing else in the diary yet."
                 onOpen={openEngagement}
               />
             </>

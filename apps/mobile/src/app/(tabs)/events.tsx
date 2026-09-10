@@ -1,7 +1,9 @@
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import type { Engagement, EngagementStatus } from '@/api/engagements';
+import { EngagementCalendar } from '@/components/engagement-calendar';
 import { Button, Screen, Text } from '@/components/ui';
 import {
   formatEngagementDate,
@@ -22,6 +24,7 @@ export default function Events() {
   const router = useRouter();
   const { active } = useActiveOrg();
   const engagementsQuery = useEngagements();
+  const [view, setView] = useState<'list' | 'calendar'>('list');
 
   const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
 
@@ -76,7 +79,40 @@ export default function Events() {
         />
       ) : null}
 
-      {groups.length === 0 ? (
+      {/* One dataset, two lenses. Calendar lives here rather than as a sixth
+          tab: D-042 is provisional and warns about crowding, and a month view
+          answers "when" about the same bookings this tab already lists. */}
+      <View style={styles.viewToggle}>
+        {(['list', 'calendar'] as const).map((option) => {
+          const selected = view === option;
+          return (
+            <Pressable
+              key={option}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={option === 'list' ? 'List view' : 'Calendar view'}
+              onPress={() => setView(option)}
+              style={[styles.viewOption, selected ? styles.viewOptionOn : null]}
+            >
+              <Text variant="label" color={selected ? 'inverse' : 'secondary'}>
+                {option === 'list' ? 'List' : 'Calendar'}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {view === 'calendar' ? (
+        <EngagementCalendar
+          engagements={engagementsQuery.data}
+          onOpen={(id) =>
+            router.push({
+              pathname: '/engagement/[engagementId]',
+              params: { engagementId: id },
+            })
+          }
+        />
+      ) : groups.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyEmoji}>{isOrganiser ? '📋' : '📅'}</Text>
           <Text variant="subheading" style={styles.centeredText}>
@@ -219,6 +255,24 @@ const styles = StyleSheet.create({
   header: {
     gap: spacing.xs,
     marginBottom: spacing.lg,
+  },
+  viewToggle: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    padding: 4,
+    marginBottom: spacing.lg,
+    borderRadius: radii.full,
+    backgroundColor: colors.surface.subtle,
+  },
+  viewOption: {
+    flex: 1,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.full,
+  },
+  viewOptionOn: {
+    backgroundColor: colors.interactive.primary,
   },
   newEnquiry: {
     marginBottom: spacing.xl,
