@@ -17,6 +17,23 @@ public sealed class ReadinessStore(SahnoDbContext dbContext) : IReadinessStore
             .ToListAsync(cancellationToken);
     }
 
+
+    public async Task<ILookup<Guid, ReadinessItem>> ListForOrganisationAsync(
+        Guid organisationId,
+        CancellationToken cancellationToken)
+    {
+        var rows = await dbContext.ReadinessWaivers
+            .AsNoTracking()
+            .Join(
+                dbContext.Engagements.AsNoTracking()
+                    .Where(engagement => engagement.OrganisationId == organisationId),
+                waiver => waiver.EngagementId,
+                engagement => engagement.Id,
+                (waiver, engagement) => new { engagement.Id, waiver.Item })
+            .ToListAsync(cancellationToken);
+
+        return rows.ToLookup(row => row.Id, row => row.Item);
+    }
     public async Task AddAsync(
         ReadinessWaiver waiver,
         CancellationToken cancellationToken)

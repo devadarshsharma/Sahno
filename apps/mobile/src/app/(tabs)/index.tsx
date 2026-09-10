@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Redirect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -10,10 +10,11 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useState } from 'react';
 
 import type { Engagement } from '@/api/engagements';
 import type { Member } from '@/api/members';
-import { dismissSetupChecklist, listInvitations } from '@/api/organisations';
+import { dismissSetupChecklist } from '@/api/organisations';
 import { SahnoSymbol } from '@/components/brand';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { firstNameOf, useMe, useNeedsDisplayName } from '@/hooks/use-me';
@@ -122,13 +123,15 @@ export default function Index() {
   const confirmed = byStatus('Confirmed');
   const tentative = byStatus('Tentative');
   const enquiries = byStatus('Draft');
-  // not people, so the tile and the list beneath it say the same thing.
-  // Unresolved work, which D-041 puts first. Three things qualify, and a
-  // booking in any of them is invisible everywhere else on Home:
+  // Unresolved work, which D-041 puts first. Four things qualify:
   //   - somebody has still to answer;
   //   - everyone has answered and the lineup is now the organiser's call,
   //     because Sahno never advances to Tentative on its own (D-026);
-  //   - it is postponed, so it needs a new date or a decision to resume.
+  //   - it is postponed, so it needs a new date or a decision to resume;
+  //   - it is on, but critical detail is missing (Slice 7, D-048).
+  // The last of those also stays in the confirmed or tentative list below: it
+  // is still in the diary, and dropping it would leave the tile counting one
+  // more booking than the list shows.
   const waiting = engagements.filter((engagement) => {
     if (engagement.status === 'Cancelled' || engagement.status === 'Completed') {
       return false;
@@ -142,7 +145,16 @@ export default function Index() {
     ) {
       return true;
     }
-    return engagement.status === 'Postponed';
+    if (engagement.status === 'Postponed') {
+      return true;
+    }
+    // Only once it is actually on. A Draft enquiry with no venue yet is not a
+    // loose end — nothing has been agreed for it to be loose about.
+    return (
+      (engagement.status === 'Confirmed' ||
+        engagement.status === 'Tentative') &&
+      (engagement.readinessOutstanding ?? 0) > 0
+    );
   });
 
   // With every section hiding itself when empty, a quiet organisation would
@@ -423,6 +435,13 @@ function attentionReason(engagement: Engagement): string {
     return engagement.startDate === null
       ? 'Postponed · needs a new date'
       : 'Postponed · resume when ready';
+  }
+
+  const missing = engagement.readinessOutstanding ?? 0;
+  if (missing > 0) {
+    return missing === 1
+      ? '1 detail still to sort out'
+      : `${missing} details still to sort out`;
   }
 
   return 'Needs a look';
@@ -728,8 +747,12 @@ function RecentJoins({
 
   // Anything since they last looked at People, within the outer window. Once
   // they have looked, the notice has done its job and goes.
+  // Fixed at mount: a clock read during render would give a cutoff that moves
+  // every re-render, which React treats as impure and which could drop a row
+  // mid-scroll.
+  const [now] = useState(() => Date.now());
   const cutoff = Math.max(
-    Date.now() - RECENT_JOIN_WINDOW_MS,
+    now - RECENT_JOIN_WINDOW_MS,
     seenAtUtc ? Date.parse(seenAtUtc) : 0,
   );
 

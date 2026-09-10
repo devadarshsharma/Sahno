@@ -82,3 +82,20 @@ public sealed class ReadinessWaiver
             DateTimeOffset.UtcNow);
     }
 }
+
+public static class ReadinessItems
+{
+    /// <summary>
+    /// Whether Sahno can yet answer this item for itself. Responsibilities,
+    /// rehearsals, and resources arrive in Slice 8; until they exist they are
+    /// permanently outstanding, and counting them would make every booking
+    /// look unready — which is worse than not counting them at all. They still
+    /// appear on the checklist, so an organiser can see what is coming.
+    /// </summary>
+    public static bool IsTracked(this ReadinessItem item)
+    {
+        return item is not (ReadinessItem.Responsibilities
+            or ReadinessItem.Rehearsal
+            or ReadinessItem.Resources);
+    }
+}

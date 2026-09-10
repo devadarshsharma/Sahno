@@ -85,6 +85,16 @@ public sealed class ReadinessService(
     /// </summary>
     public static bool HasOutstandingReadiness(IReadOnlyList<ReadinessEntry> readiness)
     {
-        return readiness.Any(entry => entry.State == ReadinessState.Outstanding);
+        return CountOutstanding(readiness) > 0;
+    }
+
+    /// <summary>
+    /// How many checklist items are still to sort out, counting only the ones
+    /// Sahno can actually answer today (see <see cref="ReadinessItems.IsTracked"/>).
+    /// </summary>
+    public static int CountOutstanding(IReadOnlyList<ReadinessEntry> readiness)
+    {
+        return readiness.Count(entry =>
+            entry.State == ReadinessState.Outstanding && entry.Item.IsTracked());
     }
 }

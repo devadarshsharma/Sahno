@@ -46,7 +46,11 @@ public sealed class EngagementsController(
             cancellationToken);
 
         return Ok(rows
-            .Select(row => ToResponse(row.Engagement, row.Lineup, row.YourResponse))
+            .Select(row => ToResponse(
+                row.Engagement,
+                row.Lineup,
+                row.YourResponse,
+                row.ReadinessOutstanding))
             .ToList());
     }
 
@@ -72,7 +76,11 @@ public sealed class EngagementsController(
 
         return view is null
             ? NotFound()
-            : Ok(ToResponse(view.Engagement, view.Lineup, view.YourResponse));
+            : Ok(ToResponse(
+                view.Engagement,
+                view.Lineup,
+                view.YourResponse,
+                view.ReadinessOutstanding));
     }
 
     /// <summary>The engagement's history, newest first.</summary>
@@ -401,7 +409,8 @@ public sealed class EngagementsController(
     private static EngagementResponse ToResponse(
         Engagement engagement,
         EngagementLineup? lineup = null,
-        AvailabilityResponse? ownResponse = null)
+        AvailabilityResponse? ownResponse = null,
+        int? readinessOutstanding = null)
     {
         var allowed = Enum.GetValues<EngagementStatus>()
             .Where(status =>
@@ -426,6 +435,7 @@ public sealed class EngagementsController(
             lineup?.Selected,
             lineup?.Outstanding,
             ownResponse?.ToString(),
+            readinessOutstanding,
             engagement.CreatedAtUtc);
     }
 

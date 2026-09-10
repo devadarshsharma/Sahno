@@ -198,6 +198,53 @@ public sealed class ReadinessEndpointTests(SahnoApiFactory factory)
         Assert.Equal("Dural Community Hall", asMember.Venue);
     }
 
+    /// <summary>
+    /// The organiser's Needs attention list runs off a count on the booking
+    /// itself, so it costs no extra request per booking. Only the items Sahno
+    /// can answer today are counted — the Slice 8 ones would otherwise make
+    /// every booking look permanently unready.
+    /// </summary>
+    [Fact]
+    public async Task TheListCarriesHowMuchIsStillToSortOut()
+    {
+        var org = await NewOrganisationAsync("readiness-count");
+        var engagement = await NewDatedDraftAsync(org, "Counting");
+
+        Assert.Equal(5, await OutstandingAsync(org, engagement.Id));
+
+        await UpdateAsync(
+            org,
+            engagement.Id,
+            startTime: new TimeOnly(19, 30),
+            callTime: new TimeOnly(17, 0),
+            dressNotes: "Black kurta.",
+            venue: "Dural Community Hall");
+
+        // Only the lineup is left, and nobody has been asked yet.
+        Assert.Equal(1, await OutstandingAsync(org, engagement.Id));
+
+        await SetReadinessAsync(org, engagement.Id, "Lineup", true);
+        Assert.Equal(0, await OutstandingAsync(org, engagement.Id));
+    }
+
+    /// <summary>
+    /// Members do not get the count either: it is the same working list, and a
+    /// number is enough to tell them how far behind the organiser is.
+    /// </summary>
+    [Fact]
+    public async Task MembersAreNotToldHowMuchIsOutstanding()
+    {
+        var org = await NewOrganisationAsync("readiness-count-member", members: 1);
+        var engagement = await NewDatedDraftAsync(org, "Not your list");
+        await RequestAvailabilityAsync(org, engagement.Id, org.MemberIds);
+
+        var asMember = await org.Members[0].GetFromJsonAsync<EngagementResponse>(
+            $"{Engagements(org)}/{engagement.Id}");
+
+        Assert.NotNull(asMember);
+        Assert.Null(asMember.ReadinessOutstanding);
+    }
+
     private sealed record TestOrganisation(
         Guid Id,
         HttpClient Owner,
@@ -334,6 +381,16 @@ public sealed class ReadinessEndpointTests(SahnoApiFactory factory)
             $"{Engagements(org)}/{engagementId}/availability/me",
             new RespondAvailabilityRequest(response));
         result.EnsureSuccessStatusCode();
+    }
+
+    private static async Task<int?> OutstandingAsync(
+        TestOrganisation org,
+        Guid engagementId)
+    {
+        var engagement = await org.Owner.GetFromJsonAsync<EngagementResponse>(
+            $"{Engagements(org)}/{engagementId}");
+        Assert.NotNull(engagement);
+        return engagement.ReadinessOutstanding;
     }
 
     private HttpClient CreateClient(string subject)

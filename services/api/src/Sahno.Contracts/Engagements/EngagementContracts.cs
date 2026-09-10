@@ -31,6 +31,8 @@ public sealed record EngagementResponse(
     int? OutstandingCount,
     /// <summary>The caller's own answer, when they are on the lineup themselves.</summary>
     string? YourResponse,
+    /// <summary>Checklist items still to sort out. Null for members (D-048).</summary>
+    int? ReadinessOutstanding,
     DateTimeOffset CreatedAtUtc);
 
 /// <summary>Only a title is required (D-025).</summary>

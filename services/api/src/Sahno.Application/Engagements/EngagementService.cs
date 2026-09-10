@@ -8,7 +8,9 @@ namespace Sahno.Application.Engagements;
 public sealed record EngagementView(
     Engagement Engagement,
     EngagementLineup? Lineup,
-    AvailabilityResponse? YourResponse);
+    AvailabilityResponse? YourResponse,
+    /// <summary>Checklist items still to sort out. Null for members (D-048).</summary>
+    int? ReadinessOutstanding);
 
 public enum EngagementResult
 {
@@ -41,7 +43,8 @@ public enum EngagementResult
 /// </summary>
 public sealed class EngagementService(
     IEngagementStore engagements,
-    IEngagementParticipantStore participants)
+    IEngagementParticipantStore participants,
+    IReadinessStore waivers)
 {
     /// <summary>
     /// What this person may see. Organisers see everything the organisation
@@ -117,13 +120,36 @@ public sealed class EngagementService(
             actor.UserId,
             cancellationToken);
 
+        // Waivers for the whole organisation at once, so a pipeline of twenty
+        // bookings costs one query rather than twenty.
+        var waived = isOrganiser
+            ? await waivers.ListForOrganisationAsync(
+                actor.OrganisationId,
+                cancellationToken)
+            : null;
+
         return engagementList
-            .Select(engagement => new EngagementView(
-                engagement,
-                lineups?.GetValueOrDefault(engagement.Id),
-                ownResponses.TryGetValue(engagement.Id, out var response)
-                    ? response
-                    : null))
+            .Select(engagement =>
+            {
+                var lineup = lineups?.GetValueOrDefault(engagement.Id);
+                int? outstanding = null;
+
+                if (waived is not null)
+                {
+                    var resolved =
+                        lineup is { Selected: > 0, Outstanding: 0 };
+                    outstanding = ReadinessService.CountOutstanding(
+                        engagement.Readiness(resolved, waived[engagement.Id].ToHashSet()));
+                }
+
+                return new EngagementView(
+                    engagement,
+                    lineup,
+                    ownResponses.TryGetValue(engagement.Id, out var response)
+                        ? response
+                        : null,
+                    outstanding);
+            })
             .ToList();
     }
     /// <summary>One engagement, if this person is allowed to see it.</summary>

@@ -29,6 +29,10 @@ export type Engagement = {
   /** ISO time, e.g. "19:30:00". */
   startTime: string | null;
   venue: string | null;
+  /** Call or sound-check time, "17:00:00". When people must be there. */
+  callTime: string | null;
+  /** What to wear. Participant-facing. */
+  dressNotes: string | null;
   isSharedWithMembers: boolean;
   canChangeDateDirectly: boolean;
   canBeDiscarded: boolean;
@@ -40,6 +44,8 @@ export type Engagement = {
   outstandingCount: number | null;
   /** The caller's own answer, when they are on the lineup themselves. */
   yourResponse: AvailabilityAnswer | null;
+  /** Checklist items still to sort out. Null for members (D-048). */
+  readinessOutstanding: number | null;
   createdAtUtc: string;
 };
 
@@ -138,7 +144,13 @@ export function updateEngagement(
   accessToken: string,
   organisationId: string,
   engagementId: string,
-  update: { title?: string | null; startTime?: string | null; venue?: string | null },
+  update: {
+    title?: string | null;
+    startTime?: string | null;
+    callTime?: string | null;
+    dressNotes?: string | null;
+    venue?: string | null;
+  },
 ): Promise<void> {
   return sendAuthorizedJson(
     `${base(organisationId)}/${engagementId}`,

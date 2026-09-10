@@ -100,6 +100,14 @@ public sealed record EngagementLineup(int Selected, int Outstanding);
 
 public interface IReadinessStore
 {
+    /// <summary>
+    /// Waivers across a whole organisation, so a list of bookings costs one
+    /// query rather than one per booking.
+    /// </summary>
+    Task<ILookup<Guid, ReadinessItem>> ListForOrganisationAsync(
+        Guid organisationId,
+        CancellationToken cancellationToken);
+
     /// <summary>Which checklist items an organiser has said do not apply.</summary>
     Task<IReadOnlyList<ReadinessWaiver>> ListForEngagementAsync(
         Guid engagementId,
