@@ -5,7 +5,6 @@ import type { Engagement } from '@/api/engagements';
 import { updateEngagement } from '@/api/engagements';
 import {
   READINESS_LABELS,
-  READINESS_NOT_BUILT,
   setReadiness,
   type ReadinessEntry,
   type ReadinessItem,
@@ -181,12 +180,9 @@ export function ReadinessCard({ engagementId }: { engagementId: string }) {
 
   const entries = readinessQuery.data;
 
-  // The same count Home shows, arrived at the same way: the Slice 8 rows are
-  // listed but not counted, because nothing an organiser does today can tick
-  // them and a number that never falls is not a to-do list.
+  // The same count Home shows, arrived at the same way.
   const outstanding = entries.filter(
-    (entry) =>
-      entry.state === 'Outstanding' && !READINESS_NOT_BUILT.includes(entry.item),
+    (entry) => entry.state === 'Outstanding',
   );
 
   return (
@@ -235,8 +231,6 @@ function ReadinessRow({
   busy: boolean;
   onToggle: () => void;
 }) {
-  const notBuiltYet = READINESS_NOT_BUILT.includes(entry.item);
-
   return (
     <View style={styles.readinessRow}>
       <View style={[styles.tick, tickStyle(entry.state)]}>
@@ -248,31 +242,20 @@ function ReadinessRow({
       <View style={styles.rowValue}>
         <Text
           variant="bodySmall"
-          color={
-            entry.state === 'Outstanding' && !notBuiltYet ? 'primary' : 'muted'
-          }
+          color={entry.state === 'Outstanding' ? 'primary' : 'muted'}
         >
           {READINESS_LABELS[entry.item]}
         </Text>
-        {notBuiltYet ? (
-          <Text variant="caption" color="muted">
-            Arrives in a later update
-          </Text>
-        ) : null}
       </View>
 
-      {/* Nothing to set aside on a row Sahno cannot yet tick: an organiser
-          waiving "rehearsal organised" changes nothing they can see. */}
-      {notBuiltYet && entry.state === 'Outstanding' ? null : (
-        <Text
-          variant="caption"
-          color="accent"
-          onPress={busy ? undefined : onToggle}
-          suppressHighlighting
-        >
-          {entry.state === 'NotRequired' ? 'Put back' : 'Not required'}
-        </Text>
-      )}
+      <Text
+        variant="caption"
+        color="accent"
+        onPress={busy ? undefined : onToggle}
+        suppressHighlighting
+      >
+        {entry.state === 'NotRequired' ? 'Put back' : 'Not required'}
+      </Text>
     </View>
   );
 }

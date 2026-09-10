@@ -18,6 +18,11 @@ import {
   DetailsCard,
   ReadinessCard,
 } from '@/components/workspace-cards';
+import {
+  RehearsalsCard,
+  ResourcesCard,
+  ResponsibilitiesCard,
+} from '@/components/preparation-cards';
 import { Button, Card, DateField, Screen, Text, TextInput } from '@/components/ui';
 import {
   formatEngagementDate,
@@ -125,23 +130,20 @@ export default function EngagementDetail() {
       {isOrganiser ? <DetailsCard engagement={engagement} /> : null}
       {isOrganiser ? <ReadinessCard engagementId={engagement.id} /> : null}
 
-      {/* Sections later slices fill. Named rather than hidden, so the shape of
-          a workspace is visible and it is clear what is coming. */}
+      {/* Responsibilities, Rehearsals, Resources — D-047 §3-5. Everyone on the
+          event reads them; only organisers write. */}
+      <ResponsibilitiesCard
+        engagementId={engagement.id}
+        isOrganiser={isOrganiser}
+      />
+      <RehearsalsCard engagementId={engagement.id} isOrganiser={isOrganiser} />
+      <ResourcesCard engagementId={engagement.id} isOrganiser={isOrganiser} />
+
       {isOrganiser ? (
-        <>
-          <ComingSoonCard
-            title="Responsibilities"
-            description="Who is doing what — assigned by you, updatable by them."
-          />
-          <ComingSoonCard
-            title="Rehearsals and resources"
-            description="Rehearsals linked to this event, and the repertoire or files that go with it."
-          />
-          <ComingSoonCard
-            title="Discussion"
-            description="Conversation about this event, kept with the event rather than in a separate inbox."
-          />
-        </>
+        <ComingSoonCard
+          title="Discussion"
+          description="Conversation about this event, kept with the event rather than in a separate inbox."
+        />
       ) : null}
 
       <AddToCalendarCard

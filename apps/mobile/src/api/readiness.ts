@@ -79,10 +79,3 @@ export const READINESS_LABELS: Record<ReadinessItem, string> = {
   Rehearsal: 'Rehearsal organised',
   Resources: 'Repertoire or resources ready',
 };
-
-/** Items with nothing behind them until Slice 8, flagged rather than hidden. */
-export const READINESS_NOT_BUILT: ReadinessItem[] = [
-  'Responsibilities',
-  'Rehearsal',
-  'Resources',
-];
