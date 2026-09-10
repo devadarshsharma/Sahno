@@ -12,6 +12,12 @@ import {
 } from '@/api/engagements';
 import { ApiError } from '@/api/client';
 import { LineupCard, MyAvailabilityCard } from '@/components/availability-cards';
+import {
+  ComingSoonCard,
+  DayOfCard,
+  DetailsCard,
+  ReadinessCard,
+} from '@/components/workspace-cards';
 import { Button, Card, DateField, Screen, Text, TextInput } from '@/components/ui';
 import {
   formatEngagementDate,
@@ -96,8 +102,14 @@ export default function EngagementDetail() {
         </Card>
       ) : null}
 
+      {/* Overview — what this event is, and what a participant needs on the
+          day. First for everyone, because it answers the question people open
+          a booking to ask. */}
+      <DayOfCard engagement={engagement} />
+
       <MyAvailabilityCard engagementId={engagement.id} />
 
+      {/* People */}
       {isOrganiser ? (
         <LineupCard
           engagementId={engagement.id}
@@ -110,13 +122,37 @@ export default function EngagementDetail() {
         />
       ) : null}
 
-      {isOrganiser ? <DatesCard engagement={engagement} /> : null}
-      {isOrganiser ? <TransitionsCard engagement={engagement} /> : null}
+      {isOrganiser ? <DetailsCard engagement={engagement} /> : null}
+      {isOrganiser ? <ReadinessCard engagementId={engagement.id} /> : null}
+
+      {/* Sections later slices fill. Named rather than hidden, so the shape of
+          a workspace is visible and it is clear what is coming. */}
+      {isOrganiser ? (
+        <>
+          <ComingSoonCard
+            title="Responsibilities"
+            description="Who is doing what — assigned by you, updatable by them."
+          />
+          <ComingSoonCard
+            title="Rehearsals and resources"
+            description="Rehearsals linked to this event, and the repertoire or files that go with it."
+          />
+          <ComingSoonCard
+            title="Discussion"
+            description="Conversation about this event, kept with the event rather than in a separate inbox."
+          />
+        </>
+      ) : null}
+
       <AddToCalendarCard
         engagement={engagement}
         organisationName={active?.name ?? 'your organisation'}
       />
 
+      {/* Admin — the organiser's own controls, last because they are the least
+          often needed and the most consequential. */}
+      {isOrganiser ? <DatesCard engagement={engagement} /> : null}
+      {isOrganiser ? <TransitionsCard engagement={engagement} /> : null}
       {isOrganiser ? <HistoryCard engagementId={engagement.id} /> : null}
 
       {isOrganiser && engagement.canBeDiscarded ? (
