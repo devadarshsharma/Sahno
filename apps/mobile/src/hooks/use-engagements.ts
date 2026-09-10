@@ -10,14 +10,13 @@ import { useActiveOrg } from '@/hooks/use-organisations';
 import { useSession } from '@/providers/auth-provider';
 
 /**
- * The active organisation's engagements. Organisers only for now — Members
- * reach the ones they are part of once participant selection exists (Slice 5),
- * so this stays disabled for them rather than asking and being refused.
+ * The engagements this person may see. The API scopes it: organisers get the
+ * whole pipeline, a member gets only the ones they are on the lineup for
+ * (D-020), so the same query serves both.
  */
 export function useEngagements() {
   const session = useSession();
   const { active } = useActiveOrg();
-  const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
 
   return useQuery({
     queryKey: ['org', active?.id, 'engagements'],
@@ -25,7 +24,7 @@ export function useEngagements() {
       const accessToken = await session.getAccessToken();
       return listEngagements(accessToken, active!.id, signal);
     },
-    enabled: active !== null && isOrganiser && session.status === 'authenticated',
+    enabled: active !== null && session.status === 'authenticated',
   });
 }
 
@@ -136,3 +135,18 @@ export function formatEngagementDate(engagement: Engagement): string {
         { day: 'numeric', month: 'short', year: 'numeric' },
       )}`;
 }
+
+/**
+ * Member wording for the same states (D-039). A member is not working a
+ * pipeline, so the labels describe what the event means for them — most
+ * importantly, which ones are waiting on their answer.
+ */
+export const MEMBER_STATUS_LABELS: Record<EngagementStatus, string> = {
+  Draft: 'Not yet shared',
+  CheckingAvailability: 'Needs your response',
+  Tentative: 'Tentative',
+  Confirmed: 'Confirmed',
+  Postponed: 'Postponed',
+  Completed: 'Past events',
+  Cancelled: 'Cancelled',
+};

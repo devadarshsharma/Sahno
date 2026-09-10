@@ -10,6 +10,8 @@ import {
   type Engagement,
   type EngagementStatus,
 } from '@/api/engagements';
+import { ApiError } from '@/api/client';
+import { LineupCard, MyAvailabilityCard } from '@/components/availability-cards';
 import { Button, Card, DateField, Screen, Text, TextInput } from '@/components/ui';
 import {
   formatEngagementDate,
@@ -19,6 +21,7 @@ import {
   useEngagementMutation,
   useEngagements,
 } from '@/hooks/use-engagements';
+import { useActiveOrg } from '@/hooks/use-organisations';
 import { colors, spacing } from '@/theme';
 
 /**
@@ -29,7 +32,9 @@ import { colors, spacing } from '@/theme';
 export default function EngagementDetail() {
   const { engagementId } = useLocalSearchParams<{ engagementId: string }>();
   const router = useRouter();
+  const { active } = useActiveOrg();
   const engagementsQuery = useEngagements();
+  const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
 
   const engagement = engagementsQuery.data?.find(
     (row) => row.id === engagementId,
@@ -86,11 +91,25 @@ export default function EngagementDetail() {
         </Card>
       ) : null}
 
-      <DatesCard engagement={engagement} />
-      <TransitionsCard engagement={engagement} />
-      <HistoryCard engagementId={engagement.id} />
+      <MyAvailabilityCard engagementId={engagement.id} />
 
-      {engagement.canBeDiscarded ? (
+      {isOrganiser ? (
+        <LineupCard
+          engagementId={engagement.id}
+          onSelectMembers={() =>
+            router.push({
+              pathname: '/select-members',
+              params: { engagementId: engagement.id },
+            })
+          }
+        />
+      ) : null}
+
+      {isOrganiser ? <DatesCard engagement={engagement} /> : null}
+      {isOrganiser ? <TransitionsCard engagement={engagement} /> : null}
+      {isOrganiser ? <HistoryCard engagementId={engagement.id} /> : null}
+
+      {isOrganiser && engagement.canBeDiscarded ? (
         <DiscardCard engagement={engagement} onDiscarded={() => router.back()} />
       ) : null}
 
@@ -180,6 +199,7 @@ function TransitionsCard({ engagement }: { engagement: Engagement }) {
   const move = useEngagementMutation<{
     status: EngagementStatus;
     reason: string | null;
+    acknowledgeOutstanding?: boolean;
   }>((accessToken, organisationId, args) =>
     transitionEngagement(
       accessToken,
@@ -187,11 +207,36 @@ function TransitionsCard({ engagement }: { engagement: Engagement }) {
       engagement.id,
       args.status,
       args.reason,
+      args.acknowledgeOutstanding,
     ),
   );
 
   if (engagement.allowedTransitions.length === 0) {
     return null;
+  }
+
+  /**
+   * Confirming with answers outstanding is refused with 409 until the
+   * organiser says they know. The warning names what is unresolved rather than
+   * asking a bare "are you sure" (D-029).
+   */
+  function warnThenConfirm(status: EngagementStatus) {
+    Alert.alert(
+      'Some members have not answered',
+      'You can confirm the booking anyway — it is a fact about the customer, '
+        + 'not the lineup. The outstanding answers stay visible until they are in.',
+      [
+        { text: 'Wait for answers', style: 'cancel' },
+        {
+          text: 'Confirm anyway',
+          onPress: () =>
+            move.mutate(
+              { status, reason: null, acknowledgeOutstanding: true },
+              { onError: () => setError('Could not make that change.') },
+            ),
+        },
+      ],
+    );
   }
 
   function start(status: EngagementStatus) {
@@ -203,7 +248,15 @@ function TransitionsCard({ engagement }: { engagement: Engagement }) {
     }
     move.mutate(
       { status, reason: null },
-      { onError: () => setError('Could not make that change.') },
+      {
+        onError: (failure) => {
+          if (failure instanceof ApiError && failure.status === 409) {
+            warnThenConfirm(status);
+            return;
+          }
+          setError('Could not make that change.');
+        },
+      },
     );
   }
 

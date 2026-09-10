@@ -159,18 +159,24 @@ export function setEngagementDates(
   );
 }
 
+/**
+ * Moves the engagement. Confirming while selected members have not answered is
+ * refused with 409 until acknowledgeOutstanding is sent, so the warning cannot
+ * be skipped by accident (D-029).
+ */
 export function transitionEngagement(
   accessToken: string,
   organisationId: string,
   engagementId: string,
   status: EngagementStatus,
   reason?: string | null,
+  acknowledgeOutstanding = false,
 ): Promise<void> {
   return sendAuthorizedJson(
     `${base(organisationId)}/${engagementId}/transition`,
     accessToken,
     'POST',
-    { status, reason: reason ?? null },
+    { status, reason: reason ?? null, acknowledgeOutstanding },
   );
 }
 

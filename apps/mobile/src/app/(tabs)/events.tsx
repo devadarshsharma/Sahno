@@ -6,6 +6,7 @@ import { Button, Screen, Text } from '@/components/ui';
 import {
   formatEngagementDate,
   groupByStatus,
+  MEMBER_STATUS_LABELS,
   STATUS_LABELS,
   useEngagements,
 } from '@/hooks/use-engagements';
@@ -23,10 +24,6 @@ export default function Events() {
   const engagementsQuery = useEngagements();
 
   const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
-
-  if (!isOrganiser) {
-    return <MemberPlaceholder />;
-  }
 
   if (engagementsQuery.isPending) {
     return (
@@ -63,33 +60,42 @@ export default function Events() {
       refreshing={engagementsQuery.isRefetching}
     >
       <View style={styles.header}>
-        <Text variant="title">Bookings</Text>
+        <Text variant="title">{isOrganiser ? 'Bookings' : 'Events'}</Text>
         <Text color="secondary" variant="bodySmall">
-          Everything {active?.name} is working on, from first enquiry to done.
+          {isOrganiser
+            ? `Everything ${active?.name} is working on, from first enquiry to done.`
+            : 'The events you have been asked about or added to.'}
         </Text>
       </View>
 
-      <Button
-        label="New enquiry"
-        onPress={() => router.push('/create-engagement')}
-        style={styles.newEnquiry}
-      />
+      {isOrganiser ? (
+        <Button
+          label="New enquiry"
+          onPress={() => router.push('/create-engagement')}
+          style={styles.newEnquiry}
+        />
+      ) : null}
 
       {groups.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}>📋</Text>
+          <Text style={styles.emptyEmoji}>{isOrganiser ? '📋' : '📅'}</Text>
           <Text variant="subheading" style={styles.centeredText}>
-            Nothing in the pipeline yet
+            {isOrganiser ? 'Nothing in the pipeline yet' : 'Nothing on yet'}
           </Text>
           <Text color="secondary" variant="bodySmall" style={styles.centeredText}>
-            Start an enquiry with just a title — the date, venue, and everything
-            else can come later.
+            {isOrganiser
+              ? 'Start an enquiry with just a title — the date, venue, and everything else can come later.'
+              : 'Events appear here as soon as an organiser asks whether you are available.'}
           </Text>
         </View>
       ) : (
         groups.map((group) => (
           <View key={group.status} style={styles.group}>
-            <Text variant="subheading">{STATUS_LABELS[group.status]}</Text>
+            <Text variant="subheading">
+              {isOrganiser
+                ? STATUS_LABELS[group.status]
+                : MEMBER_STATUS_LABELS[group.status]}
+            </Text>
             {group.items.map((engagement) => (
               <EngagementRow
                 key={engagement.id}
@@ -143,25 +149,6 @@ function EngagementRow({
         ›
       </Text>
     </Pressable>
-  );
-}
-
-function MemberPlaceholder() {
-  return (
-    <Screen>
-      <View style={styles.centered}>
-        <View style={styles.illustration}>
-          <Text style={styles.emoji}>📅</Text>
-        </View>
-        <Text variant="heading" style={styles.centeredText}>
-          Events
-        </Text>
-        <Text color="secondary" variant="bodySmall" style={styles.centeredText}>
-          Your events and schedules arrive here once your organiser starts
-          adding you to them.
-        </Text>
-      </View>
-    </Screen>
   );
 }
 
