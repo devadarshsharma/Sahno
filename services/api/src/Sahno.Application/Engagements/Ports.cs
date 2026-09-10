@@ -198,3 +198,24 @@ public interface IEngagementResourceStore
         Guid organisationId,
         CancellationToken cancellationToken);
 }
+
+public interface IDiscussionStore
+{
+    /// <summary>
+    /// The whole thread, oldest first. Removed messages are included as
+    /// tombstones: they carry no text, but a conversation with silent gaps in
+    /// it stops making sense.
+    /// </summary>
+    Task<IReadOnlyList<DiscussionMessage>> ListForEngagementAsync(
+        Guid engagementId,
+        CancellationToken cancellationToken);
+
+    Task<DiscussionMessage?> FindAsync(
+        Guid engagementId,
+        Guid messageId,
+        CancellationToken cancellationToken);
+
+    Task AddAsync(DiscussionMessage message, CancellationToken cancellationToken);
+
+    Task SaveAsync(CancellationToken cancellationToken);
+}

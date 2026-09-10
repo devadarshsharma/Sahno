@@ -33,6 +33,9 @@ public sealed class SahnoDbContext(DbContextOptions<SahnoDbContext> options)
     public DbSet<EngagementResource> EngagementResources =>
         Set<EngagementResource>();
 
+    public DbSet<DiscussionMessage> DiscussionMessages =>
+        Set<DiscussionMessage>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(

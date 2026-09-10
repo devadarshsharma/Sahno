@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<IResponsibilityStore, ResponsibilityStore>();
         services.AddScoped<IRehearsalStore, RehearsalStore>();
         services.AddScoped<IEngagementResourceStore, EngagementResourceStore>();
+        services.AddScoped<IDiscussionStore, DiscussionStore>();
 
         return services;
     }
