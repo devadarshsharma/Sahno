@@ -102,6 +102,14 @@ export function ResponsibilitiesCard({
   }
 
   const jobs = jobsQuery.data;
+
+  // An organiser keeps the empty card, because the button that fills it lives
+  // there. A member has nothing to do with one, and three "nothing yet" cards
+  // between their answer and their calendar is noise.
+  if (jobs.length === 0 && !isOrganiser) {
+    return null;
+  }
+
   const outstanding = jobs.filter((job) => !job.isDone).length;
   const unassigned = jobs.filter((job) => job.assignedUserId === null).length;
 
@@ -421,6 +429,10 @@ export function RehearsalsCard({
 
   const rehearsals = rehearsalsQuery.data;
 
+  if (rehearsals.length === 0 && !isOrganiser) {
+    return null;
+  }
+
   return (
     <Card style={styles.card}>
       <Text variant="subheading">Rehearsals</Text>
@@ -610,6 +622,10 @@ export function ResourcesCard({
   }
 
   const resources = resourcesQuery.data;
+
+  if (resources.length === 0 && !isOrganiser) {
+    return null;
+  }
 
   return (
     <Card style={styles.card}>
