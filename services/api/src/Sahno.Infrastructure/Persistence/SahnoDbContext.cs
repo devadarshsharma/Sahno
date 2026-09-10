@@ -26,6 +26,13 @@ public sealed class SahnoDbContext(DbContextOptions<SahnoDbContext> options)
 
     public DbSet<ReadinessWaiver> ReadinessWaivers => Set<ReadinessWaiver>();
 
+    public DbSet<Responsibility> Responsibilities => Set<Responsibility>();
+
+    public DbSet<Rehearsal> Rehearsals => Set<Rehearsal>();
+
+    public DbSet<EngagementResource> EngagementResources =>
+        Set<EngagementResource>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(

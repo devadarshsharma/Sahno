@@ -200,9 +200,7 @@ public sealed class ReadinessEndpointTests(SahnoApiFactory factory)
 
     /// <summary>
     /// The organiser's Needs attention list runs off a count on the booking
-    /// itself, so it costs no extra request per booking. Only the items Sahno
-    /// can answer today are counted — the Slice 8 ones would otherwise make
-    /// every booking look permanently unready.
+    /// itself, so it costs no extra request per booking rather than one each.
     /// </summary>
     [Fact]
     public async Task TheListCarriesHowMuchIsStillToSortOut()
@@ -210,7 +208,7 @@ public sealed class ReadinessEndpointTests(SahnoApiFactory factory)
         var org = await NewOrganisationAsync("readiness-count");
         var engagement = await NewDatedDraftAsync(org, "Counting");
 
-        Assert.Equal(5, await OutstandingAsync(org, engagement.Id));
+        Assert.Equal(8, await OutstandingAsync(org, engagement.Id));
 
         await UpdateAsync(
             org,
@@ -220,11 +218,12 @@ public sealed class ReadinessEndpointTests(SahnoApiFactory factory)
             dressNotes: "Black kurta.",
             venue: "Dural Community Hall");
 
-        // Only the lineup is left, and nobody has been asked yet.
-        Assert.Equal(1, await OutstandingAsync(org, engagement.Id));
+        // Left: the lineup nobody has been asked about, and the three Slice 8
+        // items — responsibilities, a rehearsal, and resources.
+        Assert.Equal(4, await OutstandingAsync(org, engagement.Id));
 
         await SetReadinessAsync(org, engagement.Id, "Lineup", true);
-        Assert.Equal(0, await OutstandingAsync(org, engagement.Id));
+        Assert.Equal(3, await OutstandingAsync(org, engagement.Id));
     }
 
     /// <summary>

@@ -121,3 +121,80 @@ public interface IReadinessStore
         ReadinessItem item,
         CancellationToken cancellationToken);
 }
+
+public interface IResponsibilityStore
+{
+    Task<IReadOnlyList<Responsibility>> ListForEngagementAsync(
+        Guid engagementId,
+        CancellationToken cancellationToken);
+
+    Task<Responsibility?> FindAsync(
+        Guid engagementId,
+        Guid responsibilityId,
+        CancellationToken cancellationToken);
+
+    Task AddAsync(Responsibility responsibility, CancellationToken cancellationToken);
+
+    Task SaveAsync(CancellationToken cancellationToken);
+
+    Task RemoveAsync(Guid responsibilityId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Whether every engagement of one organisation has its jobs handed out,
+    /// for the readiness checklist. One query for the whole pipeline, in the
+    /// same spirit as the waiver lookup above.
+    /// </summary>
+    Task<IReadOnlySet<Guid>> EngagementIdsWithAllAssignedAsync(
+        Guid organisationId,
+        CancellationToken cancellationToken);
+}
+
+public interface IRehearsalStore
+{
+    Task<IReadOnlyList<Rehearsal>> ListForEngagementAsync(
+        Guid engagementId,
+        CancellationToken cancellationToken);
+
+    Task<Rehearsal?> FindAsync(
+        Guid engagementId,
+        Guid rehearsalId,
+        CancellationToken cancellationToken);
+
+    Task AddAsync(Rehearsal rehearsal, CancellationToken cancellationToken);
+
+    Task SaveAsync(CancellationToken cancellationToken);
+
+    Task RemoveAsync(Guid rehearsalId, CancellationToken cancellationToken);
+
+    /// <summary>Which engagements of one organisation have a rehearsal booked.</summary>
+    Task<IReadOnlySet<Guid>> EngagementIdsWithRehearsalsAsync(
+        Guid organisationId,
+        CancellationToken cancellationToken);
+}
+
+public interface IEngagementResourceStore
+{
+    /// <summary>
+    /// Everything attached, whatever its audience. Filtering by who is asking
+    /// happens above this — the store does not know about roles.
+    /// </summary>
+    Task<IReadOnlyList<EngagementResource>> ListForEngagementAsync(
+        Guid engagementId,
+        CancellationToken cancellationToken);
+
+    Task<EngagementResource?> FindAsync(
+        Guid engagementId,
+        Guid resourceId,
+        CancellationToken cancellationToken);
+
+    Task AddAsync(EngagementResource resource, CancellationToken cancellationToken);
+
+    Task SaveAsync(CancellationToken cancellationToken);
+
+    Task RemoveAsync(Guid resourceId, CancellationToken cancellationToken);
+
+    /// <summary>Which engagements of one organisation have anything attached.</summary>
+    Task<IReadOnlySet<Guid>> EngagementIdsWithResourcesAsync(
+        Guid organisationId,
+        CancellationToken cancellationToken);
+}

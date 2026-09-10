@@ -38,6 +38,24 @@ public enum ReadinessState
 public sealed record ReadinessEntry(ReadinessItem Item, ReadinessState State);
 
 /// <summary>
+/// What the rest of the system knows about an engagement's preparation, so the
+/// checklist can be derived rather than maintained. Everything here is a fact
+/// about other records — the lineup, the responsibility list, the rehearsals,
+/// the resources — which is what stops the checklist drifting out of step with
+/// the event it describes (D-048).
+/// </summary>
+public sealed record ReadinessFacts(
+    bool LineupResolved,
+    bool ResponsibilitiesAssigned,
+    bool RehearsalOrganised,
+    bool ResourcesReady)
+{
+    public static readonly ReadinessFacts None = new(false, false, false, false);
+}
+
+
+
+/// <summary>
 /// An organiser's decision that a checklist item does not apply to this event
 /// — no dress code for a rehearsal-room session, no sound check for a small
 /// acoustic set. Stored per item rather than as a blanket dismissal so the
@@ -80,22 +98,5 @@ public sealed class ReadinessWaiver
             item,
             waivedByUserId,
             DateTimeOffset.UtcNow);
-    }
-}
-
-public static class ReadinessItems
-{
-    /// <summary>
-    /// Whether Sahno can yet answer this item for itself. Responsibilities,
-    /// rehearsals, and resources arrive in Slice 8; until they exist they are
-    /// permanently outstanding, and counting them would make every booking
-    /// look unready — which is worse than not counting them at all. They still
-    /// appear on the checklist, so an organiser can see what is coming.
-    /// </summary>
-    public static bool IsTracked(this ReadinessItem item)
-    {
-        return item is not (ReadinessItem.Responsibilities
-            or ReadinessItem.Rehearsal
-            or ReadinessItem.Resources);
     }
 }

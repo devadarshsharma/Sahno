@@ -12,6 +12,9 @@ namespace Sahno.Application.Engagements;
 public sealed class ReadinessService(
     IEngagementStore engagements,
     IEngagementParticipantStore participants,
+    IResponsibilityStore responsibilities,
+    IRehearsalStore rehearsals,
+    IEngagementResourceStore resources,
     IReadinessStore waivers)
 {
     public async Task<IReadOnlyList<ReadinessEntry>> ForEngagementAsync(
@@ -30,13 +33,39 @@ public sealed class ReadinessService(
         var lineupResolved =
             active.Count > 0 && active.All(participant => participant.Response is not null);
 
+        var jobs = await responsibilities.ListForEngagementAsync(
+            engagement.Id,
+            cancellationToken);
+        var sessions = await rehearsals.ListForEngagementAsync(
+            engagement.Id,
+            cancellationToken);
+        var attached = await resources.ListForEngagementAsync(
+            engagement.Id,
+            cancellationToken);
+
+        var facts = new ReadinessFacts(
+            lineupResolved,
+            AllAssigned(jobs),
+            sessions.Count > 0,
+            attached.Count > 0);
+
         var waived = (await waivers.ListForEngagementAsync(
                 engagement.Id,
                 cancellationToken))
             .Select(waiver => waiver.Item)
             .ToHashSet();
 
-        return engagement.Readiness(lineupResolved, waived);
+        return engagement.Readiness(facts, waived);
+    }
+
+    /// <summary>
+    /// D-048's item is "responsibilities assigned", not "responsibilities
+    /// written down". A list with an unclaimed job on it is exactly the state
+    /// an organiser needs chasing, so it does not tick.
+    /// </summary>
+    public static bool AllAssigned(IReadOnlyList<Responsibility> jobs)
+    {
+        return jobs.Count > 0 && jobs.All(job => job.IsAssigned);
     }
 
     /// <summary>
@@ -89,12 +118,10 @@ public sealed class ReadinessService(
     }
 
     /// <summary>
-    /// How many checklist items are still to sort out, counting only the ones
-    /// Sahno can actually answer today (see <see cref="ReadinessItems.IsTracked"/>).
+    /// How many checklist items are still to sort out.
     /// </summary>
     public static int CountOutstanding(IReadOnlyList<ReadinessEntry> readiness)
     {
-        return readiness.Count(entry =>
-            entry.State == ReadinessState.Outstanding && entry.Item.IsTracked());
+        return readiness.Count(entry => entry.State == ReadinessState.Outstanding);
     }
 }

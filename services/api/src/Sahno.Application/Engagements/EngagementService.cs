@@ -44,6 +44,9 @@ public enum EngagementResult
 public sealed class EngagementService(
     IEngagementStore engagements,
     IEngagementParticipantStore participants,
+    IResponsibilityStore responsibilities,
+    IRehearsalStore rehearsals,
+    IEngagementResourceStore resources,
     IReadinessStore waivers)
 {
     /// <summary>
@@ -120,10 +123,26 @@ public sealed class EngagementService(
             actor.UserId,
             cancellationToken);
 
-        // Waivers for the whole organisation at once, so a pipeline of twenty
-        // bookings costs one query rather than twenty.
+        // Waivers and the three preparation facts for the whole organisation
+        // at once, so a pipeline of twenty bookings costs four queries rather
+        // than eighty.
         var waived = isOrganiser
             ? await waivers.ListForOrganisationAsync(
+                actor.OrganisationId,
+                cancellationToken)
+            : null;
+        var allAssigned = isOrganiser
+            ? await responsibilities.EngagementIdsWithAllAssignedAsync(
+                actor.OrganisationId,
+                cancellationToken)
+            : null;
+        var withRehearsals = isOrganiser
+            ? await rehearsals.EngagementIdsWithRehearsalsAsync(
+                actor.OrganisationId,
+                cancellationToken)
+            : null;
+        var withResources = isOrganiser
+            ? await resources.EngagementIdsWithResourcesAsync(
                 actor.OrganisationId,
                 cancellationToken)
             : null;
@@ -136,10 +155,14 @@ public sealed class EngagementService(
 
                 if (waived is not null)
                 {
-                    var resolved =
-                        lineup is { Selected: > 0, Outstanding: 0 };
+                    var facts = new ReadinessFacts(
+                        lineup is { Selected: > 0, Outstanding: 0 },
+                        allAssigned!.Contains(engagement.Id),
+                        withRehearsals!.Contains(engagement.Id),
+                        withResources!.Contains(engagement.Id));
+
                     outstanding = ReadinessService.CountOutstanding(
-                        engagement.Readiness(resolved, waived[engagement.Id].ToHashSet()));
+                        engagement.Readiness(facts, waived[engagement.Id].ToHashSet()));
                 }
 
                 return new EngagementView(

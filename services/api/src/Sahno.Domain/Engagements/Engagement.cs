@@ -276,7 +276,7 @@ public sealed class Engagement
     /// says they do not apply.
     /// </summary>
     public IReadOnlyList<ReadinessEntry> Readiness(
-        bool lineupResolved,
+        ReadinessFacts facts,
         IReadOnlySet<ReadinessItem> waived)
     {
         ReadinessEntry Entry(ReadinessItem item, bool done)
@@ -293,14 +293,14 @@ public sealed class Engagement
 
         return
         [
-            Entry(ReadinessItem.Lineup, lineupResolved),
+            Entry(ReadinessItem.Lineup, facts.LineupResolved),
             Entry(ReadinessItem.Venue, Venue is not null),
             Entry(ReadinessItem.CallTime, CallTime is not null),
             Entry(ReadinessItem.StartTime, StartTime is not null),
-            Entry(ReadinessItem.Responsibilities, false),
+            Entry(ReadinessItem.Responsibilities, facts.ResponsibilitiesAssigned),
             Entry(ReadinessItem.Dress, DressNotes is not null),
-            Entry(ReadinessItem.Rehearsal, false),
-            Entry(ReadinessItem.Resources, false),
+            Entry(ReadinessItem.Rehearsal, facts.RehearsalOrganised),
+            Entry(ReadinessItem.Resources, facts.ResourcesReady),
         ];
     }
     /// <summary>
