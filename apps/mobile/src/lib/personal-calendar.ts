@@ -8,6 +8,7 @@ import type { Engagement } from '@/api/engagements';
 
 export type AddToCalendarResult =
   | { ok: true; tentative: boolean }
+  | { ok: false; reason: 'already-added' }
   | { ok: false; reason: 'permission' | 'no-calendar' | 'no-date' | 'failed' };
 
 /**
@@ -46,6 +47,30 @@ function notesFor(engagement: Engagement, organisationName: string): string {
   return lines.join('\n');
 }
 
+
+/**
+ * All-day entries are anchored to UTC midnight, not local midnight.
+ *
+ * Calendar providers read an all-day event's bounds as UTC. Local midnight in
+ * a positive offset is the previous afternoon in UTC, so an event on the 26th
+ * saved from Sydney would appear as the 25th and 26th — a booking that reads
+ * as spanning two days, one of them wrong.
+ */
+function utcMidnight(isoDay: string): Date {
+  const [year, month, day] = isoDay.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+/**
+ * Whether this engagement is already in the calendar. Matched on either title
+ * it could have been saved under, since a booking may have been added while
+ * tentative and confirmed since.
+ */
+function matchesEngagement(title: string | undefined, engagement: Engagement) {
+  return (
+    title === engagement.title || title === `[Tentative] ${engagement.title}`
+  );
+}
 /** The device calendar Sahno should write to. */
 async function defaultCalendarAsync() {
   const calendars = await getCalendars(EntityTypes.EVENT);
@@ -86,12 +111,17 @@ export async function addToPersonalCalendar(
       return { ok: false, reason: 'no-calendar' };
     }
 
-    const start = new Date(`${engagement.startDate}T00:00:00`);
-    const end = new Date(
-      `${engagement.endDate ?? engagement.startDate}T00:00:00`,
-    );
+    const start = utcMidnight(engagement.startDate);
+    const end = utcMidnight(engagement.endDate ?? engagement.startDate);
     // An all-day event ends at the start of the following day.
-    end.setDate(end.getDate() + 1);
+    end.setUTCDate(end.getUTCDate() + 1);
+
+    // Adding the same booking twice leaves two entries and no way to tell
+    // which is current, so say it is already there instead.
+    const existing = await calendar.listEvents(start, end);
+    if (existing.some((event) => matchesEngagement(event.title, engagement))) {
+      return { ok: false, reason: 'already-added' };
+    }
 
     await calendar.createEvent({
       title: personalCalendarTitle(engagement),
@@ -100,6 +130,9 @@ export async function addToPersonalCalendar(
       allDay: true,
       location: engagement.venue ?? undefined,
       notes: notesFor(engagement, organisationName),
+      // UTC to match the anchoring above; otherwise the provider re-reads the
+      // bounds in the device zone and shifts the day back again.
+      timeZone: 'UTC',
     });
 
     return { ok: true, tentative: engagement.status === 'Tentative' };

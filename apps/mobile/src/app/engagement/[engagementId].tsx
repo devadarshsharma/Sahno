@@ -377,6 +377,14 @@ function AddToCalendarCard({
       return;
     }
 
+    if (result.reason === 'already-added') {
+      Alert.alert(
+        'Already in your calendar',
+        'This booking is there once already. Sahno stays the place it changes.',
+      );
+      return;
+    }
+
     setError(
       result.reason === 'permission'
         ? 'Sahno needs permission to use your calendar. You can grant it in Settings.'
