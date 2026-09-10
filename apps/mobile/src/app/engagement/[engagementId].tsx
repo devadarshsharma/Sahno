@@ -22,6 +22,11 @@ import {
   useEngagements,
 } from '@/hooks/use-engagements';
 import { useActiveOrg } from '@/hooks/use-organisations';
+import {
+  addToPersonalCalendar,
+  canAddToPersonalCalendar,
+  personalCalendarTitle,
+} from '@/lib/personal-calendar';
 import { colors, spacing } from '@/theme';
 
 /**
@@ -107,6 +112,11 @@ export default function EngagementDetail() {
 
       {isOrganiser ? <DatesCard engagement={engagement} /> : null}
       {isOrganiser ? <TransitionsCard engagement={engagement} /> : null}
+      <AddToCalendarCard
+        engagement={engagement}
+        organisationName={active?.name ?? 'your organisation'}
+      />
+
       {isOrganiser ? <HistoryCard engagementId={engagement.id} /> : null}
 
       {isOrganiser && engagement.canBeDiscarded ? (
@@ -330,6 +340,74 @@ function TransitionsCard({ engagement }: { engagement: Engagement }) {
 }
 
 /** The engagement's history, newest first. */
+
+/**
+ * Puts a booking in the person's own calendar. Offered only once the event is
+ * actually on — a draft or an open availability request is not a commitment,
+ * and putting one here would have someone holding a date the group has not
+ * taken.
+ */
+function AddToCalendarCard({
+  engagement,
+  organisationName,
+}: {
+  engagement: Engagement;
+  organisationName: string;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!canAddToPersonalCalendar(engagement)) {
+    return null;
+  }
+
+  async function add() {
+    setBusy(true);
+    setError(null);
+    const result = await addToPersonalCalendar(engagement, organisationName);
+    setBusy(false);
+
+    if (result.ok) {
+      Alert.alert(
+        'Added to your calendar',
+        result.tentative
+          ? `Saved as "${personalCalendarTitle(engagement)}" so it reads as tentative at a glance. Sahno stays the place it changes.`
+          : 'Sahno stays the place it changes — update it here if the booking moves.',
+      );
+      return;
+    }
+
+    setError(
+      result.reason === 'permission'
+        ? 'Sahno needs permission to use your calendar. You can grant it in Settings.'
+        : result.reason === 'no-calendar'
+          ? 'No calendar on this device can be written to.'
+          : 'Could not add it to your calendar.',
+    );
+  }
+
+  return (
+    <Card style={styles.card}>
+      <Text variant="subheading">Your calendar</Text>
+      <Text color="secondary" variant="bodySmall">
+        {engagement.status === 'Tentative'
+          ? 'Not confirmed yet, so it goes in marked tentative.'
+          : 'Add this to the calendar on your phone.'}
+      </Text>
+      <Button
+        label="Add to my calendar"
+        variant="secondary"
+        loading={busy}
+        onPress={add}
+      />
+      {error ? (
+        <Text color="error" variant="bodySmall">
+          {error}
+        </Text>
+      ) : null}
+    </Card>
+  );
+}
 function HistoryCard({ engagementId }: { engagementId: string }) {
   const activityQuery = useEngagementActivity(engagementId);
 
