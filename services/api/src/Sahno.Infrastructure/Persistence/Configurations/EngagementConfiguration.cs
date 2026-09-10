@@ -40,6 +40,13 @@ public sealed class EngagementConfiguration : IEntityTypeConfiguration<Engagemen
         builder.Property(engagement => engagement.StartTime)
             .HasColumnName("start_time");
 
+        builder.Property(engagement => engagement.CallTime)
+            .HasColumnName("call_time");
+
+        builder.Property(engagement => engagement.DressNotes)
+            .HasColumnName("dress_notes")
+            .HasMaxLength(Engagement.DressNotesMaxLength);
+
         builder.Property(engagement => engagement.Venue)
             .HasColumnName("venue")
             .HasMaxLength(Engagement.VenueMaxLength);

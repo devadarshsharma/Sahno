@@ -170,6 +170,8 @@ public sealed class EngagementsController(
             engagementId,
             request.Title,
             request.StartTime,
+            request.CallTime,
+            request.DressNotes,
             request.Venue,
             cancellationToken);
 
@@ -275,6 +277,89 @@ public sealed class EngagementsController(
         return FromResult(result);
     }
 
+
+    /// <summary>
+    /// The readiness checklist (D-048). Organisers only: it is their working
+    /// list of what remains, not participant-facing information.
+    /// </summary>
+    [HttpGet("{engagementId:guid}/readiness")]
+    [ProducesResponseType<IReadOnlyList<ReadinessEntryResponse>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<ReadinessEntryResponse>>> Readiness(
+        Guid organisationId,
+        Guid engagementId,
+        [FromServices] ReadinessService readinessService,
+        CancellationToken cancellationToken)
+    {
+        var caller = await CallerAsync(organisationId, cancellationToken);
+        if (caller is null)
+        {
+            return NotFound();
+        }
+
+        if (!OrganisationAuthorizationService.IsOrganiser(caller))
+        {
+            return Forbid();
+        }
+
+        var engagement = await engagementService.FindVisibleAsync(
+            caller,
+            engagementId,
+            cancellationToken);
+        if (engagement is null)
+        {
+            return NotFound();
+        }
+
+        var readiness = await readinessService.ForEngagementAsync(
+            engagement,
+            cancellationToken);
+
+        return Ok(readiness
+            .Select(entry => new ReadinessEntryResponse(
+                entry.Item.ToString(),
+                entry.State.ToString()))
+            .ToList());
+    }
+
+    /// <summary>
+    /// Marks a checklist item as not applying to this event, or puts it back
+    /// on the list (D-048).
+    /// </summary>
+    [HttpPut("{engagementId:guid}/readiness")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetReadiness(
+        Guid organisationId,
+        Guid engagementId,
+        SetReadinessRequest request,
+        [FromServices] ReadinessService readinessService,
+        CancellationToken cancellationToken)
+    {
+        var caller = await CallerAsync(organisationId, cancellationToken);
+        if (caller is null)
+        {
+            return NotFound();
+        }
+
+        if (!Enum.TryParse<ReadinessItem>(request.Item, out var item))
+        {
+            ModelState.AddModelError(nameof(request.Item), "Unknown readiness item.");
+            return ValidationProblem(ModelState);
+        }
+
+        var result = await readinessService.SetNotRequiredAsync(
+            caller,
+            engagementId,
+            item,
+            request.NotRequired,
+            cancellationToken);
+
+        return FromResult(result);
+    }
     private async Task<Membership?> CallerAsync(
         Guid organisationId,
         CancellationToken cancellationToken)
@@ -332,6 +417,8 @@ public sealed class EngagementsController(
             engagement.EndDate,
             engagement.StartTime,
             engagement.Venue,
+            engagement.CallTime,
+            engagement.DressNotes,
             engagement.IsSharedWithMembers,
             engagement.CanChangeDateDirectly,
             engagement.CanBeDiscarded,

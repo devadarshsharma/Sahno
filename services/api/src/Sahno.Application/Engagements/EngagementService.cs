@@ -200,6 +200,8 @@ public sealed class EngagementService(
         Guid engagementId,
         string? title,
         TimeOnly? startTime,
+        TimeOnly? callTime,
+        string? dressNotes,
         string? venue,
         CancellationToken cancellationToken)
     {
@@ -211,7 +213,7 @@ public sealed class EngagementService(
 
         try
         {
-            engagement.UpdateDetails(title, startTime, venue);
+            engagement.UpdateDetails(title, startTime, callTime, dressNotes, venue);
         }
         catch (Exception exception)
             when (exception is InvalidOperationException or ArgumentException)

@@ -97,3 +97,19 @@ public interface IEngagementParticipantStore
 /// a pipeline of twenty bookings to one query rather than twenty.
 /// </summary>
 public sealed record EngagementLineup(int Selected, int Outstanding);
+
+public interface IReadinessStore
+{
+    /// <summary>Which checklist items an organiser has said do not apply.</summary>
+    Task<IReadOnlyList<ReadinessWaiver>> ListForEngagementAsync(
+        Guid engagementId,
+        CancellationToken cancellationToken);
+
+    Task AddAsync(ReadinessWaiver waiver, CancellationToken cancellationToken);
+
+    /// <summary>Puts an item back on the checklist.</summary>
+    Task RemoveAsync(
+        Guid engagementId,
+        ReadinessItem item,
+        CancellationToken cancellationToken);
+}

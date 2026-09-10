@@ -13,6 +13,10 @@ public sealed record EngagementResponse(
     DateOnly? EndDate,
     TimeOnly? StartTime,
     string? Venue,
+    /// <summary>Call or sound-check time — when people need to be there.</summary>
+    TimeOnly? CallTime,
+    /// <summary>What to wear. Participant-facing.</summary>
+    string? DressNotes,
     /// <summary>Whether Members have been told this exists.</summary>
     bool IsSharedWithMembers,
     /// <summary>Whether the date can still be set without postponing.</summary>
@@ -41,6 +45,8 @@ public sealed record CreateEngagementRequest(
 public sealed record UpdateEngagementRequest(
     string? Title,
     TimeOnly? StartTime,
+    TimeOnly? CallTime,
+    string? DressNotes,
     string? Venue);
 
 /// <summary>

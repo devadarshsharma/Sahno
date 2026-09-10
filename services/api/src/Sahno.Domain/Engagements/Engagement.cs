@@ -13,6 +13,7 @@ public sealed class Engagement
 {
     public const int TitleMaxLength = 200;
     public const int VenueMaxLength = 200;
+    public const int DressNotesMaxLength = 500;
 
     private Engagement(
         Guid id,
@@ -22,6 +23,8 @@ public sealed class Engagement
         DateOnly? startDate,
         DateOnly? endDate,
         TimeOnly? startTime,
+        TimeOnly? callTime,
+        string? dressNotes,
         string? venue,
         Guid createdByUserId,
         DateTimeOffset createdAtUtc)
@@ -33,6 +36,8 @@ public sealed class Engagement
         StartDate = startDate;
         EndDate = endDate;
         StartTime = startTime;
+        CallTime = callTime;
+        DressNotes = dressNotes;
         Venue = venue;
         CreatedByUserId = createdByUserId;
         CreatedAtUtc = createdAtUtc;
@@ -57,6 +62,16 @@ public sealed class Engagement
     public DateOnly? EndDate { get; private set; }
 
     public TimeOnly? StartTime { get; private set; }
+
+    /// <summary>
+    /// Call or sound-check time — when people need to be there, which is
+    /// usually earlier and more operationally important than the start time
+    /// (D-048, D-011).
+    /// </summary>
+    public TimeOnly? CallTime { get; private set; }
+
+    /// <summary>What to wear. Participant-facing.</summary>
+    public string? DressNotes { get; private set; }
 
     public string? Venue { get; private set; }
 
@@ -94,6 +109,8 @@ public sealed class Engagement
             startDate,
             NormalizeEndDate(startDate, endDate),
             startTime,
+            callTime: null,
+            dressNotes: null,
             NormalizeOptional(venue, VenueMaxLength),
             createdByUserId,
             DateTimeOffset.UtcNow);
@@ -223,7 +240,12 @@ public sealed class Engagement
     /// because once Members have been told, moving a date is a reschedule
     /// rather than an edit.
     /// </summary>
-    public void UpdateDetails(string? title, TimeOnly? startTime, string? venue)
+    public void UpdateDetails(
+        string? title,
+        TimeOnly? startTime,
+        TimeOnly? callTime,
+        string? dressNotes,
+        string? venue)
     {
         if (Status is EngagementStatus.Completed or EngagementStatus.Cancelled)
         {
@@ -237,9 +259,50 @@ public sealed class Engagement
         }
 
         StartTime = startTime;
+        CallTime = callTime;
+        DressNotes = NormalizeOptional(dressNotes, DressNotesMaxLength);
         Venue = NormalizeOptional(venue, VenueMaxLength);
     }
 
+
+    /// <summary>
+    /// The readiness checklist for this engagement (D-048), derived rather
+    /// than maintained. Everything Sahno can already answer for itself it
+    /// answers — a venue is added or it is not — so the list cannot drift out
+    /// of step with the booking the way a hand-kept copy would (D-031).
+    ///
+    /// Responsibilities, rehearsals, and resources have no data behind them
+    /// until Slice 8, so they stay outstanding until then unless an organiser
+    /// says they do not apply.
+    /// </summary>
+    public IReadOnlyList<ReadinessEntry> Readiness(
+        bool lineupResolved,
+        IReadOnlySet<ReadinessItem> waived)
+    {
+        ReadinessEntry Entry(ReadinessItem item, bool done)
+        {
+            if (waived.Contains(item))
+            {
+                return new ReadinessEntry(item, ReadinessState.NotRequired);
+            }
+
+            return new ReadinessEntry(
+                item,
+                done ? ReadinessState.Done : ReadinessState.Outstanding);
+        }
+
+        return
+        [
+            Entry(ReadinessItem.Lineup, lineupResolved),
+            Entry(ReadinessItem.Venue, Venue is not null),
+            Entry(ReadinessItem.CallTime, CallTime is not null),
+            Entry(ReadinessItem.StartTime, StartTime is not null),
+            Entry(ReadinessItem.Responsibilities, false),
+            Entry(ReadinessItem.Dress, DressNotes is not null),
+            Entry(ReadinessItem.Rehearsal, false),
+            Entry(ReadinessItem.Resources, false),
+        ];
+    }
     /// <summary>
     /// Whether the date can be set directly. A Draft is private so it may be
     /// changed freely; a Postponed engagement is being rescheduled, which is

@@ -53,7 +53,7 @@ public sealed class EngagementEndpointTests(SahnoApiFactory factory)
 
         var patch = await org.Owner.PatchAsJsonAsync(
             $"{Engagements(org)}/{engagement.Id}",
-            new UpdateEngagementRequest("Corporate enquiry (updated)", null, null));
+            new UpdateEngagementRequest("Corporate enquiry (updated)", null, null, null, null));
 
         Assert.Equal(HttpStatusCode.NoContent, patch.StatusCode);
 
