@@ -4,6 +4,12 @@ using Sahno.Domain.Organisations;
 
 namespace Sahno.Application.Engagements;
 
+/// <summary>An engagement with the list context that goes with it.</summary>
+public sealed record EngagementView(
+    Engagement Engagement,
+    EngagementLineup? Lineup,
+    AvailabilityResponse? YourResponse);
+
 public enum EngagementResult
 {
     Success,
@@ -64,6 +70,62 @@ public sealed class EngagementService(
         return all.Where(engagement => visible.Contains(engagement.Id)).ToList();
     }
 
+
+    /// <summary>
+    /// Engagements with the context a list needs: how the lineup stands, and
+    /// the caller's own answer. Counts are for organisers only — a member is
+    /// never told how the rest of the lineup replied (D-021).
+    /// </summary>
+    public async Task<IReadOnlyList<EngagementView>> ListVisibleWithContextAsync(
+        Membership actor,
+        CancellationToken cancellationToken)
+    {
+        var visible = await ListVisibleAsync(actor, cancellationToken);
+        return await WithContextAsync(actor, visible, cancellationToken);
+    }
+
+    public async Task<EngagementView?> FindVisibleWithContextAsync(
+        Membership actor,
+        Guid engagementId,
+        CancellationToken cancellationToken)
+    {
+        var engagement = await FindVisibleAsync(actor, engagementId, cancellationToken);
+        if (engagement is null)
+        {
+            return null;
+        }
+
+        var views = await WithContextAsync(actor, [engagement], cancellationToken);
+        return views[0];
+    }
+
+    private async Task<IReadOnlyList<EngagementView>> WithContextAsync(
+        Membership actor,
+        IReadOnlyList<Engagement> engagementList,
+        CancellationToken cancellationToken)
+    {
+        var isOrganiser = OrganisationAuthorizationService.IsOrganiser(actor);
+
+        var lineups = isOrganiser
+            ? await participants.LineupsForOrganisationAsync(
+                actor.OrganisationId,
+                cancellationToken)
+            : null;
+
+        var ownResponses = await participants.OwnResponsesAsync(
+            actor.OrganisationId,
+            actor.UserId,
+            cancellationToken);
+
+        return engagementList
+            .Select(engagement => new EngagementView(
+                engagement,
+                lineups?.GetValueOrDefault(engagement.Id),
+                ownResponses.TryGetValue(engagement.Id, out var response)
+                    ? response
+                    : null))
+            .ToList();
+    }
     /// <summary>One engagement, if this person is allowed to see it.</summary>
     public async Task<Engagement?> FindVisibleAsync(
         Membership actor,

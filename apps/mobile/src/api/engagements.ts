@@ -1,3 +1,4 @@
+import type { AvailabilityAnswer } from '@/api/availability';
 import {
   getAuthorizedJson,
   postAuthorizedJson,
@@ -33,6 +34,12 @@ export type Engagement = {
   canBeDiscarded: boolean;
   /** What this engagement may move to next, decided by the API. */
   allowedTransitions: EngagementStatus[];
+  /** Lineup size. Null for members, who are not shown the lineup (D-021). */
+  selectedCount: number | null;
+  /** How many are still to answer. Null for members. */
+  outstandingCount: number | null;
+  /** The caller's own answer, when they are on the lineup themselves. */
+  yourResponse: AvailabilityAnswer | null;
   createdAtUtc: string;
 };
 

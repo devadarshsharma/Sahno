@@ -65,6 +65,64 @@ public sealed class EngagementParticipantStore(SahnoDbContext dbContext)
                 cancellationToken);
     }
 
+
+    public async Task<IReadOnlyDictionary<Guid, EngagementLineup>>
+        LineupsForOrganisationAsync(
+            Guid organisationId,
+            CancellationToken cancellationToken)
+    {
+        var rows = await dbContext.EngagementParticipants
+            .AsNoTracking()
+            .Where(participant => participant.RemovedAtUtc == null)
+            .Join(
+                dbContext.Engagements.AsNoTracking()
+                    .Where(engagement => engagement.OrganisationId == organisationId),
+                participant => participant.EngagementId,
+                engagement => engagement.Id,
+                (participant, engagement) => new
+                {
+                    engagement.Id,
+                    HasAnswered = participant.Response != null,
+                })
+            .GroupBy(row => row.Id)
+            .Select(group => new
+            {
+                EngagementId = group.Key,
+                Selected = group.Count(),
+                Outstanding = group.Count(row => !row.HasAnswered),
+            })
+            .ToListAsync(cancellationToken);
+
+        return rows.ToDictionary(
+            row => row.EngagementId,
+            row => new EngagementLineup(row.Selected, row.Outstanding));
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, AvailabilityResponse?>>
+        OwnResponsesAsync(
+            Guid organisationId,
+            Guid userId,
+            CancellationToken cancellationToken)
+    {
+        var rows = await dbContext.EngagementParticipants
+            .AsNoTracking()
+            .Where(participant =>
+                participant.UserId == userId
+                && participant.RemovedAtUtc == null)
+            .Join(
+                dbContext.Engagements.AsNoTracking()
+                    .Where(engagement => engagement.OrganisationId == organisationId),
+                participant => participant.EngagementId,
+                engagement => engagement.Id,
+                (participant, engagement) => new
+                {
+                    engagement.Id,
+                    participant.Response,
+                })
+            .ToListAsync(cancellationToken);
+
+        return rows.ToDictionary(row => row.Id, row => row.Response);
+    }
     public async Task AddAsync(
         IReadOnlyList<EngagementParticipant> participants,
         CancellationToken cancellationToken)

@@ -71,9 +71,29 @@ public interface IEngagementParticipantStore
         Guid engagementId,
         CancellationToken cancellationToken);
 
+    /// <summary>Lineup totals for every engagement of one organisation.</summary>
+    Task<IReadOnlyDictionary<Guid, EngagementLineup>> LineupsForOrganisationAsync(
+        Guid organisationId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// This person's own answer against each engagement they are on. Absent
+    /// means they were never asked; a null value means asked and still silent.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, AvailabilityResponse?>> OwnResponsesAsync(
+        Guid organisationId,
+        Guid userId,
+        CancellationToken cancellationToken);
+
     Task AddAsync(
         IReadOnlyList<EngagementParticipant> participants,
         CancellationToken cancellationToken);
 
     Task SaveAsync(CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// How a lineup stands, for a list view. Carrying it with the engagement keeps
+/// a pipeline of twenty bookings to one query rather than twenty.
+/// </summary>
+public sealed record EngagementLineup(int Selected, int Outstanding);

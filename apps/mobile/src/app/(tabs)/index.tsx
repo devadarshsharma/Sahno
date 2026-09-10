@@ -11,11 +11,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import type { Engagement } from '@/api/engagements';
 import type { Member } from '@/api/members';
 import { dismissSetupChecklist, listInvitations } from '@/api/organisations';
 import { SahnoSymbol } from '@/components/brand';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { firstNameOf, useMe, useNeedsDisplayName } from '@/hooks/use-me';
+import {
+  formatEngagementDate,
+  useEngagements,
+} from '@/hooks/use-engagements';
 import { useMembers } from '@/hooks/use-members';
 import { useActiveOrg } from '@/hooks/use-organisations';
 import { useSession } from '@/providers/auth-provider';
@@ -43,6 +48,7 @@ export default function Index() {
   const meQuery = useMe();
   const needsDisplayName = useNeedsDisplayName();
   const membersQuery = useMembers();
+  const engagementsQuery = useEngagements();
 
   const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
 
@@ -104,6 +110,7 @@ export default function Index() {
   function refreshAll() {
     refetch();
     membersQuery.refetch();
+    engagementsQuery.refetch();
     if (invitationsQuery.isSuccess || invitationsQuery.isError) {
       invitationsQuery.refetch();
     }
@@ -112,6 +119,34 @@ export default function Index() {
   const activeInvites = (invitationsQuery.data ?? []).filter(
     (invitation) => invitation.revokedAtUtc === null,
   ).length;
+
+  const engagements = engagementsQuery.data ?? [];
+
+  // Live work: everything from the first availability request up to the event
+  // itself. Drafts are private and finished ones are history, so neither is
+  // something to act on today.
+  const live = engagements.filter((engagement) =>
+    ['CheckingAvailability', 'Tentative', 'Confirmed'].includes(
+      engagement.status,
+    ),
+  );
+
+  // Bookings still waiting on somebody. This is what "awaiting responses"
+  // counts, and what an organiser most often opens Home to find.
+  const awaiting = live.filter(
+    (engagement) => (engagement.outstandingCount ?? 0) > 0,
+  );
+  const awaitingPeople = awaiting.reduce(
+    (total, engagement) => total + (engagement.outstandingCount ?? 0),
+    0,
+  );
+
+  // A member's own list: the ones nobody has heard back from them about.
+  const needsYourAnswer = engagements.filter(
+    (engagement) =>
+      engagement.yourResponse === null &&
+      engagement.status === 'CheckingAvailability',
+  );
 
   return (
     <View style={styles.screen}>
@@ -174,9 +209,12 @@ export default function Index() {
         {/* Stat tiles overlap the hero (organisers only). */}
         {isOrganiser ? (
           <View style={styles.statsRow}>
-            <StatTile value="0" label="Upcoming events" />
+            <StatTile value={String(live.length)} label="Live bookings" />
             <StatTile value={String(active?.memberCount ?? 1)} label="Members" />
-            <StatTile value="0" label="Awaiting responses" />
+            <StatTile
+              value={String(awaitingPeople)}
+              label="Awaiting responses"
+            />
             <StatTile
               value={invitationsQuery.isSuccess ? String(activeInvites) : '–'}
               label="Active invites"
@@ -216,10 +254,40 @@ export default function Index() {
                   </View>
                   <Text variant="subheading">Needs your attention</Text>
                 </View>
-                <Text color="secondary" variant="bodySmall">
-                  Nothing needs your attention right now. Unanswered requests,
-                  missing details, and follow-ups will appear here.
-                </Text>
+
+                {awaiting.length === 0 ? (
+                  <Text color="secondary" variant="bodySmall">
+                    Nothing needs your attention right now. Unanswered requests,
+                    missing details, and follow-ups will appear here.
+                  </Text>
+                ) : (
+                  awaiting.map((engagement) => (
+                    <Pressable
+                      key={engagement.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${engagement.title}. ${engagement.outstandingCount} still to answer.`}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/engagement/[engagementId]',
+                          params: { engagementId: engagement.id },
+                        })
+                      }
+                      style={styles.attentionRow}
+                    >
+                      <View style={styles.attentionText}>
+                        <Text numberOfLines={1}>{engagement.title}</Text>
+                        <Text variant="caption" color="secondary">
+                          {engagement.outstandingCount === 1
+                            ? '1 member still to answer'
+                            : `${engagement.outstandingCount} members still to answer`}
+                          {' · '}
+                          {formatEngagementDate(engagement)}
+                        </Text>
+                      </View>
+                      <Text color="muted">›</Text>
+                    </Pressable>
+                  ))
+                )}
               </View>
 
               <RecentJoins
@@ -227,10 +295,17 @@ export default function Index() {
                 onSeeAll={() => router.push('/(tabs)/people')}
               />
 
-              <HomeSection title="Upcoming bookings">
-                No bookings yet — enquiries and bookings arrive in an upcoming
-                update.
-              </HomeSection>
+              <EngagementList
+                title="Upcoming bookings"
+                engagements={live}
+                empty="No bookings yet. Start an enquiry from the Bookings tab — a title is all you need."
+                onOpen={(id) =>
+                  router.push({
+                    pathname: '/engagement/[engagementId]',
+                    params: { engagementId: id },
+                  })
+                }
+              />
 
               <Button
                 label="Create event — coming soon"
@@ -245,13 +320,30 @@ export default function Index() {
             </>
           ) : (
             <>
-              <HomeSection title="Needs your response">
-                Nothing needs your response right now.
-              </HomeSection>
-              <HomeSection title="Upcoming events">
-                No upcoming events yet — you will see them here as soon as your
-                organiser adds you to one.
-              </HomeSection>
+              <EngagementList
+                title="Needs your response"
+                engagements={needsYourAnswer}
+                empty="Nothing needs your response right now."
+                onOpen={(id) =>
+                  router.push({
+                    pathname: '/engagement/[engagementId]',
+                    params: { engagementId: id },
+                  })
+                }
+              />
+              <EngagementList
+                title="Your events"
+                engagements={live.filter(
+                  (engagement) => engagement.yourResponse !== null,
+                )}
+                empty="No upcoming events yet — you will see them here as soon as an organiser adds you to one."
+                onOpen={(id) =>
+                  router.push({
+                    pathname: '/engagement/[engagementId]',
+                    params: { engagementId: id },
+                  })
+                }
+              />
             </>
           )}
         </View>
@@ -260,6 +352,55 @@ export default function Index() {
   );
 }
 
+
+/**
+ * A short list of engagements on Home, with the date and — for organisers —
+ * how many people are still to answer, since that is usually the reason to
+ * open one.
+ */
+function EngagementList({
+  title,
+  engagements,
+  empty,
+  onOpen,
+}: {
+  title: string;
+  engagements: Engagement[];
+  empty: string;
+  onOpen: (engagementId: string) => void;
+}) {
+  if (engagements.length === 0) {
+    return <HomeSection title={title}>{empty}</HomeSection>;
+  }
+
+  return (
+    <View style={styles.section}>
+      <Text variant="subheading">{title}</Text>
+      <Card style={styles.sectionCard}>
+        {engagements.map((engagement) => (
+          <Pressable
+            key={engagement.id}
+            accessibilityRole="button"
+            accessibilityLabel={`${engagement.title}. ${formatEngagementDate(engagement)}.`}
+            onPress={() => onOpen(engagement.id)}
+            style={styles.attentionRow}
+          >
+            <View style={styles.attentionText}>
+              <Text numberOfLines={1}>{engagement.title}</Text>
+              <Text variant="caption" color="secondary">
+                {formatEngagementDate(engagement)}
+                {(engagement.outstandingCount ?? 0) > 0
+                  ? ` · ${engagement.outstandingCount} to answer`
+                  : ''}
+              </Text>
+            </View>
+            <Text color="muted">›</Text>
+          </Pressable>
+        ))}
+      </Card>
+    </View>
+  );
+}
 function StatTile({ value, label }: { value: string; label: string }) {
   return (
     <View style={styles.statTile}>
@@ -464,6 +605,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface.raised,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sectionCard: {
+    gap: 0,
+  },
+  attentionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: spacing.sm,
+  },
+  attentionText: {
+    flex: 1,
+    gap: 2,
   },
   attentionEmoji: {
     fontSize: 16,

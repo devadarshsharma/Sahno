@@ -41,8 +41,13 @@ public sealed class EngagementsController(
 
         // Members see the engagements they are on the lineup for, and nothing
         // else (D-020); organisers see everything.
-        var rows = await engagementService.ListVisibleAsync(caller, cancellationToken);
-        return Ok(rows.Select(ToResponse).ToList());
+        var rows = await engagementService.ListVisibleWithContextAsync(
+            caller,
+            cancellationToken);
+
+        return Ok(rows
+            .Select(row => ToResponse(row.Engagement, row.Lineup, row.YourResponse))
+            .ToList());
     }
 
     [HttpGet("{engagementId:guid}")]
@@ -60,12 +65,14 @@ public sealed class EngagementsController(
             return NotFound();
         }
 
-        var engagement = await engagementService.FindVisibleAsync(
+        var view = await engagementService.FindVisibleWithContextAsync(
             caller,
             engagementId,
             cancellationToken);
 
-        return engagement is null ? NotFound() : Ok(ToResponse(engagement));
+        return view is null
+            ? NotFound()
+            : Ok(ToResponse(view.Engagement, view.Lineup, view.YourResponse));
     }
 
     /// <summary>The engagement's history, newest first.</summary>
@@ -306,7 +313,10 @@ public sealed class EngagementsController(
         };
     }
 
-    private static EngagementResponse ToResponse(Engagement engagement)
+    private static EngagementResponse ToResponse(
+        Engagement engagement,
+        EngagementLineup? lineup = null,
+        AvailabilityResponse? ownResponse = null)
     {
         var allowed = Enum.GetValues<EngagementStatus>()
             .Where(status =>
@@ -326,6 +336,9 @@ public sealed class EngagementsController(
             engagement.CanChangeDateDirectly,
             engagement.CanBeDiscarded,
             allowed,
+            lineup?.Selected,
+            lineup?.Outstanding,
+            ownResponse?.ToString(),
             engagement.CreatedAtUtc);
     }
 

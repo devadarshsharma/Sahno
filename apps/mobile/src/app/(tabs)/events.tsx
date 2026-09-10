@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
-import type { Engagement } from '@/api/engagements';
+import type { Engagement, EngagementStatus } from '@/api/engagements';
 import { Button, Screen, Text } from '@/components/ui';
 import {
   formatEngagementDate,
@@ -139,11 +139,14 @@ function EngagementRow({
         >
           {formatEngagementDate(engagement)}
         </Text>
-        {engagement.venue ? (
-          <Text variant="caption" color="muted" numberOfLines={1}>
-            {engagement.venue}
-          </Text>
-        ) : null}
+        <View style={styles.rowMeta}>
+          <StatusChip engagement={engagement} />
+          {engagement.venue ? (
+            <Text variant="caption" color="muted" numberOfLines={1}>
+              {engagement.venue}
+            </Text>
+          ) : null}
+        </View>
       </View>
       <Text variant="heading" color="muted">
         ›
@@ -152,6 +155,56 @@ function EngagementRow({
   );
 }
 
+
+/**
+ * What state this booking is in, and — when it is waiting on people — how many
+ * have still to answer. The group heading says the same thing, but a row is
+ * often read on its own, and the number is the bit that decides what to do
+ * next.
+ */
+function StatusChip({ engagement }: { engagement: Engagement }) {
+  const waiting = engagement.outstandingCount ?? 0;
+  const chasing =
+    engagement.status === 'CheckingAvailability' ||
+    engagement.status === 'Tentative' ||
+    engagement.status === 'Confirmed';
+
+  const label =
+    chasing && waiting > 0
+      ? `${SHORT_STATUS[engagement.status]} · ${waiting} to answer`
+      : SHORT_STATUS[engagement.status];
+
+  return (
+    <View style={[styles.chip, chipStyle(engagement.status, waiting)]}>
+      <Text variant="caption" style={styles.chipText}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+const SHORT_STATUS: Record<EngagementStatus, string> = {
+  Draft: 'Enquiry',
+  CheckingAvailability: 'Checking',
+  Tentative: 'Tentative',
+  Confirmed: 'Confirmed',
+  Postponed: 'Postponed',
+  Completed: 'Done',
+  Cancelled: 'Cancelled',
+};
+
+function chipStyle(status: EngagementStatus, waiting: number) {
+  if (waiting > 0) {
+    return styles.chipWaiting;
+  }
+  if (status === 'Confirmed') {
+    return styles.chipConfirmed;
+  }
+  if (status === 'Cancelled' || status === 'Completed') {
+    return styles.chipQuiet;
+  }
+  return styles.chipNeutral;
+}
 const styles = StyleSheet.create({
   centered: {
     flex: 1,
@@ -188,7 +241,33 @@ const styles = StyleSheet.create({
   },
   rowText: {
     flex: 1,
-    gap: 2,
+    gap: 4,
+  },
+  rowMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  chip: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radii.full,
+  },
+  chipText: {
+    color: colors.text.primary,
+  },
+  chipWaiting: {
+    backgroundColor: colors.orangeSoft,
+  },
+  chipConfirmed: {
+    backgroundColor: colors.tealSoft,
+  },
+  chipNeutral: {
+    backgroundColor: colors.surface.subtle,
+  },
+  chipQuiet: {
+    backgroundColor: colors.surface.subtle,
   },
   empty: {
     alignItems: 'center',

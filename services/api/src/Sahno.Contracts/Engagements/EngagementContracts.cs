@@ -21,6 +21,12 @@ public sealed record EngagementResponse(
     bool CanBeDiscarded,
     /// <summary>The states it may move to next, so a client can offer only those.</summary>
     IReadOnlyList<string> AllowedTransitions,
+    /// <summary>How many members are on the lineup. Null for members, who do not see it.</summary>
+    int? SelectedCount,
+    /// <summary>How many have still to answer. Null for members (D-021).</summary>
+    int? OutstandingCount,
+    /// <summary>The caller's own answer, when they are on the lineup themselves.</summary>
+    string? YourResponse,
     DateTimeOffset CreatedAtUtc);
 
 /// <summary>Only a title is required (D-025).</summary>
