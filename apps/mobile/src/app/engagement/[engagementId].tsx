@@ -13,11 +13,11 @@ import {
 import { ApiError } from '@/api/client';
 import { LineupCard, MyAvailabilityCard } from '@/components/availability-cards';
 import {
-  ComingSoonCard,
   DayOfCard,
   DetailsCard,
   ReadinessCard,
 } from '@/components/workspace-cards';
+import { DiscussionCard } from '@/components/discussion-card';
 import {
   RehearsalsCard,
   ResourcesCard,
@@ -139,12 +139,9 @@ export default function EngagementDetail() {
       <RehearsalsCard engagementId={engagement.id} isOrganiser={isOrganiser} />
       <ResourcesCard engagementId={engagement.id} isOrganiser={isOrganiser} />
 
-      {isOrganiser ? (
-        <ComingSoonCard
-          title="Discussion"
-          description="Conversation about this event, kept with the event rather than in a separate inbox."
-        />
-      ) : null}
+      {/* Discussion — D-047 §6. Access follows the engagement, so it simply
+          appears for anyone who can open the booking. */}
+      <DiscussionCard engagementId={engagement.id} isOrganiser={isOrganiser} />
 
       <AddToCalendarCard
         engagement={engagement}

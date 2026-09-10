@@ -267,30 +267,6 @@ function tickStyle(state: ReadinessEntry['state']) {
   return state === 'NotRequired' ? styles.tickWaived : styles.tickOutstanding;
 }
 
-/**
- * A part of the workspace that later slices fill. Named rather than hidden, so
- * the shape of an event workspace is visible and it is clear what is coming
- * rather than missing.
- */
-export function ComingSoonCard({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <Card style={styles.card}>
-      <Text variant="subheading" color="muted">
-        {title}
-      </Text>
-      <Text color="muted" variant="bodySmall">
-        {description}
-      </Text>
-    </Card>
-  );
-}
-
 const styles = StyleSheet.create({
   card: {
     gap: spacing.md,
