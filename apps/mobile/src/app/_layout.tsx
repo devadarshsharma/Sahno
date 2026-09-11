@@ -19,6 +19,7 @@ import { Appearance, StyleSheet, View } from 'react-native';
 
 import { SahnoSymbol } from '@/components/brand';
 import { AuthProvider, useSession } from '@/providers/auth-provider';
+import { LiveUpdatesProvider } from '@/providers/live-updates-provider';
 import { QueryProvider } from '@/providers/query-provider';
 import { useActiveOrganisation } from '@/stores/active-organisation';
 import { colors } from '@/theme';
@@ -58,7 +59,9 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <QueryProvider>
-        <RootNavigator />
+        <LiveUpdatesProvider>
+          <RootNavigator />
+        </LiveUpdatesProvider>
       </QueryProvider>
     </AuthProvider>
   );
