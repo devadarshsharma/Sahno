@@ -171,6 +171,31 @@ Without these the API logs a startup warning and rejects every authenticated req
 3. Kill and reopen the app: the session should restore from secure storage without showing sign-in.
 4. Sign out: the app returns to the sign-in screen; reopening does not restore the session.
 
+## Email (Resend)
+
+Product email — availability requests, reminders, confirmations, postponements,
+cancellations, and major detail changes (D-049) — goes through an outbox table
+and a background worker inside the API process.
+
+With no API key configured, every email is **written to the API log** instead
+of sent, so the whole path (staging, dispatch, retries) runs on every machine
+without anyone receiving a stray test message. Look for lines beginning
+`Email (not sent, no provider configured)`.
+
+To send for real, set the key through user secrets rather than in a file:
+
+```bash
+dotnet user-secrets set "Email:ResendApiKey" "re_..." --project services/api/src/Sahno.Api
+```
+
+`Email:From` defaults to Resend's shared onboarding sender, which only delivers
+to the address that owns the Resend account. A verified domain is needed before
+anyone else receives anything.
+
+The worker polls every ten seconds. A failed send backs off (one, two, four,
+eight minutes) and is abandoned after five attempts; unsent rows stay in
+`outbox_messages` with `last_error` set.
+
 ## Port-conflict troubleshooting
 
 If readiness reports password or connection failures while the Docker container itself is healthy, check whether another PostgreSQL installation owns the configured host port:
