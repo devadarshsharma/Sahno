@@ -60,6 +60,13 @@ public sealed class LiveHub(
             GroupFor(organisationId.Value),
             Context.ConnectionAborted);
 
+        // One line per join is worth having: it is how an operator sees that
+        // live updates are reaching devices at all.
+        logger.LogInformation(
+            "Live connection joined organisation {OrganisationId} for user {UserId}",
+            organisationId,
+            user.Id);
+
         await base.OnConnectedAsync();
     }
 
