@@ -83,10 +83,10 @@ export default function Notifications() {
               <View style={[styles.dot, row.isRead ? styles.dotRead : null]} />
               <View style={styles.rowBody}>
                 <View style={styles.rowHead}>
-                  <Text variant="caption" color="muted">
+                  <Text variant="caption" color="muted" style={styles.rowKind}>
                     {kindLabel(row.kind)}
                   </Text>
-                  <Text variant="caption" color="muted">
+                  <Text variant="caption" color="muted" style={styles.rowWhen}>
                     {formatWhen(row.createdAtUtc)}
                   </Text>
                 </View>
@@ -159,7 +159,7 @@ function formatWhen(createdAtUtc: string): string {
   const minutes = Math.floor((Date.now() - created.getTime()) / 60000);
 
   if (minutes < 1) {
-    return 'just now';
+    return 'now';
   }
   if (minutes < 60) {
     return `${minutes}m`;
@@ -212,5 +212,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: spacing.sm,
+  },
+  rowKind: {
+    flexShrink: 1,
+  },
+  // The time never wraps or truncates; the label beside it gives way instead.
+  rowWhen: {
+    flexShrink: 0,
   },
 });
