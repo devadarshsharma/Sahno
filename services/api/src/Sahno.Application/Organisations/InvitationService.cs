@@ -1,3 +1,4 @@
+using Sahno.Application.Notifications;
 using Sahno.Domain.Organisations;
 
 namespace Sahno.Application.Organisations;
@@ -21,7 +22,8 @@ public enum AcceptInvitationResult
 public sealed class InvitationService(
     IInvitationStore invitations,
     IMembershipStore memberships,
-    IOrganisationStore organisations)
+    IOrganisationStore organisations,
+    Notifier notifier)
 {
     public async Task<Invitation> CreateLinkAsync(
         Guid organisationId,
@@ -125,6 +127,14 @@ public sealed class InvitationService(
         }
 
         invitation.MarkAccepted(userId);
+
+        // The organisers hear about it. Until push exists this is the only way
+        // they learn an invitation was taken up without going to look.
+        await notifier.MemberJoinedAsync(
+            invitation.OrganisationId,
+            userId,
+            cancellationToken);
+
         await invitations.SaveAsync(invitation, cancellationToken);
 
         return (AcceptInvitationResult.Accepted, membership);

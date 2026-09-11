@@ -3,7 +3,10 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Sahno.Api.IntegrationTests.Authentication;
+using Sahno.Application.Notifications;
+using Sahno.Infrastructure.Notifications;
 using Sahno.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
 
@@ -53,6 +56,21 @@ public sealed class SahnoApiFactory
                     TestAuthDefaults.SchemeName,
                     displayName: null,
                     configureOptions: null);
+
+            // Email is recorded rather than sent, and the background worker is
+            // removed so tests drive the outbox themselves. Otherwise a test
+            // asserting "queued but not yet sent" races a timer.
+            services.RemoveAll<IEmailSender>();
+            services.AddSingleton<RecordingEmailSender>();
+            services.AddSingleton<IEmailSender>(provider =>
+                provider.GetRequiredService<RecordingEmailSender>());
+
+            var worker = services.FirstOrDefault(descriptor =>
+                descriptor.ImplementationType == typeof(OutboxWorker));
+            if (worker is not null)
+            {
+                services.Remove(worker);
+            }
         });
     }
 }

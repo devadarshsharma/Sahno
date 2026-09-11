@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using Sahno.Api.Authentication;
 using Sahno.Api.Health;
 using Sahno.Application.Engagements;
+using Sahno.Application.Notifications;
 using Sahno.Application.Organisations;
 using Sahno.Application.Users;
 using Sahno.Infrastructure;
@@ -29,6 +30,8 @@ builder.Services.AddScoped<ReadinessService>();
 builder.Services.AddScoped<ResponsibilityService>();
 builder.Services.AddScoped<PreparationService>();
 builder.Services.AddScoped<DiscussionService>();
+builder.Services.AddScoped<Notifier>();
+builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<OrganisationAuthorizationService>();
 builder.Services
     .AddHealthChecks()

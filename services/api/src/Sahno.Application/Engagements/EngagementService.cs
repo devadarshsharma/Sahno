@@ -1,3 +1,4 @@
+using Sahno.Application.Notifications;
 using Sahno.Application.Organisations;
 using Sahno.Domain.Engagements;
 using Sahno.Domain.Organisations;
@@ -47,7 +48,8 @@ public sealed class EngagementService(
     IResponsibilityStore responsibilities,
     IRehearsalStore rehearsals,
     IEngagementResourceStore resources,
-    IReadinessStore waivers)
+    IReadinessStore waivers,
+    Notifier notifier)
 {
     /// <summary>
     /// What this person may see. Organisers see everything the organisation
@@ -260,6 +262,10 @@ public sealed class EngagementService(
             return MissingOrForbidden(actor);
         }
 
+        var venueBefore = engagement.Venue;
+        var startBefore = engagement.StartTime;
+        var callBefore = engagement.CallTime;
+
         try
         {
             engagement.UpdateDetails(title, startTime, callTime, dressNotes, venue);
@@ -268,6 +274,33 @@ public sealed class EngagementService(
             when (exception is InvalidOperationException or ArgumentException)
         {
             return EngagementResult.Invalid;
+        }
+
+        // The details a performer plans their day around. A Draft is private,
+        // so nobody is told; once shared, a moved call time is news (D-049).
+        if (engagement.IsSharedWithMembers)
+        {
+            var changed = new List<string>();
+            if (engagement.Venue != venueBefore)
+            {
+                changed.Add("venue");
+            }
+
+            if (engagement.CallTime != callBefore)
+            {
+                changed.Add("call time");
+            }
+
+            if (engagement.StartTime != startBefore)
+            {
+                changed.Add("start time");
+            }
+
+            await notifier.DetailsChangedAsync(
+                engagement,
+                await LineupUserIdsAsync(engagementId, cancellationToken),
+                changed,
+                cancellationToken);
         }
 
         await engagements.SaveAsync(engagement, null, cancellationToken);
@@ -302,6 +335,16 @@ public sealed class EngagementService(
             return EngagementResult.Invalid;
         }
 
+        // A Draft's date is private. A replacement date after a postponement
+        // is exactly what everyone has been waiting to hear (D-035).
+        if (engagement.IsSharedWithMembers && engagement.StartDate is not null)
+        {
+            await notifier.DateChangedAsync(
+                engagement,
+                await LineupUserIdsAsync(engagementId, cancellationToken),
+                cancellationToken);
+        }
+
         await engagements.SaveAsync(engagement, activity, cancellationToken);
         return EngagementResult.Success;
     }
@@ -334,6 +377,7 @@ public sealed class EngagementService(
             }
         }
 
+        var from = engagement.Status;
         EngagementActivity activity;
         try
         {
@@ -343,6 +387,13 @@ public sealed class EngagementService(
         {
             return EngagementResult.Invalid;
         }
+
+        await notifier.StatusChangedAsync(
+            engagement,
+            await LineupUserIdsAsync(engagementId, cancellationToken),
+            from,
+            reason,
+            cancellationToken);
 
         await engagements.SaveAsync(engagement, activity, cancellationToken);
         return EngagementResult.Success;
@@ -370,6 +421,21 @@ public sealed class EngagementService(
 
         await engagements.RemoveAsync(engagement, cancellationToken);
         return EngagementResult.Success;
+    }
+
+    /// <summary>Everyone currently on the lineup — the audience for event news.</summary>
+    private async Task<IReadOnlyList<Guid>> LineupUserIdsAsync(
+        Guid engagementId,
+        CancellationToken cancellationToken)
+    {
+        var lineup = await participants.ListForEngagementAsync(
+            engagementId,
+            cancellationToken);
+
+        return lineup
+            .Where(participant => participant.IsActive)
+            .Select(participant => participant.UserId)
+            .ToList();
     }
 
     private async Task<Engagement?> FindForOrganiserAsync(

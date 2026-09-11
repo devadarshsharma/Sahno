@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sahno.Domain.Engagements;
+using Sahno.Domain.Notifications;
 using Sahno.Domain.Organisations;
 using Sahno.Domain.Users;
 
@@ -35,6 +36,10 @@ public sealed class SahnoDbContext(DbContextOptions<SahnoDbContext> options)
 
     public DbSet<DiscussionMessage> DiscussionMessages =>
         Set<DiscussionMessage>();
+
+    public DbSet<Notification> Notifications => Set<Notification>();
+
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

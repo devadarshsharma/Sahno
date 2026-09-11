@@ -1,3 +1,4 @@
+using Sahno.Application.Notifications;
 using Sahno.Application.Organisations;
 using Sahno.Domain.Engagements;
 using Sahno.Domain.Organisations;
@@ -31,7 +32,8 @@ public sealed record AvailabilitySummary(
 public sealed class AvailabilityService(
     IEngagementStore engagements,
     IEngagementParticipantStore participants,
-    IMembershipStore memberships)
+    IMembershipStore memberships,
+    Notifier notifier)
 {
     /// <summary>
     /// Selects Members and asks them. The first request is what moves a Draft
@@ -120,6 +122,14 @@ public sealed class AvailabilityService(
             await participants.AddAsync(added, cancellationToken);
         }
 
+        // Staged before the saves so the request and its notifications land
+        // in one transaction. The date is what people are being asked about,
+        // so the transition above has to have happened first.
+        await notifier.AvailabilityRequestedAsync(
+            engagement,
+            userIds.Distinct().ToList(),
+            cancellationToken);
+
         await participants.SaveAsync(cancellationToken);
         await engagements.SaveAsync(engagement, activity, cancellationToken);
         return EngagementResult.Success;
@@ -203,6 +213,7 @@ public sealed class AvailabilityService(
             return EngagementResult.Invalid;
         }
 
+        await notifier.AvailabilityReminderAsync(engagement, userId, cancellationToken);
         await participants.SaveAsync(cancellationToken);
         return EngagementResult.Success;
     }
@@ -240,6 +251,11 @@ public sealed class AvailabilityService(
         }
 
         participant.Respond(response);
+        await notifier.AvailabilityAnsweredAsync(
+            engagement,
+            actor.UserId,
+            response,
+            cancellationToken);
         await participants.SaveAsync(cancellationToken);
         return EngagementResult.Success;
     }

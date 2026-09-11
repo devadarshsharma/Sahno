@@ -1,9 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Sahno.Application.Engagements;
+using Sahno.Application.Notifications;
 using Sahno.Application.Organisations;
 using Sahno.Application.Users;
 using Sahno.Infrastructure.Engagements;
+using Sahno.Infrastructure.Notifications;
 using Sahno.Infrastructure.Organisations;
 using Sahno.Infrastructure.Persistence;
 using Sahno.Infrastructure.Users;
@@ -30,6 +33,36 @@ public static class DependencyInjection
         services.AddScoped<IRehearsalStore, RehearsalStore>();
         services.AddScoped<IEngagementResourceStore, EngagementResourceStore>();
         services.AddScoped<IDiscussionStore, DiscussionStore>();
+        services.AddScoped<INotificationStore, NotificationStore>();
+        services.AddScoped<IOutboxStore, OutboxStore>();
+
+        // Email goes through Resend when a key is configured and to the log
+        // otherwise, so the whole outbox path runs on every developer machine
+        // without anyone receiving a stray test email.
+        services.AddOptions<EmailOptions>().BindConfiguration(EmailOptions.SectionName);
+        services.AddHttpClient<ResendEmailSender>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.resend.com/");
+        })
+        .ConfigureHttpClient((provider, client) =>
+        {
+            var key = provider.GetRequiredService<IOptions<EmailOptions>>().Value.ResendApiKey;
+            if (!string.IsNullOrWhiteSpace(key))
+            {
+                client.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", key);
+            }
+        });
+        services.AddScoped<IEmailSender>(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<EmailOptions>>().Value;
+            return string.IsNullOrWhiteSpace(options.ResendApiKey)
+                ? provider.GetRequiredService<LoggingEmailSender>()
+                : provider.GetRequiredService<ResendEmailSender>();
+        });
+        services.AddScoped<LoggingEmailSender>();
+        services.AddScoped<OutboxDispatcher>();
+        services.AddHostedService<OutboxWorker>();
 
         return services;
     }

@@ -1,3 +1,4 @@
+using Sahno.Application.Notifications;
 using Sahno.Application.Organisations;
 using Sahno.Domain.Engagements;
 using Sahno.Domain.Organisations;
@@ -23,7 +24,8 @@ public sealed class ResponsibilityService(
     IEngagementStore engagements,
     IEngagementParticipantStore participants,
     IResponsibilityStore responsibilities,
-    IMembershipStore memberships)
+    IMembershipStore memberships,
+    Notifier notifier)
 {
     /// <summary>
     /// Everything on this engagement. Members see the whole list rather than
@@ -98,6 +100,17 @@ public sealed class ResponsibilityService(
             assignedUserId,
             actor.UserId);
 
+        // Being handed a job is news to the person it lands on. Giving it to
+        // yourself is not.
+        if (assignedUserId is { } assignee && assignee != actor.UserId)
+        {
+            await notifier.ResponsibilityAssignedAsync(
+                engagement,
+                assignee,
+                responsibility.Title,
+                cancellationToken);
+        }
+
         await responsibilities.AddAsync(responsibility, cancellationToken);
         return (EngagementResult.Success, responsibility);
     }
@@ -133,8 +146,27 @@ public sealed class ResponsibilityService(
             return EngagementResult.Invalid;
         }
 
+        var previousAssignee = responsibility.AssignedUserId;
         responsibility.Describe(title, detail);
         responsibility.AssignTo(assignedUserId);
+
+        // Only a new holder is told. Retitling a job somebody already has is
+        // not a handover, and telling them again would be noise.
+        if (assignedUserId is { } assignee
+            && assignee != previousAssignee
+            && assignee != actor.UserId)
+        {
+            var engagement = await engagements.FindByIdAsync(
+                actor.OrganisationId,
+                engagementId,
+                cancellationToken);
+            await notifier.ResponsibilityAssignedAsync(
+                engagement!,
+                assignee,
+                responsibility.Title,
+                cancellationToken);
+        }
+
         await responsibilities.SaveAsync(cancellationToken);
         return EngagementResult.Success;
     }

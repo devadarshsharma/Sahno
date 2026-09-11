@@ -1,3 +1,4 @@
+using Sahno.Application.Notifications;
 using Sahno.Application.Organisations;
 using Sahno.Domain.Engagements;
 using Sahno.Domain.Organisations;
@@ -23,7 +24,8 @@ public sealed class DiscussionService(
     IEngagementStore engagements,
     IEngagementParticipantStore participants,
     IDiscussionStore messages,
-    IMembershipStore memberships)
+    IMembershipStore memberships,
+    Notifier notifier)
 {
     /// <summary>
     /// The thread, oldest first. Removed messages come back as tombstones with
@@ -71,6 +73,24 @@ public sealed class DiscussionService(
         }
 
         var message = DiscussionMessage.Post(engagementId, actor.UserId, body);
+
+        var engagement = await engagements.FindByIdAsync(
+            actor.OrganisationId,
+            engagementId,
+            cancellationToken);
+        var lineup = await participants.ListForEngagementAsync(
+            engagementId,
+            cancellationToken);
+        await notifier.DiscussionMessageAsync(
+            engagement!,
+            lineup
+                .Where(participant => participant.IsActive)
+                .Select(participant => participant.UserId)
+                .ToList(),
+            actor.UserId,
+            message.Body!,
+            cancellationToken);
+
         await messages.AddAsync(message, cancellationToken);
         return (EngagementResult.Success, message);
     }
