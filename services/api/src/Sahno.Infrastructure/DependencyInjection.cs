@@ -19,8 +19,13 @@ public static class DependencyInjection
         this IServiceCollection services,
         string connectionString)
     {
-        services.AddDbContext<SahnoDbContext>(options =>
-            options.UseNpgsql(connectionString));
+        // The interceptor broadcasts after each commit, so anything that saves
+        // a row in an organisation is live without the service knowing.
+        services.AddScoped<LiveUpdateInterceptor>();
+        services.AddDbContext<SahnoDbContext>((provider, options) =>
+            options
+                .UseNpgsql(connectionString)
+                .AddInterceptors(provider.GetRequiredService<LiveUpdateInterceptor>()));
 
         services.AddScoped<IUserStore, UserStore>();
         services.AddScoped<IOrganisationStore, OrganisationStore>();

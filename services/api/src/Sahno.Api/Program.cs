@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Sahno.Api.Authentication;
 using Sahno.Api.Health;
+using Sahno.Api.Live;
 using Sahno.Application.Engagements;
 using Sahno.Application.Notifications;
 using Sahno.Application.Organisations;
@@ -18,6 +19,8 @@ var connectionString = builder.Configuration.GetConnectionString("Sahno")
         "Connection string 'Sahno' is not configured.");
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
+builder.Services.AddScoped<ILiveUpdates, SignalRLiveUpdates>();
 builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddScoped<EnsureUserService>();
 builder.Services.AddScoped<UserProfileService>();
@@ -68,6 +71,23 @@ if (auth0Configured)
                 ValidateIssuerSigningKey = true,
                 ValidateLifetime = true,
             };
+            // A browser or phone opening a websocket cannot set headers, so
+            // SignalR sends the token as a query parameter. Accepted for the
+            // hub path only — nowhere else does a token in a URL count.
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    var accessToken = context.Request.Query["access_token"];
+                    if (!string.IsNullOrEmpty(accessToken)
+                        && context.HttpContext.Request.Path.StartsWithSegments(LiveHub.Path))
+                    {
+                        context.Token = accessToken;
+                    }
+
+                    return Task.CompletedTask;
+                },
+            };
         });
 }
 else
@@ -117,6 +137,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<LiveHub>(LiveHub.Path);
 app.MapHealthChecks("/health/ready");
 
 app.Run();
