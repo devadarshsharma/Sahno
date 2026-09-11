@@ -113,6 +113,7 @@ function RootNavigator() {
         <Stack.Screen name="create-organisation" />
         <Stack.Screen name="join" />
         <Stack.Screen name="invitations" />
+        <Stack.Screen name="notifications" />
         <Stack.Screen name="switch-organisation" />
         <Stack.Screen name="brand-preview" />
       </Stack.Protected>

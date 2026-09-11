@@ -23,6 +23,7 @@ import {
   useEngagements,
 } from '@/hooks/use-engagements';
 import { useMembers } from '@/hooks/use-members';
+import { useUnreadCount } from '@/hooks/use-notifications';
 import { useActiveOrg } from '@/hooks/use-organisations';
 import { useSession } from '@/providers/auth-provider';
 import { useSeenPeople } from '@/stores/seen-people';
@@ -51,6 +52,7 @@ export default function Index() {
   const needsDisplayName = useNeedsDisplayName();
   const membersQuery = useMembers();
   const engagementsQuery = useEngagements();
+  const unreadQuery = useUnreadCount();
 
   const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
 
@@ -104,6 +106,7 @@ export default function Index() {
     refetch();
     membersQuery.refetch();
     engagementsQuery.refetch();
+    unreadQuery.refetch();
   }
 
   const openEngagement = (engagementId: string) =>
@@ -216,14 +219,19 @@ export default function Index() {
         <View style={[styles.hero, { paddingTop: insets.top + spacing.md }]}>
           <View style={styles.heroTop}>
             <View style={styles.heroBrand}>
-              <SahnoSymbol size={34} />
-              <View>
-                <Text style={styles.heroWordmark}>Sahno</Text>
-                <Text style={styles.heroTagline}>
-                  Make it happen, together.
-                </Text>
-              </View>
+            <SahnoSymbol size={34} />
+            <View>
+              <Text style={styles.heroWordmark}>Sahno</Text>
+              <Text style={styles.heroTagline}>
+                Make it happen, together.
+              </Text>
             </View>
+          </View>
+          <View style={styles.heroControls}>
+            <Bell
+              unread={unreadQuery.data ?? 0}
+              onPress={() => router.push('/notifications')}
+            />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Active organisation ${active?.name}. Switch organisation.`}
@@ -242,6 +250,7 @@ export default function Index() {
               </Text>
               <Text style={styles.orgPillChevron}>▾</Text>
             </Pressable>
+          </View>
           </View>
 
           <Text style={styles.greeting}>
@@ -489,6 +498,38 @@ function EngagementList({
     </View>
   );
 }
+/**
+ * The bell (D-042): in the top bar rather than a tab, with the unread count on
+ * it. The number is what people look at first when they open the app, so it
+ * sits where the eye lands.
+ */
+function Bell({ unread, onPress }: { unread: number; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={
+        unread === 0
+          ? 'Notifications'
+          : `Notifications, ${unread} unread`
+      }
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.bell,
+        pressed ? styles.orgPillPressed : null,
+      ]}
+    >
+      <Text style={styles.bellIcon}>🔔</Text>
+      {unread > 0 ? (
+        <View style={styles.bellBadge}>
+          <Text style={styles.bellBadgeText}>
+            {unread > 9 ? '9+' : String(unread)}
+          </Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
 function StatTile({ value, label }: { value: string; label: string }) {
   return (
     <View style={styles.statTile}>
@@ -601,11 +642,48 @@ const styles = StyleSheet.create({
     lineHeight: 13,
     color: colors.tealSoft,
   },
+  heroControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flexShrink: 1,
+  },
+  bell: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(250, 247, 242, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellIcon: {
+    fontSize: 18,
+    lineHeight: 22,
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    backgroundColor: colors.orange,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellBadgeText: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 11,
+    lineHeight: 14,
+    color: colors.offWhite,
+  },
   orgPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    maxWidth: 170,
+    maxWidth: 150,
+    flexShrink: 1,
     minHeight: 40,
     paddingHorizontal: spacing.md,
     borderRadius: radii.full,
