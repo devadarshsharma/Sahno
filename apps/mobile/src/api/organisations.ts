@@ -11,6 +11,8 @@ export type Organisation = {
   timeZoneId: string;
   logoUrl: string | null;
   role: 'Owner' | 'Admin' | 'Member';
+  /** The Owner, or an Admin the Owner has granted finance (D-016). */
+  hasFinancialAccess: boolean;
   showSetupChecklist: boolean;
   memberCount: number;
 };

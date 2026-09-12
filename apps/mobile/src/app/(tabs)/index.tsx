@@ -131,12 +131,19 @@ export default function Index() {
   //   - everyone has answered and the lineup is now the organiser's call,
   //     because Sahno never advances to Tentative on its own (D-026);
   //   - it is postponed, so it needs a new date or a decision to resume;
-  //   - it is on, but critical detail is missing (Slice 7, D-048).
+  //   - it is on, but critical detail is missing (Slice 7, D-048);
+  //   - it is over, and somebody is still owed money (Slice 11, D-008).
   // The last of those also stays in the confirmed or tentative list below: it
   // is still in the diary, and dropping it would leave the tile counting one
   // more booking than the list shows.
   const waiting = engagements.filter((engagement) => {
-    if (engagement.status === 'Cancelled' || engagement.status === 'Completed') {
+    // A finished event is off the list — unless money is still owed on it.
+    // Only whoever holds financial access gets a count here at all (D-016),
+    // so for everyone else this branch never fires.
+    if (engagement.status === 'Completed') {
+      return (engagement.financeOutstanding ?? 0) > 0;
+    }
+    if (engagement.status === 'Cancelled') {
       return false;
     }
     if ((engagement.outstandingCount ?? 0) > 0) {
@@ -444,6 +451,11 @@ function attentionReason(engagement: Engagement): string {
     return engagement.startDate === null
       ? 'Postponed · needs a new date'
       : 'Postponed · resume when ready';
+  }
+
+  const owed = engagement.financeOutstanding ?? 0;
+  if (engagement.status === 'Completed' && owed > 0) {
+    return owed === 1 ? 'Payment still owed' : `${owed} payments still owed`;
   }
 
   const missing = engagement.readinessOutstanding ?? 0;

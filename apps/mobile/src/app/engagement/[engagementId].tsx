@@ -17,6 +17,7 @@ import {
   DetailsCard,
   ReadinessCard,
 } from '@/components/workspace-cards';
+import { CustomerCard, FinanceCard } from '@/components/commercial-cards';
 import { DiscussionCard } from '@/components/discussion-card';
 import {
   RehearsalsCard,
@@ -149,7 +150,10 @@ export default function EngagementDetail() {
       />
 
       {/* Admin — the organiser's own controls, last because they are the least
-          often needed and the most consequential. */}
+          often needed and the most consequential. Customer for every
+          organiser; money only with financial access (D-016). */}
+      {isOrganiser ? <CustomerCard engagementId={engagement.id} /> : null}
+      {isOrganiser ? <FinanceCard engagementId={engagement.id} /> : null}
       {isOrganiser ? <DatesCard engagement={engagement} /> : null}
       {isOrganiser ? <TransitionsCard engagement={engagement} /> : null}
       {isOrganiser ? <HistoryCard engagementId={engagement.id} /> : null}

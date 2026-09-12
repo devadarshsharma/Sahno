@@ -46,6 +46,8 @@ export type Engagement = {
   yourResponse: AvailabilityAnswer | null;
   /** Checklist items still to sort out. Null for members (D-048). */
   readinessOutstanding: number | null;
+  /** Money still owed either way. Null without financial access (D-016). */
+  financeOutstanding: number | null;
   createdAtUtc: string;
 };
 
