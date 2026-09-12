@@ -11,7 +11,12 @@ public sealed record EngagementView(
     EngagementLineup? Lineup,
     AvailabilityResponse? YourResponse,
     /// <summary>Checklist items still to sort out. Null for members (D-048).</summary>
-    int? ReadinessOutstanding);
+    int? ReadinessOutstanding,
+    /// <summary>
+    /// Money still owed either way: unpaid performers, or a customer balance
+    /// not yet received. Null without financial access (D-016).
+    /// </summary>
+    int? FinanceOutstanding);
 
 public enum EngagementResult
 {
@@ -49,6 +54,7 @@ public sealed class EngagementService(
     IRehearsalStore rehearsals,
     IEngagementResourceStore resources,
     IReadinessStore waivers,
+    ICommercialStore commercial,
     Notifier notifier)
 {
     /// <summary>
@@ -149,6 +155,15 @@ public sealed class EngagementService(
                 cancellationToken)
             : null;
 
+        // Money is a narrower audience than the rest of the context: financial
+        // access, not organiser (D-016). Everyone else gets null, which the
+        // client reads as "not yours to know" rather than "nothing owed".
+        var owed = actor.HasFinancialAccess
+            ? await commercial.OutstandingForOrganisationAsync(
+                actor.OrganisationId,
+                cancellationToken)
+            : null;
+
         return engagementList
             .Select(engagement =>
             {
@@ -173,7 +188,8 @@ public sealed class EngagementService(
                     ownResponses.TryGetValue(engagement.Id, out var response)
                         ? response
                         : null,
-                    outstanding);
+                    outstanding,
+                    owed?.GetValueOrDefault(engagement.Id));
             })
             .ToList();
     }

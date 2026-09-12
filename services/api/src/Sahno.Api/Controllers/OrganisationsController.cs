@@ -236,6 +236,7 @@ public sealed class OrganisationsController(
             row.Organisation.TimeZoneId,
             row.Organisation.LogoUrl,
             row.Membership.Role.ToString(),
+            row.Membership.HasFinancialAccess,
             ShowSetupChecklist:
                 row.Membership.Role == MembershipRole.Owner
                 && row.Membership.SetupChecklistDismissedAtUtc is null,

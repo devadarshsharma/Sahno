@@ -37,6 +37,12 @@ public sealed class SahnoDbContext(DbContextOptions<SahnoDbContext> options)
     public DbSet<DiscussionMessage> DiscussionMessages =>
         Set<DiscussionMessage>();
 
+    public DbSet<EngagementCustomer> EngagementCustomers => Set<EngagementCustomer>();
+
+    public DbSet<EngagementFinance> EngagementFinance => Set<EngagementFinance>();
+
+    public DbSet<PerformerPayment> PerformerPayments => Set<PerformerPayment>();
+
     public DbSet<Notification> Notifications => Set<Notification>();
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();

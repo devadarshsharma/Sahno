@@ -38,6 +38,7 @@ public static class DependencyInjection
         services.AddScoped<IRehearsalStore, RehearsalStore>();
         services.AddScoped<IEngagementResourceStore, EngagementResourceStore>();
         services.AddScoped<IDiscussionStore, DiscussionStore>();
+        services.AddScoped<ICommercialStore, CommercialStore>();
         services.AddScoped<INotificationStore, NotificationStore>();
         services.AddScoped<IOutboxStore, OutboxStore>();
 

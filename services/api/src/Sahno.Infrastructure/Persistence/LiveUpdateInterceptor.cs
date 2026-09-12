@@ -115,6 +115,15 @@ public sealed class LiveUpdateInterceptor(
                 case DiscussionMessage message:
                     _engagements.Add(message.EngagementId);
                     break;
+                case EngagementCustomer customer:
+                    _engagements.Add(customer.EngagementId);
+                    break;
+                case EngagementFinance finance:
+                    _engagements.Add(finance.EngagementId);
+                    break;
+                case PerformerPayment payment:
+                    _engagements.Add(payment.EngagementId);
+                    break;
             }
         }
     }

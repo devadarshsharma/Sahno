@@ -50,7 +50,8 @@ public sealed class EngagementsController(
                 row.Engagement,
                 row.Lineup,
                 row.YourResponse,
-                row.ReadinessOutstanding))
+                row.ReadinessOutstanding,
+                row.FinanceOutstanding))
             .ToList());
     }
 
@@ -80,7 +81,8 @@ public sealed class EngagementsController(
                 view.Engagement,
                 view.Lineup,
                 view.YourResponse,
-                view.ReadinessOutstanding));
+                view.ReadinessOutstanding,
+                view.FinanceOutstanding));
     }
 
     /// <summary>The engagement's history, newest first.</summary>
@@ -410,7 +412,8 @@ public sealed class EngagementsController(
         Engagement engagement,
         EngagementLineup? lineup = null,
         AvailabilityResponse? ownResponse = null,
-        int? readinessOutstanding = null)
+        int? readinessOutstanding = null,
+        int? financeOutstanding = null)
     {
         var allowed = Enum.GetValues<EngagementStatus>()
             .Where(status =>
@@ -436,6 +439,7 @@ public sealed class EngagementsController(
             lineup?.Outstanding,
             ownResponse?.ToString(),
             readinessOutstanding,
+            financeOutstanding,
             engagement.CreatedAtUtc);
     }
 

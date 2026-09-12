@@ -33,6 +33,8 @@ public sealed record EngagementResponse(
     string? YourResponse,
     /// <summary>Checklist items still to sort out. Null for members (D-048).</summary>
     int? ReadinessOutstanding,
+    /// <summary>Money still owed either way. Null without financial access (D-016).</summary>
+    int? FinanceOutstanding,
     DateTimeOffset CreatedAtUtc);
 
 /// <summary>Only a title is required (D-025).</summary>

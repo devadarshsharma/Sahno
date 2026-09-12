@@ -12,6 +12,12 @@ public sealed record OrganisationResponse(
     string TimeZoneId,
     string? LogoUrl,
     string Role,
+    /// <summary>
+    /// Whether the caller may see money in this organisation: the Owner, or an
+    /// Admin the Owner has granted it (D-016). Sent so the client can leave the
+    /// finance cards out rather than render them and be refused.
+    /// </summary>
+    bool HasFinancialAccess,
     bool ShowSetupChecklist,
     int MemberCount);
 

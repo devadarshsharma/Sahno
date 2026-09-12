@@ -219,3 +219,48 @@ public interface IDiscussionStore
 
     Task SaveAsync(CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// Customer, finance, and performer payments (Slice 11). Three tables, one
+/// port: they are read and written together by one service behind one set
+/// of permissions, and splitting them would only spread the D-016 check out.
+/// </summary>
+public interface ICommercialStore
+{
+    Task<EngagementCustomer?> FindCustomerAsync(
+        Guid engagementId,
+        CancellationToken cancellationToken);
+
+    Task<EngagementFinance?> FindFinanceAsync(
+        Guid engagementId,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<PerformerPayment>> ListPaymentsAsync(
+        Guid engagementId,
+        CancellationToken cancellationToken);
+
+    Task<PerformerPayment?> FindPaymentAsync(
+        Guid engagementId,
+        Guid paymentId,
+        CancellationToken cancellationToken);
+
+    /// <summary>Stages a new row; the caller saves.</summary>
+    void Add(EngagementCustomer customer);
+
+    void Add(EngagementFinance finance);
+
+    void Add(PerformerPayment payment);
+
+    Task RemovePaymentAsync(Guid paymentId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// How much is still owed, per engagement, across one organisation: unpaid
+    /// performer payments plus one for a customer balance not yet received.
+    /// One query for the whole pipeline, like the readiness lookups.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, int>> OutstandingForOrganisationAsync(
+        Guid organisationId,
+        CancellationToken cancellationToken);
+
+    Task SaveAsync(CancellationToken cancellationToken);
+}
