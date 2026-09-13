@@ -86,7 +86,7 @@ function OrganiserStats({ engagement }: { engagement: Engagement }) {
       <Stat
         icon="mic-outline"
         value={engagement.callTime ? formatClock(engagement.callTime) : '—'}
-        label="Sound-check"
+        label="Call time"
       />
       {engagement.status === 'Completed' && owed > 0 ? (
         <Stat icon="cash-outline" value={String(owed)} label="still owed" tone="attention" />
