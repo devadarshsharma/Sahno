@@ -1,6 +1,5 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import {
   discardEngagement,
@@ -11,162 +10,22 @@ import {
   type EngagementStatus,
 } from '@/api/engagements';
 import { ApiError } from '@/api/client';
-import { LineupCard, MyAvailabilityCard } from '@/components/availability-cards';
-import {
-  DayOfCard,
-  DetailsCard,
-  ReadinessCard,
-} from '@/components/workspace-cards';
-import { CustomerCard, FinanceCard } from '@/components/commercial-cards';
-import { DiscussionCard } from '@/components/discussion-card';
-import {
-  RehearsalsCard,
-  ResourcesCard,
-  ResponsibilitiesCard,
-} from '@/components/preparation-cards';
-import { Button, Card, DateField, Screen, Text, TextInput } from '@/components/ui';
+import { Button, Card, DateField, Text, TextInput } from '@/components/ui';
 import {
   formatEngagementDate,
   STATUS_WORDS,
   TRANSITION_LABELS,
   useEngagementActivity,
   useEngagementMutation,
-  useEngagements,
 } from '@/hooks/use-engagements';
-import { useActiveOrg } from '@/hooks/use-organisations';
-import {
-  addToPersonalCalendar,
-  canAddToPersonalCalendar,
-  personalCalendarTitle,
-} from '@/lib/personal-calendar';
-import { colors, spacing } from '@/theme';
-
-/**
- * One engagement and the moves it can actually make. The lifecycle is the
- * API's to decide, so the buttons come from the allowedTransitions it returns
- * rather than from a copy of the rules kept here.
- */
-export default function EngagementDetail() {
-  const { engagementId } = useLocalSearchParams<{ engagementId: string }>();
-  const router = useRouter();
-  const { active } = useActiveOrg();
-  const engagementsQuery = useEngagements();
-  const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
-
-  const engagement = engagementsQuery.data?.find(
-    (row) => row.id === engagementId,
-  );
-
-  if (engagementsQuery.isPending) {
-    return (
-      <Screen>
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.tealText} />
-        </View>
-      </Screen>
-    );
-  }
-
-  if (!engagement) {
-    return (
-      <Screen>
-        <View style={styles.centered}>
-          <Text variant="heading">Not found</Text>
-          <Text color="secondary" style={styles.centeredText}>
-            This enquiry may have been discarded.
-          </Text>
-        </View>
-      </Screen>
-    );
-  }
-
-  return (
-    <Screen
-      scroll
-      onRefresh={() => engagementsQuery.refetch()}
-      refreshing={engagementsQuery.isRefetching}
-      hero={{
-        eyebrow: STATUS_WORDS[engagement.status],
-        title: engagement.title,
-        subtitle: engagement.venue
-          ? `${formatEngagementDate(engagement)} · ${engagement.venue}`
-          : formatEngagementDate(engagement),
-      }}
-    >
-
-      {!engagement.isSharedWithMembers ? (
-        <Card style={styles.card}>
-          <Text variant="bodySmall" color="secondary">
-            This is still private. Nobody else sees it until you request
-            availability.
-          </Text>
-        </Card>
-      ) : null}
-
-      {/* Overview — what this event is, and what a participant needs on the
-          day. First for everyone, because it answers the question people open
-          a booking to ask. */}
-      <DayOfCard engagement={engagement} />
-
-      <MyAvailabilityCard engagementId={engagement.id} />
-
-      {/* People */}
-      {isOrganiser ? (
-        <LineupCard
-          engagementId={engagement.id}
-          onSelectMembers={() =>
-            router.push({
-              pathname: '/select-members',
-              params: { engagementId: engagement.id },
-            })
-          }
-        />
-      ) : null}
-
-      {isOrganiser ? <DetailsCard engagement={engagement} /> : null}
-      {isOrganiser ? <ReadinessCard engagementId={engagement.id} /> : null}
-
-      {/* Responsibilities, Rehearsals, Resources — D-047 §3-5. Everyone on the
-          event reads them; only organisers write. */}
-      <ResponsibilitiesCard
-        engagementId={engagement.id}
-        isOrganiser={isOrganiser}
-      />
-      <RehearsalsCard engagementId={engagement.id} isOrganiser={isOrganiser} />
-      <ResourcesCard engagementId={engagement.id} isOrganiser={isOrganiser} />
-
-      {/* Discussion — D-047 §6. Access follows the engagement, so it simply
-          appears for anyone who can open the booking. */}
-      <DiscussionCard engagementId={engagement.id} isOrganiser={isOrganiser} />
-
-      <AddToCalendarCard
-        engagement={engagement}
-        organisationName={active?.name ?? 'your organisation'}
-      />
-
-      {/* Admin — the organiser's own controls, last because they are the least
-          often needed and the most consequential. Customer for every
-          organiser; money only with financial access (D-016). */}
-      {isOrganiser ? <CustomerCard engagementId={engagement.id} /> : null}
-      {isOrganiser ? <FinanceCard engagementId={engagement.id} /> : null}
-      {isOrganiser ? <DatesCard engagement={engagement} /> : null}
-      {isOrganiser ? <TransitionsCard engagement={engagement} /> : null}
-      {isOrganiser ? <HistoryCard engagementId={engagement.id} /> : null}
-
-      {isOrganiser && engagement.canBeDiscarded ? (
-        <DiscardCard engagement={engagement} onDiscarded={() => router.back()} />
-      ) : null}
-
-    </Screen>
-  );
-}
+import { spacing } from '@/theme';
 
 /**
  * The date. Editable while it is a private Draft or being rescheduled after a
  * postponement; otherwise Members hold the old one and it moves only by
  * postponing (D-038), so the card explains that rather than hiding.
  */
-function DatesCard({ engagement }: { engagement: Engagement }) {
+export function DatesCard({ engagement }: { engagement: Engagement }) {
   const [startDate, setStartDate] = useState(engagement.startDate);
   const [error, setError] = useState<string | null>(null);
 
@@ -234,7 +93,7 @@ function DatesCard({ engagement }: { engagement: Engagement }) {
  * refuse them without one — and because the reason is what makes the history
  * readable later.
  */
-function TransitionsCard({ engagement }: { engagement: Engagement }) {
+export function TransitionsCard({ engagement }: { engagement: Engagement }) {
   const [pending, setPending] = useState<EngagementStatus | null>(null);
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -380,76 +239,7 @@ function TransitionsCard({ engagement }: { engagement: Engagement }) {
  * and putting one here would have someone holding a date the group has not
  * taken.
  */
-function AddToCalendarCard({
-  engagement,
-  organisationName,
-}: {
-  engagement: Engagement;
-  organisationName: string;
-}) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  if (!canAddToPersonalCalendar(engagement)) {
-    return null;
-  }
-
-  async function add() {
-    setBusy(true);
-    setError(null);
-    const result = await addToPersonalCalendar(engagement, organisationName);
-    setBusy(false);
-
-    if (result.ok) {
-      Alert.alert(
-        'Added to your calendar',
-        result.tentative
-          ? `Saved as "${personalCalendarTitle(engagement)}" so it reads as tentative at a glance. Sahno stays the place it changes.`
-          : 'Sahno stays the place it changes — update it here if the booking moves.',
-      );
-      return;
-    }
-
-    if (result.reason === 'already-added') {
-      Alert.alert(
-        'Already in your calendar',
-        'This booking is there once already. Sahno stays the place it changes.',
-      );
-      return;
-    }
-
-    setError(
-      result.reason === 'permission'
-        ? 'Sahno needs permission to use your calendar. You can grant it in Settings.'
-        : result.reason === 'no-calendar'
-          ? 'No calendar on this device can be written to.'
-          : 'Could not add it to your calendar.',
-    );
-  }
-
-  return (
-    <Card style={styles.card}>
-      <Text variant="subheading">Your calendar</Text>
-      <Text color="secondary" variant="bodySmall">
-        {engagement.status === 'Tentative'
-          ? 'Not confirmed yet, so it goes in marked tentative.'
-          : 'Add this to the calendar on your phone.'}
-      </Text>
-      <Button
-        label="Add to my calendar"
-        variant="secondary"
-        loading={busy}
-        onPress={add}
-      />
-      {error ? (
-        <Text color="error" variant="bodySmall">
-          {error}
-        </Text>
-      ) : null}
-    </Card>
-  );
-}
-function HistoryCard({ engagementId }: { engagementId: string }) {
+export function HistoryCard({ engagementId }: { engagementId: string }) {
   const activityQuery = useEngagementActivity(engagementId);
 
   if (!activityQuery.isSuccess || activityQuery.data.length === 0) {
@@ -498,7 +288,7 @@ function describeActivity(entry: {
   return from ? `${from} → ${to}` : to;
 }
 
-function DiscardCard({
+export function DiscardCard({
   engagement,
   onDiscarded,
 }: {
@@ -552,16 +342,8 @@ function DiscardCard({
   );
 }
 
+
 const styles = StyleSheet.create({
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-  },
-  centeredText: {
-    textAlign: 'center',
-  },
   card: {
     gap: spacing.md,
     marginBottom: spacing.lg,
