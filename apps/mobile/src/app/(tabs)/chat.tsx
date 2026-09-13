@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 
 import { Button, Screen, Text } from '@/components/ui';
@@ -22,7 +23,7 @@ export default function Chat() {
     >
       <View style={styles.container}>
         <View style={styles.illustration}>
-          <Text style={styles.emoji}>💬</Text>
+          <Ionicons name="chatbubbles-outline" size={40} color={colors.tealText} />
         </View>
         <Text variant="heading" style={styles.centered}>
           Open an event to talk about it
@@ -52,10 +53,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.tealSoft,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  emoji: {
-    fontSize: 40,
-    lineHeight: 48,
   },
   centered: {
     textAlign: 'center',

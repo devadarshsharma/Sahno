@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
@@ -243,9 +244,7 @@ function ResponsibilityRow({
             job.isDone ? styles.tickDone : styles.tickOutstanding,
           ]}
         >
-          <Text variant="caption" style={styles.tickMark}>
-            {job.isDone ? '✓' : ''}
-          </Text>
+          {job.isDone ? <Ionicons name="checkmark" size={15} color={colors.text.inverse} /> : null}
         </Pressable>
 
         <View style={styles.rowBody}>
@@ -962,10 +961,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-  },
-  tickMark: {
-    color: colors.text.inverse,
-    lineHeight: 14,
   },
   tickDone: {
     backgroundColor: colors.tealText,

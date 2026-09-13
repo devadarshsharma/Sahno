@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
@@ -112,7 +113,11 @@ export default function Events() {
         />
       ) : groups.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}>{isOrganiser ? '📋' : '📅'}</Text>
+          <Ionicons
+            name={isOrganiser ? 'clipboard-outline' : 'calendar-outline'}
+            size={40}
+            color={colors.tealText}
+          />
           <Text variant="subheading" style={styles.centeredText}>
             {isOrganiser ? 'Nothing in the pipeline yet' : 'Nothing on yet'}
           </Text>
@@ -321,10 +326,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     paddingVertical: spacing.xxl,
-  },
-  emptyEmoji: {
-    fontSize: 44,
-    lineHeight: 56,
   },
   illustration: {
     width: 88,

@@ -1,3 +1,5 @@
+import { Ionicons } from '@expo/vector-icons';
+import type { ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Engagement, EngagementStatus } from '@/api/engagements';
@@ -47,11 +49,11 @@ export function EngagementCard({
       </View>
 
       <View style={styles.lines}>
-        <Line icon="📅" text={when} />
+        <Line icon="calendar-outline" text={when} />
         {reason ? (
-          <Line icon="🔔" text={reason} tone="attention" />
+          <Line icon="alert-circle-outline" text={reason} tone="attention" />
         ) : engagement.venue ? (
-          <Line icon="📍" text={engagement.venue} />
+          <Line icon="location-outline" text={engagement.venue} />
         ) : null}
       </View>
 
@@ -76,21 +78,21 @@ function OrganiserStats({ engagement }: { engagement: Engagement }) {
   return (
     <>
       <Stat
-        icon="👥"
+        icon="people-outline"
         value={selected === 0 ? 'Nobody' : `${answered}/${selected}`}
         label={selected === 0 ? 'asked yet' : 'answered'}
         tone={selected > 0 && outstanding > 0 ? 'attention' : 'default'}
       />
       <Stat
-        icon="🎚️"
+        icon="mic-outline"
         value={engagement.callTime ? formatClock(engagement.callTime) : '—'}
         label="Sound-check"
       />
       {engagement.status === 'Completed' && owed > 0 ? (
-        <Stat icon="💸" value={String(owed)} label="still owed" tone="attention" />
+        <Stat icon="cash-outline" value={String(owed)} label="still owed" tone="attention" />
       ) : (
         <Stat
-          icon="☑️"
+          icon="checkmark-circle-outline"
           value={toSort === 0 ? 'Ready' : String(toSort)}
           label={toSort === 0 ? 'to go' : 'to sort out'}
           tone={toSort > 0 ? 'attention' : 'default'}
@@ -104,7 +106,7 @@ function MemberStats({ engagement }: { engagement: Engagement }) {
   return (
     <>
       <Stat
-        icon="🙋"
+        icon="hand-left-outline"
         value={
           engagement.yourResponse === null
             ? 'Not yet'
@@ -118,12 +120,12 @@ function MemberStats({ engagement }: { engagement: Engagement }) {
         tone={engagement.yourResponse === null ? 'attention' : 'default'}
       />
       <Stat
-        icon="🎚️"
+        icon="mic-outline"
         value={engagement.callTime ? formatClock(engagement.callTime) : '—'}
         label="Be there"
       />
       <Stat
-        icon="🎤"
+        icon="time-outline"
         value={engagement.startTime ? formatClock(engagement.startTime) : '—'}
         label="Starts"
       />
@@ -131,22 +133,26 @@ function MemberStats({ engagement }: { engagement: Engagement }) {
   );
 }
 
+type IconName = ComponentProps<typeof Ionicons>['name'];
+
 function Stat({
   icon,
   value,
   label,
   tone = 'default',
 }: {
-  icon: string;
+  icon: IconName;
   value: string;
   label: string;
   tone?: 'default' | 'attention';
 }) {
+  const ink = tone === 'attention' ? ATTENTION_INK : colors.text.secondary;
+
   return (
     <View style={[styles.stat, tone === 'attention' ? styles.statAttention : null]}>
-      <Text style={styles.statIcon}>{icon}</Text>
+      <Ionicons name={icon} size={16} color={ink} />
       <View style={styles.statText}>
-        <Text style={styles.statValue} numberOfLines={1}>
+        <Text style={[styles.statValue, tone === 'attention' ? { color: ATTENTION_INK } : null]} numberOfLines={1}>
           {value}
         </Text>
         <Text style={styles.statLabel} numberOfLines={1}>
@@ -162,13 +168,18 @@ function Line({
   text,
   tone = 'default',
 }: {
-  icon: string;
+  icon: IconName;
   text: string;
   tone?: 'default' | 'attention';
 }) {
   return (
     <View style={styles.line}>
-      <Text style={styles.lineIcon}>{icon}</Text>
+      <Ionicons
+        name={icon}
+        size={15}
+        color={tone === 'attention' ? ATTENTION_INK : colors.text.muted}
+        style={styles.lineIcon}
+      />
       <Text
         variant="bodySmall"
         color={tone === 'attention' ? 'primary' : 'secondary'}
@@ -181,15 +192,26 @@ function Line({
   );
 }
 
+/**
+ * The state as a small, definite badge. Confirmed carries a tick because it
+ * is the one state that means something was decided; the rest are just where
+ * things stand.
+ */
 export function StatusChip({ status }: { status: EngagementStatus }) {
+  const confirmed = status === 'Confirmed';
+
   return (
     <View style={[styles.chip, CHIP_STYLE[status]]}>
-      <Text variant="caption" style={[styles.chipText, CHIP_TEXT[status]]}>
-        {CHIP_LABEL[status]}
-      </Text>
+      {confirmed ? (
+        <Ionicons name="checkmark" size={12} color={colors.tealText} style={styles.chipIcon} />
+      ) : null}
+      <Text style={[styles.chipText, CHIP_TEXT[status]]}>{CHIP_LABEL[status]}</Text>
     </View>
   );
 }
+
+/** Deep orange for text on the soft-orange attention surfaces; the brand orange itself is too light to read. */
+const ATTENTION_INK = '#8A4A05';
 
 const CHIP_LABEL: Record<EngagementStatus, string> = {
   Draft: 'Enquiry',
@@ -248,8 +270,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   lineIcon: {
-    fontSize: 13,
-    lineHeight: 18,
     width: 18,
     textAlign: 'center',
   },
@@ -276,10 +296,6 @@ const styles = StyleSheet.create({
     borderColor: colors.orangeSoft,
     backgroundColor: colors.orangeSoft,
   },
-  statIcon: {
-    fontSize: 14,
-    lineHeight: 18,
-  },
   statText: {
     flex: 1,
   },
@@ -296,20 +312,30 @@ const styles = StyleSheet.create({
     color: colors.text.muted,
   },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
-    borderRadius: radii.full,
+    borderRadius: radii.sm,
     backgroundColor: colors.surface.subtle,
     flexShrink: 0,
   },
+  chipIcon: {
+    marginLeft: -2,
+  },
   chipText: {
     fontFamily: fontFamilies.uiMedium,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
     color: colors.text.secondary,
   },
   chipConfirmed: { backgroundColor: colors.tealSoft },
   chipConfirmedText: { color: colors.tealText },
   chipWarm: { backgroundColor: colors.orangeSoft },
-  chipWarmText: { color: '#8A4A05' },
+  chipWarmText: { color: ATTENTION_INK },
   chipQuiet: { backgroundColor: colors.surface.subtle },
   chipQuietText: { color: colors.text.muted },
 });

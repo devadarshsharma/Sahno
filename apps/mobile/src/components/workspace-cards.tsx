@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -234,9 +235,11 @@ function ReadinessRow({
   return (
     <View style={styles.readinessRow}>
       <View style={[styles.tick, tickStyle(entry.state)]}>
-        <Text variant="caption" style={styles.tickMark}>
-          {entry.state === 'Done' ? '✓' : entry.state === 'NotRequired' ? '–' : ''}
-        </Text>
+        {entry.state === 'Done' ? (
+          <Ionicons name="checkmark" size={14} color={colors.text.inverse} />
+        ) : entry.state === 'NotRequired' ? (
+          <Ionicons name="remove" size={14} color={colors.text.inverse} />
+        ) : null}
       </View>
 
       <View style={styles.rowValue}>
@@ -300,10 +303,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-  },
-  tickMark: {
-    color: colors.text.inverse,
-    lineHeight: 14,
   },
   tickDone: {
     backgroundColor: colors.tealText,

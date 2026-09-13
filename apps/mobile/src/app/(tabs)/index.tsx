@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Redirect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -260,7 +261,7 @@ export default function Index() {
 
           <Text style={styles.greeting}>
             {greetingForNow()}
-            {firstName ? `, ${firstName}` : ''} 👋
+            {firstName ? `, ${firstName}` : ''}
           </Text>
           <Text style={styles.greetingSub}>
             {isOrganiser
@@ -310,7 +311,7 @@ export default function Index() {
               <View style={styles.attention}>
                 <View style={styles.attentionHeader}>
                   <View style={styles.attentionIcon}>
-                    <Text style={styles.attentionEmoji}>🔔</Text>
+                    <Ionicons name="alert-circle-outline" size={20} color={colors.text.primary} />
                   </View>
                   <Text variant="subheading">Needs your attention</Text>
                 </View>
@@ -510,7 +511,7 @@ function Bell({ unread, onPress }: { unread: number; onPress: () => void }) {
         pressed ? styles.orgPillPressed : null,
       ]}
     >
-      <Text style={styles.bellIcon}>🔔</Text>
+      <Ionicons name="notifications-outline" size={22} color={colors.offWhite} />
       {unread > 0 ? (
         <View style={styles.bellBadge}>
           <Text style={styles.bellBadgeText}>
@@ -648,10 +649,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bellIcon: {
-    fontSize: 18,
-    lineHeight: 22,
-  },
   bellBadge: {
     position: 'absolute',
     top: -2,
@@ -777,10 +774,6 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
-  attentionEmoji: {
-    fontSize: 16,
-    lineHeight: 20,
-  },
   section: {
     gap: spacing.sm,
   },
@@ -843,7 +836,7 @@ function RecentJoins({
     <View style={styles.attention}>
       <View style={styles.attentionHeader}>
         <View style={styles.attentionIcon}>
-          <Text style={styles.attentionEmoji}>👋</Text>
+          <Ionicons name="person-add-outline" size={18} color={colors.text.primary} />
         </View>
         <Text variant="subheading">Recently joined</Text>
       </View>

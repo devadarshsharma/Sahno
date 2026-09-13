@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
@@ -408,9 +409,7 @@ function PaymentsSection({
             }
             style={[styles.tick, payment.isPaid ? styles.tickDone : styles.tickOutstanding]}
           >
-            <Text variant="caption" style={styles.tickMark}>
-              {payment.isPaid ? '✓' : ''}
-            </Text>
+            {payment.isPaid ? <Ionicons name="checkmark" size={15} color={colors.text.inverse} /> : null}
           </Pressable>
           <View style={styles.paymentBody}>
             <Text variant="bodySmall" color={payment.isPaid ? 'muted' : 'primary'}>
@@ -655,10 +654,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-  },
-  tickMark: {
-    color: colors.text.inverse,
-    lineHeight: 14,
   },
   tickDone: {
     backgroundColor: colors.tealText,
