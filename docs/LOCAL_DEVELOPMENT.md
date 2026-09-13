@@ -192,6 +192,26 @@ Two things to know about that build:
   the Play Store. A real keystore is a release-day task, and installing a
   differently-signed build later means uninstalling this one first.
 
+## App icon
+
+The launcher icon is the Sahno symbol on the brand navy (`#0B1B2A`), generated
+from `apps/mobile/assets/images/splash-symbol.png` rather than drawn by hand,
+so the icon and the splash screen cannot drift apart:
+
+```bash
+cd apps/mobile
+node scripts/make-icons.mjs
+npx expo prebuild --platform android --no-install
+```
+
+The script writes `icon.png` (iOS and everything else), the three Android
+adaptive layers (foreground, navy background, white monochrome for themed
+icons), and the favicon. `prebuild` turns those into the `mipmap-*` resources
+Android actually ships, so it has to run before the next native build. If
+`prebuild` says the `android` folder is busy, something has it as its working
+directory — usually the `adb` server started from a Gradle task; `adb
+kill-server` frees it.
+
 ## Email (Resend)
 
 Product email — availability requests, reminders, confirmations, postponements,

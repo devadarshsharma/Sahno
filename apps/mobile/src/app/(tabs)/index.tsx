@@ -125,6 +125,10 @@ export default function Index() {
     router.push({ pathname: '/(tabs)/events', params: { filter } });
 
   const engagements = engagementsQuery.data ?? [];
+  // No data yet (first load, or a reload). Zeros and "Nothing on yet" would
+  // be a lie for the second it takes; the tiles show a dash and the body a
+  // spinner instead.
+  const loadingBookings = engagementsQuery.isPending;
 
   // The pipeline as D-041 ranks it, kept as separate lists rather than one
   // "live" pile: provisionally on and actually booked mean different things to
@@ -151,6 +155,7 @@ export default function Index() {
   // show a bare screen. One honest line is better than five "nothing yet"
   // cards or an empty page.
   const organiserHasNothing =
+    !loadingBookings &&
     waiting.length === 0 &&
     confirmed.length === 0 &&
     tentative.length === 0 &&
@@ -185,6 +190,7 @@ export default function Index() {
   );
 
   const memberHasNothing =
+    !loadingBookings &&
     needsYourAnswer.length === 0 && yourEvents.length === 0;
 
   return (
@@ -262,22 +268,22 @@ export default function Index() {
         {isOrganiser ? (
           <View style={styles.statsRow}>
             <StatTile
-              value={String(waiting.length)}
+              value={loadingBookings ? '–' : String(waiting.length)}
               label="Needs attention"
               onPress={() => openBookings('attention')}
             />
             <StatTile
-              value={String(confirmed.length)}
+              value={loadingBookings ? '–' : String(confirmed.length)}
               label="Confirmed"
               onPress={() => openBookings('Confirmed')}
             />
             <StatTile
-              value={String(tentative.length)}
+              value={loadingBookings ? '–' : String(tentative.length)}
               label="Tentative"
               onPress={() => openBookings('Tentative')}
             />
             <StatTile
-              value={String(enquiries.length)}
+              value={loadingBookings ? '–' : String(enquiries.length)}
               label="Enquiries"
               onPress={() => openBookings('Draft')}
             />
@@ -305,6 +311,10 @@ export default function Index() {
                 loading={dismissChecklist.isPending}
               />
             </Card>
+          ) : null}
+
+          {loadingBookings ? (
+            <ActivityIndicator color={colors.tealText} style={styles.bodySpinner} />
           ) : null}
 
           {isOrganiser ? (
@@ -845,6 +855,9 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: spacing.lg,
     gap: spacing.lg,
+  },
+  bodySpinner: {
+    marginVertical: spacing.xl,
   },
   bodyMember: {
     marginTop: spacing.lg,
