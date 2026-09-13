@@ -16,12 +16,10 @@ import type { Engagement } from '@/api/engagements';
 import type { Member } from '@/api/members';
 import { dismissSetupChecklist } from '@/api/organisations';
 import { SahnoSymbol } from '@/components/brand';
+import { EngagementCard } from '@/components/engagement-card';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { firstNameOf, useMe, useNeedsDisplayName } from '@/hooks/use-me';
-import {
-  formatEngagementDate,
-  useEngagements,
-} from '@/hooks/use-engagements';
+import { useEngagements } from '@/hooks/use-engagements';
 import { useMembers } from '@/hooks/use-members';
 import { useUnreadCount } from '@/hooks/use-notifications';
 import { useActiveOrg } from '@/hooks/use-organisations';
@@ -318,28 +316,13 @@ export default function Index() {
                 </View>
 
                 {waiting.map((engagement) => (
-                    <Pressable
-                      key={engagement.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${engagement.title}. ${attentionReason(engagement)}.`}
-                      onPress={() =>
-                        router.push({
-                          pathname: '/engagement/[engagementId]',
-                          params: { engagementId: engagement.id },
-                        })
-                      }
-                      style={styles.attentionRow}
-                    >
-                      <View style={styles.attentionText}>
-                        <Text numberOfLines={1}>{engagement.title}</Text>
-                        <Text variant="caption" color="secondary">
-                          {attentionReason(engagement)}
-                          {' · '}
-                          {formatEngagementDate(engagement)}
-                        </Text>
-                      </View>
-                      <Text color="muted">›</Text>
-                    </Pressable>
+                  <EngagementCard
+                    key={engagement.id}
+                    engagement={engagement}
+                    isOrganiser
+                    reason={attentionReason(engagement)}
+                    onPress={() => openEngagement(engagement.id)}
+                  />
                 ))}
               </View>
               ) : null}
@@ -356,18 +339,21 @@ export default function Index() {
               <EngagementList
                 title="Upcoming confirmed bookings"
                 engagements={confirmed}
+                isOrganiser={isOrganiser}
                 onOpen={openEngagement}
               />
 
               <EngagementList
                 title="Tentative bookings"
                 engagements={tentative}
+                isOrganiser={isOrganiser}
                 onOpen={openEngagement}
               />
 
               <EngagementList
                 title="New enquiries"
                 engagements={enquiries}
+                isOrganiser={isOrganiser}
                 onOpen={openEngagement}
               />
 
@@ -395,21 +381,25 @@ export default function Index() {
               <EngagementList
                 title="Needs your response"
                 engagements={needsYourAnswer}
+                isOrganiser={isOrganiser}
                 onOpen={openEngagement}
               />
               <EngagementList
                 title="Next confirmed event"
                 engagements={nextConfirmed}
+                isOrganiser={isOrganiser}
                 onOpen={openEngagement}
               />
               <EngagementList
                 title="Tentative events"
                 engagements={yourTentative}
+                isOrganiser={isOrganiser}
                 onOpen={openEngagement}
               />
               <EngagementList
                 title="Later events"
                 engagements={laterEvents}
+                isOrganiser={isOrganiser}
                 onOpen={openEngagement}
               />
             </>
@@ -470,10 +460,12 @@ function attentionReason(engagement: Engagement): string {
 function EngagementList({
   title,
   engagements,
+  isOrganiser,
   onOpen,
 }: {
   title: string;
   engagements: Engagement[];
+  isOrganiser: boolean;
   onOpen: (engagementId: string) => void;
 }) {
   // A section with nothing in it says nothing. Home is read at a glance, and
@@ -485,28 +477,16 @@ function EngagementList({
   return (
     <View style={styles.section}>
       <Text variant="subheading">{title}</Text>
-      <Card style={styles.sectionCard}>
+      <View style={styles.cards}>
         {engagements.map((engagement) => (
-          <Pressable
+          <EngagementCard
             key={engagement.id}
-            accessibilityRole="button"
-            accessibilityLabel={`${engagement.title}. ${formatEngagementDate(engagement)}.`}
+            engagement={engagement}
+            isOrganiser={isOrganiser}
             onPress={() => onOpen(engagement.id)}
-            style={styles.attentionRow}
-          >
-            <View style={styles.attentionText}>
-              <Text numberOfLines={1}>{engagement.title}</Text>
-              <Text variant="caption" color="secondary">
-                {formatEngagementDate(engagement)}
-                {(engagement.outstandingCount ?? 0) > 0
-                  ? ` · ${engagement.outstandingCount} to answer`
-                  : ''}
-              </Text>
-            </View>
-            <Text color="muted">›</Text>
-          </Pressable>
+          />
         ))}
-      </Card>
+      </View>
     </View>
   );
 }
@@ -768,8 +748,8 @@ const styles = StyleSheet.create({
   attention: {
     backgroundColor: colors.orangeSoft,
     borderRadius: radii.lg,
-    padding: spacing.lg,
-    gap: spacing.sm,
+    padding: spacing.md,
+    gap: spacing.md,
   },
   attentionHeader: {
     flexDirection: 'row',
@@ -803,6 +783,9 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: spacing.sm,
+  },
+  cards: {
+    gap: spacing.md,
   },
   emptyCard: {
     paddingVertical: spacing.lg,
