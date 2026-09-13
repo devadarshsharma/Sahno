@@ -1,4 +1,5 @@
 import type { AvailabilityAnswer } from '@/api/availability';
+import type { ReadinessItem } from '@/api/readiness';
 import {
   getAuthorizedJson,
   postAuthorizedJson,
@@ -46,6 +47,8 @@ export type Engagement = {
   yourResponse: AvailabilityAnswer | null;
   /** Checklist items still to sort out. Null for members (D-048). */
   readinessOutstanding: number | null;
+  /** Which ones, in checklist order. Null for members. */
+  readinessMissing: ReadinessItem[] | null;
   /** Money still owed either way. Null without financial access (D-016). */
   financeOutstanding: number | null;
   createdAtUtc: string;

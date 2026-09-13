@@ -13,6 +13,11 @@ public sealed record EngagementView(
     /// <summary>Checklist items still to sort out. Null for members (D-048).</summary>
     int? ReadinessOutstanding,
     /// <summary>
+    /// Which items, in checklist order, so Home can name the first one rather
+    /// than count them. Null for members.
+    /// </summary>
+    IReadOnlyList<ReadinessItem>? ReadinessMissing,
+    /// <summary>
     /// Money still owed either way: unpaid performers, or a customer balance
     /// not yet received. Null without financial access (D-016).
     /// </summary>
@@ -169,6 +174,7 @@ public sealed class EngagementService(
             {
                 var lineup = lineups?.GetValueOrDefault(engagement.Id);
                 int? outstanding = null;
+                IReadOnlyList<ReadinessItem>? missing = null;
 
                 if (waived is not null)
                 {
@@ -178,8 +184,12 @@ public sealed class EngagementService(
                         withRehearsals!.Contains(engagement.Id),
                         withResources!.Contains(engagement.Id));
 
-                    outstanding = ReadinessService.CountOutstanding(
-                        engagement.Readiness(facts, waived[engagement.Id].ToHashSet()));
+                    var readiness = engagement.Readiness(facts, waived[engagement.Id].ToHashSet());
+                    outstanding = ReadinessService.CountOutstanding(readiness);
+                    missing = readiness
+                        .Where(entry => entry.State == ReadinessState.Outstanding)
+                        .Select(entry => entry.Item)
+                        .ToList();
                 }
 
                 return new EngagementView(
@@ -189,6 +199,7 @@ public sealed class EngagementService(
                         ? response
                         : null,
                     outstanding,
+                    missing,
                     owed?.GetValueOrDefault(engagement.Id));
             })
             .ToList();

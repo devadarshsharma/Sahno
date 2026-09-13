@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import type { ComponentProps } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Redirect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -15,6 +16,7 @@ import { useState } from 'react';
 
 import type { Engagement } from '@/api/engagements';
 import type { Member } from '@/api/members';
+import type { ReadinessItem } from '@/api/readiness';
 import { dismissSetupChecklist } from '@/api/organisations';
 import { SahnoSymbol } from '@/components/brand';
 import { EngagementCard } from '@/components/engagement-card';
@@ -310,10 +312,24 @@ export default function Index() {
               {waiting.length > 0 ? (
               <View style={styles.attention}>
                 <View style={styles.attentionHeader}>
-                  <View style={styles.attentionIcon}>
-                    <Ionicons name="alert-circle-outline" size={20} color={colors.text.primary} />
+                  <View style={styles.attentionBell}>
+                    <Ionicons name="notifications" size={18} color={colors.offWhite} />
                   </View>
-                  <Text variant="subheading">Needs your attention</Text>
+                  <Text variant="subheading" style={styles.attentionHeading}>
+                    Needs your attention
+                  </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="View all bookings needing attention"
+                    hitSlop={8}
+                    onPress={() => openBookings('attention')}
+                    style={styles.viewAll}
+                  >
+                    <Text variant="bodySmall" color="accent">
+                      View all
+                    </Text>
+                    <Ionicons name="chevron-forward" size={14} color={colors.tealText} />
+                  </Pressable>
                 </View>
 
                 <View style={styles.attentionList}>
@@ -418,49 +434,69 @@ export default function Index() {
  * open one.
  */
 
+type AttentionIcon = ComponentProps<typeof Ionicons>['name'];
+
+/** What is missing, said as the thing to do, with the icon that kind of thing gets. */
+const MISSING_ACTIONS: Record<ReadinessItem, { action: string; icon: AttentionIcon }> = {
+  Lineup: { action: 'Lineup not settled', icon: 'people-outline' },
+  Venue: { action: 'Venue not set', icon: 'location-outline' },
+  CallTime: { action: 'Sound-check time not set', icon: 'mic-outline' },
+  StartTime: { action: 'Start time not set', icon: 'time-outline' },
+  Responsibilities: { action: 'Jobs not handed out', icon: 'clipboard-outline' },
+  Dress: { action: 'Dress not decided', icon: 'shirt-outline' },
+  Rehearsal: { action: 'No rehearsal booked', icon: 'musical-notes-outline' },
+  Resources: { action: 'Nothing attached yet', icon: 'folder-open-outline' },
+};
+
 /**
- * What to DO about this booking, in the order things usually need doing.
- * Written as an action rather than a description — "chase 2 members", not
- * "2 members outstanding" — because this list is a to-do list, and the diary
- * below it already says what each booking is.
+ * What to DO about this booking, in the order things usually need doing —
+ * with the icon for that kind of doing. Written as an action rather than a
+ * description, because this list is a to-do list; the diary below already
+ * says what each booking is.
  */
-function attentionReason(engagement: Engagement): string {
+function attentionAction(engagement: Engagement): { action: string; icon: AttentionIcon } {
   const waiting = engagement.outstandingCount ?? 0;
   if (waiting > 0) {
-    return waiting === 1
-      ? 'Chase 1 member for an answer'
-      : `Chase ${waiting} members for an answer`;
+    return {
+      action: waiting === 1 ? "1 member hasn't responded" : `${waiting} members haven't responded`,
+      icon: 'people-outline',
+    };
   }
 
   if (engagement.status === 'CheckingAvailability') {
-    return 'Everyone has answered — decide the lineup';
+    return { action: 'Everyone answered — decide the lineup', icon: 'checkmark-circle-outline' };
   }
 
   if (engagement.status === 'Postponed') {
     return engagement.startDate === null
-      ? 'Set a new date'
-      : 'Resume when ready';
+      ? { action: 'New date needed', icon: 'calendar-outline' }
+      : { action: 'Resume when ready', icon: 'play-circle-outline' };
   }
 
   const owed = engagement.financeOutstanding ?? 0;
   if (engagement.status === 'Completed' && owed > 0) {
-    return owed === 1 ? 'Settle 1 payment' : `Settle ${owed} payments`;
+    return {
+      action: owed === 1 ? '1 payment still owed' : `${owed} payments still owed`,
+      icon: 'cash-outline',
+    };
   }
 
-  const missing = engagement.readinessOutstanding ?? 0;
-  if (missing > 0) {
-    return missing === 1
-      ? '1 thing to sort out'
-      : `${missing} things to sort out`;
+  const missing = engagement.readinessMissing ?? [];
+  if (missing.length > 0) {
+    const first = MISSING_ACTIONS[missing[0]];
+    return {
+      action: missing.length === 1 ? first.action : `${first.action} · ${missing.length - 1} more`,
+      icon: first.icon,
+    };
   }
 
-  return 'Needs a look';
+  return { action: 'Needs a look', icon: 'alert-circle-outline' };
 }
 
 /**
- * One line per booking in Needs attention: the name, and what to do. No
- * card, no chips, no venue — that is all in the diary below, and repeating
- * it here would have every booking on the screen twice.
+ * One line per booking in Needs attention: the thing to do, then which
+ * booking. No card, no chips, no venue — that is all in the diary below, and
+ * repeating it here would have every booking on the screen twice.
  */
 function AttentionRow({
   engagement,
@@ -469,29 +505,44 @@ function AttentionRow({
   engagement: Engagement;
   onPress: () => void;
 }) {
-  const reason = attentionReason(engagement);
+  const { action, icon } = attentionAction(engagement);
+  const where = `${engagement.title} (${shortDate(engagement)})`;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${engagement.title}. ${reason}.`}
+      accessibilityLabel={`${action}. ${where}.`}
       onPress={onPress}
       style={({ pressed }) => [
         styles.attentionRow,
         pressed ? styles.attentionRowPressed : null,
       ]}
     >
+      <View style={styles.attentionIconWell}>
+        <Ionicons name={icon} size={20} color={colors.text.primary} />
+      </View>
       <View style={styles.attentionText}>
         <Text numberOfLines={1} style={styles.attentionTitle}>
-          {engagement.title}
+          {action}
         </Text>
         <Text variant="bodySmall" color="secondary" numberOfLines={1}>
-          {reason}
+          {where}
         </Text>
       </View>
       <Ionicons name="chevron-forward" size={18} color={colors.text.muted} />
     </Pressable>
   );
+}
+
+/** "22 Jun" — enough to tell two bookings apart on one line. */
+function shortDate(engagement: Engagement): string {
+  if (engagement.startDate === null) {
+    return 'date TBC';
+  }
+  return new Date(`${engagement.startDate}T00:00:00`).toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+  });
 }
 function EngagementList({
   title,
@@ -811,6 +862,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  attentionBell: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.orange,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  attentionHeading: {
+    flex: 1,
+  },
+  viewAll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  attentionIconWell: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface.subtle,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   attentionIcon: {
     width: 34,

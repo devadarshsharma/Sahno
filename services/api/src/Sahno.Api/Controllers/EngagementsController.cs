@@ -51,6 +51,7 @@ public sealed class EngagementsController(
                 row.Lineup,
                 row.YourResponse,
                 row.ReadinessOutstanding,
+                row.ReadinessMissing,
                 row.FinanceOutstanding))
             .ToList());
     }
@@ -82,6 +83,7 @@ public sealed class EngagementsController(
                 view.Lineup,
                 view.YourResponse,
                 view.ReadinessOutstanding,
+                view.ReadinessMissing,
                 view.FinanceOutstanding));
     }
 
@@ -413,6 +415,7 @@ public sealed class EngagementsController(
         EngagementLineup? lineup = null,
         AvailabilityResponse? ownResponse = null,
         int? readinessOutstanding = null,
+        IReadOnlyList<ReadinessItem>? readinessMissing = null,
         int? financeOutstanding = null)
     {
         var allowed = Enum.GetValues<EngagementStatus>()
@@ -439,6 +442,7 @@ public sealed class EngagementsController(
             lineup?.Outstanding,
             ownResponse?.ToString(),
             readinessOutstanding,
+            readinessMissing?.Select(item => item.ToString()).ToList(),
             financeOutstanding,
             engagement.CreatedAtUtc);
     }
