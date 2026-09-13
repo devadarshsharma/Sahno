@@ -152,12 +152,6 @@ export default function Join() {
             Sahno under Invite members. Codes are private to your group.
           </Text>
         ) : null}
-        <Button
-          label="Back"
-          variant="ghost"
-          onPress={() => router.back()}
-          disabled={busy}
-        />
       </Card>
     </Screen>
   );

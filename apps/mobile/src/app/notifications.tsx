@@ -50,7 +50,6 @@ export default function Notifications() {
       onRefresh={() => query.refetch()}
       refreshing={query.isRefetching}
       hero={{
-        back: true,
         title: 'Notifications',
         subtitle:
           rows.length === 0

@@ -59,7 +59,6 @@ export default function SelectMembers() {
     <Screen
       scroll
       hero={{
-        back: true,
         title: 'Who do you need?',
         subtitle:
           'Everyone you pick is asked whether they are available. They see only their own answer.',

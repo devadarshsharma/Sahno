@@ -13,7 +13,6 @@ export default function SwitchOrganisation() {
   return (
     <Screen
       hero={{
-        back: true,
         title: 'Your organisations',
         subtitle:
           'Switching changes everything — bookings, members, and permissions are strictly per organisation.',

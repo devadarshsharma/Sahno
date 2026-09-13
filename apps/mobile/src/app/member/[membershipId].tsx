@@ -49,7 +49,6 @@ export default function MemberDetail() {
           <Text color="secondary" style={styles.centeredText}>
             They may have been removed from {active?.name ?? 'this organisation'}.
           </Text>
-          <Button label="Back" variant="secondary" onPress={() => router.back()} />
         </View>
       </Screen>
     );
@@ -75,7 +74,6 @@ export default function MemberDetail() {
       onRefresh={() => membersQuery.refetch()}
       refreshing={membersQuery.isRefetching}
       hero={{
-        back: true,
         eyebrow: member.role,
         title: member.displayName ?? 'Member',
         subtitle: member.function ?? undefined,

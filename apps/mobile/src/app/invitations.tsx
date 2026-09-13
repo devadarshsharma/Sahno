@@ -85,7 +85,7 @@ export default function Invitations() {
       scroll
       onRefresh={() => invitationsQuery.refetch()}
       refreshing={invitationsQuery.isRefetching}
-      hero={{ back: true, title: 'Invite members', subtitle: 'Codes that work until you revoke them.' }}
+      hero={{ title: 'Invite members', subtitle: 'Codes that work until you revoke them.' }}
     >
       <Text color="secondary" style={styles.intro}>
         Share a code for {active.name}. Anyone with an active code joins as a

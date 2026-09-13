@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -55,7 +54,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 export default function BrandPreview() {
-  const router = useRouter();
   const [loadingDemo, setLoadingDemo] = useState(false);
   const [inputValue, setInputValue] = useState('');
 
@@ -67,7 +65,6 @@ export default function BrandPreview() {
           v0.1 candidates for visual validation — geometry and colour values
           are not locked.
         </Text>
-        <Button label="Back" variant="secondary" onPress={() => router.back()} />
       </View>
 
       <Section title="Primary lockup">

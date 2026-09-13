@@ -1,6 +1,5 @@
-import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/ui/text';
@@ -9,8 +8,6 @@ import { colors, fontFamilies, radii, spacing } from '@/theme';
 export type HeroProps = {
   title: string;
   subtitle?: string;
-  /** Show a back control. Stack screens; never tabs. */
-  back?: boolean;
   /** Something for the top-right — the bell, a count, an action. */
   right?: ReactNode;
   /** A line above the title in the small caps style, e.g. the booking's status. */
@@ -22,37 +19,19 @@ export type HeroProps = {
  * corners, the same type — so moving between pages feels like turning a page
  * rather than opening a different app. Home keeps its own richer version with
  * the brand and the greeting; everything else gets a title and, optionally, a
- * line under it.
+ * line under it. There is no back control: the system gesture and button do
+ * that, and one way back is easier to learn than two.
  *
  * It sits inside the scroll view rather than above it, so it moves with the
  * content the way Home's does, and the status-bar inset is part of the block
  * so the navy runs to the top edge.
  */
-export function Hero({ title, subtitle, back = false, right, eyebrow }: HeroProps) {
+export function Hero({ title, subtitle, right, eyebrow }: HeroProps) {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
 
   return (
     <View style={[styles.hero, { paddingTop: insets.top + spacing.md }]}>
-      {back || right ? (
-        <View style={styles.controls}>
-          {back ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Back"
-              hitSlop={8}
-              onPress={() => router.back()}
-              style={({ pressed }) => [styles.back, pressed ? styles.pressed : null]}
-            >
-              <Text style={styles.backChevron}>‹</Text>
-              <Text style={styles.backLabel}>Back</Text>
-            </Pressable>
-          ) : (
-            <View />
-          )}
-          {right ?? null}
-        </View>
-      ) : null}
+      {right ? <View style={styles.controls}>{right}</View> : null}
 
       {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
       <Text style={styles.title} accessibilityRole="header">
@@ -78,33 +57,9 @@ const styles = StyleSheet.create({
   },
   controls: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     marginBottom: spacing.lg,
     minHeight: 40,
-  },
-  back: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    minHeight: 40,
-    paddingRight: spacing.md,
-    marginLeft: -4,
-  },
-  pressed: {
-    opacity: 0.6,
-  },
-  backChevron: {
-    fontFamily: fontFamilies.bold,
-    fontSize: 26,
-    lineHeight: 28,
-    color: colors.tealSoft,
-  },
-  backLabel: {
-    fontFamily: fontFamilies.uiMedium,
-    fontSize: 15,
-    lineHeight: 20,
-    color: colors.tealSoft,
   },
   eyebrow: {
     fontFamily: fontFamilies.uiMedium,

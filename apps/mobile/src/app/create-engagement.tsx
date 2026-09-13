@@ -66,7 +66,6 @@ export default function CreateEngagement() {
     <Screen
       scroll
       hero={{
-        back: true,
         title: 'New enquiry',
         subtitle:
           'A name is all you need. It stays private to you and your admins until you request availability.',

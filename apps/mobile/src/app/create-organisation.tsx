@@ -220,12 +220,6 @@ export default function CreateOrganisation() {
           onPress={onSubmit}
           loading={formState.isSubmitting}
         />
-        <Button
-          label="Back"
-          variant="ghost"
-          onPress={() => router.back()}
-          disabled={formState.isSubmitting}
-        />
       </Card>
     </Screen>
   );

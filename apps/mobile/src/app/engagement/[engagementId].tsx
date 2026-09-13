@@ -75,7 +75,6 @@ export default function EngagementDetail() {
           <Text color="secondary" style={styles.centeredText}>
             This enquiry may have been discarded.
           </Text>
-          <Button label="Back" variant="secondary" onPress={() => router.back()} />
         </View>
       </Screen>
     );
@@ -87,7 +86,6 @@ export default function EngagementDetail() {
       onRefresh={() => engagementsQuery.refetch()}
       refreshing={engagementsQuery.isRefetching}
       hero={{
-        back: true,
         eyebrow: STATUS_WORDS[engagement.status],
         title: engagement.title,
         subtitle: engagement.venue
@@ -354,7 +352,7 @@ function TransitionsCard({ engagement }: { engagement: Engagement }) {
             onPress={confirm}
           />
           <Button
-            label="Back"
+            label="Cancel"
             variant="ghost"
             onPress={() => {
               setPending(null);
