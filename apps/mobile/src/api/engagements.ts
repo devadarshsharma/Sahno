@@ -135,6 +135,8 @@ export function createEngagement(
     endDate?: string | null;
     startTime?: string | null;
     venue?: string | null;
+    /** A directory customer to start the booking in the name of. */
+    customerId?: string | null;
   },
 ): Promise<Engagement> {
   return postAuthorizedJson(

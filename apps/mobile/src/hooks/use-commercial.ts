@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { getCustomer, getFinance, listPayments } from '@/api/commercial';
+import { getEngagementCustomer, getFinance, listPayments } from '@/api/commercial';
 import { useActiveOrg } from '@/hooks/use-organisations';
 import { useSession } from '@/providers/auth-provider';
 
@@ -14,8 +14,8 @@ export function useFinancialAccess(): boolean {
   return active?.hasFinancialAccess === true;
 }
 
-/** The customer. Organisers only; the query stays off for everyone else. */
-export function useCustomer(engagementId: string) {
+/** The booking's customer link. Organisers only; the query stays off for everyone else. */
+export function useEngagementCustomer(engagementId: string) {
   const session = useSession();
   const { active } = useActiveOrg();
   const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
@@ -24,7 +24,7 @@ export function useCustomer(engagementId: string) {
     queryKey: ['org', active?.id, 'engagements', engagementId, 'customer'],
     queryFn: async ({ signal }) => {
       const accessToken = await session.getAccessToken();
-      return getCustomer(accessToken, active!.id, engagementId, signal);
+      return getEngagementCustomer(accessToken, active!.id, engagementId, signal);
     },
     enabled: active !== null && isOrganiser && session.status === 'authenticated',
   });

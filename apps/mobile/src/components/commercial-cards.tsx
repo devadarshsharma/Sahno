@@ -1,23 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import {
   createPayment,
   deletePayment,
-  updateCustomer,
+  updateEngagementCustomer,
   updateFinance,
   updatePayment,
-  type Customer,
+  type EngagementCustomerInput,
   type Finance,
   type PerformerPayment,
 } from '@/api/commercial';
 import type { Participant } from '@/api/availability';
+import { bookingsLabel, CustomerPicker } from '@/components/customer-picker';
 import { Button, Card, DateField, Text, TextInput } from '@/components/ui';
 import { useAvailability } from '@/hooks/use-availability';
 import {
   useCommercialMutation,
-  useCustomer,
+  useEngagementCustomer,
   useFinance,
   useFinancialAccess,
   usePayments,
@@ -25,23 +27,39 @@ import {
 import { colors, radii, spacing } from '@/theme';
 
 /**
- * Who the booking is for, and the organiser's private notes (D-047 §7 Admin,
- * D-022). Every organiser; never a member. The query is off for members and
- * the card is never mounted for them, so there is no state in which this
- * renders for the wrong person.
+ * Who the booking is for (D-047 §7 Admin, D-022): a customer from the
+ * organisation's directory, plus the organiser's notes about this booking.
+ * Every organiser; never a member. The query is off for members and the card
+ * is never mounted for them, so there is no state in which this renders for
+ * the wrong person.
  */
 export function CustomerCard({ engagementId }: { engagementId: string }) {
-  const customerQuery = useCustomer(engagementId);
-  const [editing, setEditing] = useState(false);
+  const router = useRouter();
+  const linkQuery = useEngagementCustomer(engagementId);
+  const [picking, setPicking] = useState(false);
+  const [editingNotes, setEditingNotes] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!customerQuery.isSuccess) {
+  const save = useCommercialMutation<EngagementCustomerInput>(
+    (accessToken, organisationId, input) =>
+      updateEngagementCustomer(accessToken, organisationId, engagementId, input),
+  );
+
+  if (!linkQuery.isSuccess) {
     return null;
   }
 
-  const customer = customerQuery.data;
-  const empty =
-    !customer.name && !customer.contactName && !customer.phone && !customer.email;
+  const link = linkQuery.data;
+  const customer = link.customer;
+
+  const setCustomer = (customerId: string | null) => {
+    setPicking(false);
+    setError(null);
+    save.mutate(
+      { customerId, privateNotes: link.privateNotes },
+      { onError: () => setError('Could not save that.') },
+    );
+  };
 
   return (
     <Card style={styles.card}>
@@ -50,57 +68,96 @@ export function CustomerCard({ engagementId }: { engagementId: string }) {
         Who this is for. Members never see any of this.
       </Text>
 
-      {editing ? (
-        <CustomerForm
-          engagementId={engagementId}
-          customer={customer}
-          onDone={() => setEditing(false)}
-          onError={setError}
+      {customer ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${customer.name}. Open customer.`}
+          onPress={() => router.push(`/customers/${customer.id}`)}
+          style={({ pressed }) => [styles.customerRow, pressed ? styles.pressed : null]}
+        >
+          <View style={styles.customerText}>
+            <Text style={styles.customerName}>{customer.name}</Text>
+            <Text variant="caption" color="secondary" numberOfLines={1}>
+              {[customer.contactName, bookingsLabel(customer.bookingCount)]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.text.muted} />
+        </Pressable>
+      ) : (
+        <Text color="muted" variant="bodySmall">
+          Nobody chosen yet.
+        </Text>
+      )}
+
+      {customer ? (
+        <View style={styles.rows}>
+          {customer.phone ? (
+            <Detail
+              label="Phone"
+              value={customer.phone}
+              onPress={() => Linking.openURL(`tel:${customer.phone}`)}
+            />
+          ) : null}
+          {customer.email ? (
+            <Detail
+              label="Email"
+              value={customer.email}
+              onPress={() => Linking.openURL(`mailto:${customer.email}`)}
+            />
+          ) : null}
+        </View>
+      ) : null}
+
+      <View style={styles.actions}>
+        <Button
+          label={customer ? 'Change' : 'Choose customer'}
+          variant="secondary"
+          onPress={() => setPicking(true)}
+          loading={save.isPending}
+        />
+        {customer ? (
+          <Button label="Remove" variant="ghost" onPress={() => setCustomer(null)} />
+        ) : null}
+      </View>
+
+      {editingNotes ? (
+        <NotesForm
+          initial={link.privateNotes ?? ''}
+          onSave={(privateNotes) =>
+            save.mutate(
+              { customerId: customer?.id ?? null, privateNotes },
+              {
+                onSuccess: () => setEditingNotes(false),
+                onError: () => setError('Could not save that.'),
+              },
+            )
+          }
+          saving={save.isPending}
+          onCancel={() => setEditingNotes(false)}
         />
       ) : (
-        <>
-          {empty ? (
-            <Text color="muted" variant="bodySmall">
-              Nothing recorded yet.
-            </Text>
+        <View style={styles.notes}>
+          <Text variant="label" color="secondary">
+            Private notes about this booking
+          </Text>
+          {link.privateNotes ? (
+            <Text variant="bodySmall">{link.privateNotes}</Text>
           ) : (
-            <View style={styles.rows}>
-              {customer.name ? <Detail label="Customer" value={customer.name} /> : null}
-              {customer.contactName ? (
-                <Detail label="Contact" value={customer.contactName} />
-              ) : null}
-              {customer.phone ? (
-                <Detail
-                  label="Phone"
-                  value={customer.phone}
-                  onPress={() => Linking.openURL(`tel:${customer.phone}`)}
-                />
-              ) : null}
-              {customer.email ? (
-                <Detail
-                  label="Email"
-                  value={customer.email}
-                  onPress={() => Linking.openURL(`mailto:${customer.email}`)}
-                />
-              ) : null}
-            </View>
+            <Text color="muted" variant="bodySmall">
+              How it came in, what was said, what to remember.
+            </Text>
           )}
-
-          {customer.privateNotes ? (
-            <View style={styles.notes}>
-              <Text variant="label" color="secondary">
-                Private notes
-              </Text>
-              <Text variant="bodySmall">{customer.privateNotes}</Text>
-            </View>
-          ) : null}
-
-          <Button
-            label={empty ? 'Add customer details' : 'Edit'}
-            variant="secondary"
-            onPress={() => setEditing(true)}
-          />
-        </>
+          <Text
+            variant="bodySmall"
+            color="accent"
+            onPress={() => setEditingNotes(true)}
+            suppressHighlighting
+          >
+            {link.privateNotes ? 'Edit notes' : 'Add notes'}
+          </Text>
+        </View>
       )}
 
       {error ? (
@@ -108,72 +165,41 @@ export function CustomerCard({ engagementId }: { engagementId: string }) {
           {error}
         </Text>
       ) : null}
+
+      <CustomerPicker
+        visible={picking}
+        onSelect={(chosen) => setCustomer(chosen.id)}
+        onClose={() => setPicking(false)}
+      />
     </Card>
   );
 }
 
-function CustomerForm({
-  engagementId,
-  customer,
-  onDone,
-  onError,
+function NotesForm({
+  initial,
+  saving,
+  onSave,
+  onCancel,
 }: {
-  engagementId: string;
-  customer: Customer;
-  onDone: () => void;
-  onError: (message: string) => void;
+  initial: string;
+  saving: boolean;
+  onSave: (notes: string | null) => void;
+  onCancel: () => void;
 }) {
-  const [name, setName] = useState(customer.name ?? '');
-  const [contactName, setContactName] = useState(customer.contactName ?? '');
-  const [phone, setPhone] = useState(customer.phone ?? '');
-  const [email, setEmail] = useState(customer.email ?? '');
-  const [privateNotes, setPrivateNotes] = useState(customer.privateNotes ?? '');
-
-  const save = useCommercialMutation<void>((accessToken, organisationId) =>
-    updateCustomer(accessToken, organisationId, engagementId, {
-      name: name.trim() || null,
-      contactName: contactName.trim() || null,
-      phone: phone.trim() || null,
-      email: email.trim() || null,
-      privateNotes: privateNotes.trim() || null,
-    }),
-  );
+  const [notes, setNotes] = useState(initial);
 
   return (
     <View style={styles.form}>
-      <TextInput label="Customer" placeholder="e.g. The Khan family" value={name} onChangeText={setName} />
       <TextInput
-        label="Contact person"
-        placeholder="Who to ring"
-        value={contactName}
-        onChangeText={setContactName}
-      />
-      <TextInput label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-      <TextInput
-        label="Email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      <TextInput
-        label="Private notes"
+        label="Private notes about this booking"
         placeholder="How it came in, what was said, what to remember"
-        value={privateNotes}
-        onChangeText={setPrivateNotes}
+        value={notes}
+        onChangeText={setNotes}
         multiline
+        autoFocus
       />
-      <Button
-        label="Save"
-        loading={save.isPending}
-        onPress={() =>
-          save.mutate(undefined, {
-            onSuccess: onDone,
-            onError: () => onError('Could not save that.'),
-          })
-        }
-      />
-      <Button label="Cancel" variant="ghost" onPress={onDone} />
+      <Button label="Save" loading={saving} onPress={() => onSave(notes.trim() || null)} />
+      <Button label="Cancel" variant="ghost" onPress={onCancel} />
     </View>
   );
 }
@@ -606,6 +632,27 @@ const styles = StyleSheet.create({
   },
   notes: {
     gap: 2,
+  },
+  customerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface.subtle,
+  },
+  customerText: {
+    flex: 1,
+    gap: 2,
+  },
+  customerName: {
+    fontWeight: '600',
+  },
+  pressed: {
+    opacity: 0.6,
+  },
+  actions: {
+    gap: spacing.xs,
   },
   form: {
     gap: spacing.md,

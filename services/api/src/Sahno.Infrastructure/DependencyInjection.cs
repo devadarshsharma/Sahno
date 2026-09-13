@@ -39,6 +39,7 @@ public static class DependencyInjection
         services.AddScoped<IEngagementResourceStore, EngagementResourceStore>();
         services.AddScoped<IDiscussionStore, DiscussionStore>();
         services.AddScoped<ICommercialStore, CommercialStore>();
+        services.AddScoped<ICustomerStore, CustomerStore>();
         services.AddScoped<INotificationStore, NotificationStore>();
         services.AddScoped<IOutboxStore, OutboxStore>();
 

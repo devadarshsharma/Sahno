@@ -24,40 +24,60 @@ public sealed class CommercialService(
     IEngagementStore engagements,
     IEngagementParticipantStore participants,
     ICommercialStore commercial,
+    ICustomerStore customers,
     IMembershipStore memberships)
 {
     // ---- Customer: every organiser --------------------------------------
 
-    public async Task<(EngagementResult Result, EngagementCustomer? Customer)> GetCustomerAsync(
+    /// <summary>
+    /// The booking's customer link with the customer record resolved. The
+    /// link is present even when nobody has been chosen; the customer is null
+    /// then, or when the linked record has since been deleted.
+    /// </summary>
+    public async Task<(EngagementResult Result, EngagementCustomer? Link, CustomerRow? Customer)> GetCustomerAsync(
         Membership actor,
         Guid engagementId,
         CancellationToken cancellationToken)
     {
         if (!OrganisationAuthorizationService.IsOrganiser(actor))
         {
-            return (EngagementResult.Forbidden, null);
+            return (EngagementResult.Forbidden, null, null);
         }
 
         if (!await ExistsAsync(actor, engagementId, cancellationToken))
         {
-            return (EngagementResult.NotFound, null);
+            return (EngagementResult.NotFound, null, null);
         }
 
         // Absent means never filled in, which the caller sees as an empty
-        // customer rather than a missing one.
-        var customer = await commercial.FindCustomerAsync(engagementId, cancellationToken)
+        // link rather than a missing one.
+        var link = await commercial.FindCustomerAsync(engagementId, cancellationToken)
             ?? EngagementCustomer.Empty(engagementId);
 
-        return (EngagementResult.Success, customer);
+        CustomerRow? row = null;
+        if (link.CustomerId is { } customerId)
+        {
+            var customer = await customers.FindAsync(actor.OrganisationId, customerId, cancellationToken);
+            if (customer is not null)
+            {
+                // "They have had us four times" belongs next to the name here too.
+                var history = await customers.ListEngagementsAsync(customerId, cancellationToken);
+                row = new CustomerRow(customer, history.Count);
+            }
+        }
+
+        return (EngagementResult.Success, link, row);
     }
 
+    /// <summary>
+    /// Points the booking at a customer from the organisation's directory (or
+    /// at nobody) and records the organiser's notes about this booking.
+    /// A customer from another organisation is refused as not found.
+    /// </summary>
     public async Task<EngagementResult> UpdateCustomerAsync(
         Membership actor,
         Guid engagementId,
-        string? name,
-        string? contactName,
-        string? phone,
-        string? email,
+        Guid? customerId,
         string? privateNotes,
         CancellationToken cancellationToken)
     {
@@ -71,14 +91,20 @@ public sealed class CommercialService(
             return EngagementResult.NotFound;
         }
 
-        var customer = await commercial.FindCustomerAsync(engagementId, cancellationToken);
-        if (customer is null)
+        if (customerId is { } id
+            && await customers.FindAsync(actor.OrganisationId, id, cancellationToken) is null)
         {
-            customer = EngagementCustomer.Empty(engagementId);
-            commercial.Add(customer);
+            return EngagementResult.NotFound;
         }
 
-        customer.Update(name, contactName, phone, email, privateNotes);
+        var link = await commercial.FindCustomerAsync(engagementId, cancellationToken);
+        if (link is null)
+        {
+            link = EngagementCustomer.Empty(engagementId);
+            commercial.Add(link);
+        }
+
+        link.Update(customerId, privateNotes);
         await commercial.SaveAsync(cancellationToken);
         return EngagementResult.Success;
     }

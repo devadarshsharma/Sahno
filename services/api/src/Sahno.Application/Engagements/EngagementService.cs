@@ -60,6 +60,7 @@ public sealed class EngagementService(
     IEngagementResourceStore resources,
     IReadinessStore waivers,
     ICommercialStore commercial,
+    ICustomerStore customers,
     Notifier notifier)
 {
     /// <summary>
@@ -249,17 +250,26 @@ public sealed class EngagementService(
 
     /// <summary>
     /// Starts a Draft. Only a title is required — the rest is what the
-    /// organiser does not know yet (D-025).
+    /// organiser does not know yet (D-025). A customer from the directory
+    /// may be named up front, so a booking "for the Patels" starts linked to
+    /// them; a customer id from another organisation is Invalid.
     /// </summary>
-    public async Task<Engagement> CreateDraftAsync(
+    public async Task<(EngagementResult Result, Engagement? Engagement)> CreateDraftAsync(
         Membership actor,
         string title,
         DateOnly? startDate,
         DateOnly? endDate,
         TimeOnly? startTime,
         string? venue,
+        Guid? customerId,
         CancellationToken cancellationToken)
     {
+        if (customerId is { } id
+            && await customers.FindAsync(actor.OrganisationId, id, cancellationToken) is null)
+        {
+            return (EngagementResult.Invalid, null);
+        }
+
         var (engagement, activity) = Engagement.CreateDraft(
             actor.OrganisationId,
             title,
@@ -269,8 +279,16 @@ public sealed class EngagementService(
             venue,
             actor.UserId);
 
+        if (customerId is not null)
+        {
+            // Same unit of work as the engagement: the link commits with it.
+            var link = EngagementCustomer.Empty(engagement.Id);
+            link.Update(customerId, privateNotes: null);
+            commercial.Add(link);
+        }
+
         await engagements.AddAsync(engagement, activity, cancellationToken);
-        return engagement;
+        return (EngagementResult.Success, engagement);
     }
 
     public async Task<EngagementResult> UpdateDetailsAsync(

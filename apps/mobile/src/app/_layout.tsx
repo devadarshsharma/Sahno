@@ -111,6 +111,9 @@ function RootNavigator() {
         <Stack.Screen name="set-name" />
         <Stack.Screen name="member/[membershipId]" />
         <Stack.Screen name="create-engagement" />
+        <Stack.Screen name="customers/index" />
+        <Stack.Screen name="customers/new" />
+        <Stack.Screen name="customers/[customerId]" />
         <Stack.Screen name="engagement/[engagementId]" />
         <Stack.Screen name="select-members" />
         <Stack.Screen name="create-organisation" />

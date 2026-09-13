@@ -4,21 +4,25 @@ import {
   sendAuthorized,
   sendAuthorizedJson,
 } from '@/api/client';
+import type { Customer } from '@/api/customers';
 
 /**
- * Who the booking is for (D-022). Organisers only. Never on the engagement
- * itself, so a member's screen has no field to render by mistake.
+ * Who the booking is for (D-022): the directory customer it is linked to,
+ * resolved, plus the organiser's notes about this booking in particular.
+ * Organisers only. Never on the engagement itself, so a member's screen has
+ * no field to render by mistake.
  */
-export type Customer = {
-  name: string | null;
-  contactName: string | null;
-  phone: string | null;
-  email: string | null;
+export type EngagementCustomer = {
+  customer: Customer | null;
   privateNotes: string | null;
   updatedAtUtc: string;
 };
 
-export type CustomerInput = Omit<Customer, 'updatedAtUtc'>;
+/** Null `customerId` clears the link. */
+export type EngagementCustomerInput = {
+  customerId: string | null;
+  privateNotes: string | null;
+};
 
 /**
  * The money on one booking (D-008, D-016). Financial access only — the Owner,
@@ -58,8 +62,13 @@ export type PerformerPayment = {
   createdAtUtc: string;
 };
 
-function isCustomer(value: unknown): value is Customer {
-  return typeof value === 'object' && value !== null && 'updatedAtUtc' in value && 'name' in value;
+function isEngagementCustomer(value: unknown): value is EngagementCustomer {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'updatedAtUtc' in value &&
+    'customer' in value
+  );
 }
 
 function isFinance(value: unknown): value is Finance {
@@ -88,25 +97,25 @@ function base(organisationId: string, engagementId: string): string {
   return `/api/organisations/${organisationId}/engagements/${engagementId}`;
 }
 
-export function getCustomer(
+export function getEngagementCustomer(
   accessToken: string,
   organisationId: string,
   engagementId: string,
   signal?: AbortSignal,
-): Promise<Customer> {
+): Promise<EngagementCustomer> {
   return getAuthorizedJson(
     `${base(organisationId, engagementId)}/customer`,
     accessToken,
-    isCustomer,
+    isEngagementCustomer,
     signal,
   );
 }
 
-export function updateCustomer(
+export function updateEngagementCustomer(
   accessToken: string,
   organisationId: string,
   engagementId: string,
-  input: CustomerInput,
+  input: EngagementCustomerInput,
 ): Promise<void> {
   return sendAuthorizedJson(
     `${base(organisationId, engagementId)}/customer`,

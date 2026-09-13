@@ -63,6 +63,20 @@ export default function More() {
         ) : null}
       </Card>
 
+      {isOrganiser ? (
+        <Card style={styles.card}>
+          <Text variant="subheading">Customers</Text>
+          <Text color="secondary" variant="bodySmall">
+            Everyone who has booked you, and how often. Members never see this.
+          </Text>
+          <Button
+            label="Customer directory"
+            variant="secondary"
+            onPress={() => router.push('/customers')}
+          />
+        </Card>
+      ) : null}
+
       <Card style={styles.card}>
         <Text variant="subheading">Development</Text>
         <Text color="muted" variant="caption">

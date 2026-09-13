@@ -1,14 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { z } from 'zod';
+import { Ionicons } from '@expo/vector-icons';
 
 import { createEngagement } from '@/api/engagements';
+import { CustomerPicker } from '@/components/customer-picker';
 import { Button, Card, DateField, Screen, Text, TextInput } from '@/components/ui';
 import { useEngagementMutation } from '@/hooks/use-engagements';
-import { spacing } from '@/theme';
+import { useIsOrganiser } from '@/hooks/use-customers';
+import { colors, radii, spacing } from '@/theme';
 
 /**
  * Starts an enquiry. Only a title is required (D-025): the date, venue, and
@@ -29,12 +32,22 @@ type FormValues = z.infer<typeof schema>;
 
 export default function CreateEngagement() {
   const router = useRouter();
+  // Arriving from a customer's page: the booking starts in their name.
+  const params = useLocalSearchParams<{ customerId?: string; customerName?: string }>();
+  const isOrganiser = useIsOrganiser();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [customer, setCustomer] = useState<{ id: string; name: string } | null>(
+    params.customerId && params.customerName
+      ? { id: params.customerId, name: params.customerName }
+      : null,
+  );
+  const [picking, setPicking] = useState(false);
 
   const create = useEngagementMutation<{
     title: string;
     startDate: string | null;
     venue: string | null;
+    customerId: string | null;
   }>((accessToken, organisationId, args) =>
     createEngagement(accessToken, organisationId, args),
   );
@@ -51,6 +64,7 @@ export default function CreateEngagement() {
         title: values.title,
         startDate: values.startDate,
         venue: values.venue ? values.venue : null,
+        customerId: customer?.id ?? null,
       },
       {
         onSuccess: () => router.back(),
@@ -117,6 +131,44 @@ export default function CreateEngagement() {
           )}
         />
 
+        {isOrganiser ? (
+          <View style={styles.field}>
+            <Text variant="label" color="secondary">
+              Customer (optional)
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={customer ? `Customer: ${customer.name}. Change.` : 'Choose a customer'}
+              onPress={() => setPicking(true)}
+              style={({ pressed }) => [styles.customerField, pressed ? styles.pressed : null]}
+            >
+              <Ionicons
+                name={customer ? 'person-circle-outline' : 'person-add-outline'}
+                size={18}
+                color={customer ? colors.tealText : colors.text.muted}
+              />
+              <Text style={[styles.customerName, customer ? null : styles.placeholder]} numberOfLines={1}>
+                {customer ? customer.name : 'Who is this for?'}
+              </Text>
+              {customer ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove customer"
+                  onPress={() => setCustomer(null)}
+                  hitSlop={8}
+                >
+                  <Ionicons name="close-circle" size={18} color={colors.text.muted} />
+                </Pressable>
+              ) : (
+                <Ionicons name="chevron-forward" size={18} color={colors.text.muted} />
+              )}
+            </Pressable>
+            <Text variant="caption" color="muted">
+              Pick a returning customer or add a new one. Members never see this.
+            </Text>
+          </View>
+        ) : null}
+
         {submitError ? (
           <Text color="error" variant="bodySmall">
             {submitError}
@@ -135,6 +187,15 @@ export default function CreateEngagement() {
           disabled={create.isPending}
         />
       </Card>
+
+      <CustomerPicker
+        visible={picking}
+        onSelect={(chosen) => {
+          setCustomer({ id: chosen.id, name: chosen.name });
+          setPicking(false);
+        }}
+        onClose={() => setPicking(false)}
+      />
     </Screen>
   );
 }
@@ -142,5 +203,28 @@ export default function CreateEngagement() {
 const styles = StyleSheet.create({
   card: {
     gap: spacing.md,
+  },
+  field: {
+    gap: spacing.xs,
+  },
+  customerField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface.raised,
+  },
+  customerName: {
+    flex: 1,
+  },
+  placeholder: {
+    color: colors.text.muted,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

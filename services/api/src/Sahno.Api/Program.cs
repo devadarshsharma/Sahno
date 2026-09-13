@@ -27,6 +27,7 @@ builder.Services.AddScoped<UserProfileService>();
 builder.Services.AddScoped<OrganisationService>();
 builder.Services.AddScoped<InvitationService>();
 builder.Services.AddScoped<MembershipService>();
+builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<EngagementService>();
 builder.Services.AddScoped<AvailabilityService>();
 builder.Services.AddScoped<ReadinessService>();

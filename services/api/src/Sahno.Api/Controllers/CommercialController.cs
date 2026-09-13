@@ -28,10 +28,10 @@ public sealed class CommercialController(
     : ControllerBase
 {
     [HttpGet("customer")]
-    [ProducesResponseType<CustomerResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<EngagementCustomerResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<CustomerResponse>> GetCustomer(
+    public async Task<ActionResult<EngagementCustomerResponse>> GetCustomer(
         Guid organisationId,
         Guid engagementId,
         CancellationToken cancellationToken)
@@ -42,14 +42,14 @@ public sealed class CommercialController(
             return NotFound();
         }
 
-        var (result, customer) = await commercialService.GetCustomerAsync(
+        var (result, link, customer) = await commercialService.GetCustomerAsync(
             caller,
             engagementId,
             cancellationToken);
 
         return result switch
         {
-            EngagementResult.Success => Ok(ToResponse(customer!)),
+            EngagementResult.Success => Ok(ToResponse(link!, customer)),
             EngagementResult.Forbidden => Forbid(),
             _ => NotFound(),
         };
@@ -62,7 +62,7 @@ public sealed class CommercialController(
     public async Task<IActionResult> UpdateCustomer(
         Guid organisationId,
         Guid engagementId,
-        UpdateCustomerRequest request,
+        UpdateEngagementCustomerRequest request,
         CancellationToken cancellationToken)
     {
         var caller = await CallerAsync(organisationId, cancellationToken);
@@ -74,10 +74,7 @@ public sealed class CommercialController(
         var result = await commercialService.UpdateCustomerAsync(
             caller,
             engagementId,
-            request.Name,
-            request.ContactName,
-            request.Phone,
-            request.Email,
+            request.CustomerId,
             request.PrivateNotes,
             cancellationToken);
 
@@ -268,15 +265,14 @@ public sealed class CommercialController(
         return FromResult(result);
     }
 
-    private static CustomerResponse ToResponse(EngagementCustomer customer)
+    private static EngagementCustomerResponse ToResponse(EngagementCustomer link, CustomerRow? customer)
     {
-        return new CustomerResponse(
-            customer.Name,
-            customer.ContactName,
-            customer.Phone,
-            customer.Email,
-            customer.PrivateNotes,
-            customer.UpdatedAtUtc);
+        return new EngagementCustomerResponse(
+            customer is null
+                ? null
+                : CustomersController.ToResponse(customer.Customer, customer.BookingCount),
+            link.PrivateNotes,
+            link.UpdatedAtUtc);
     }
 
     private static FinanceResponse ToResponse(EngagementFinance finance)

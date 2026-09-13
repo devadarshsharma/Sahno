@@ -45,7 +45,8 @@ public sealed record CreateEngagementRequest(
     DateOnly? StartDate,
     DateOnly? EndDate,
     TimeOnly? StartTime,
-    string? Venue);
+    string? Venue,
+    Guid? CustomerId = null);
 
 /// <summary>The details that may stay TBC. Dates move on their own route.</summary>
 public sealed record UpdateEngagementRequest(

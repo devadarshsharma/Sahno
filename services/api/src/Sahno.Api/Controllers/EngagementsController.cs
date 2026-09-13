@@ -148,16 +148,22 @@ public sealed class EngagementsController(
             return ValidationProblem(ModelState);
         }
 
-        var engagement = await engagementService.CreateDraftAsync(
+        var (result, engagement) = await engagementService.CreateDraftAsync(
             caller,
             request.Title,
             request.StartDate,
             request.EndDate,
             request.StartTime,
             request.Venue,
+            request.CustomerId,
             cancellationToken);
 
-        return StatusCode(StatusCodes.Status201Created, ToResponse(engagement));
+        if (result != EngagementResult.Success)
+        {
+            return ValidationProblem("That customer is not in this organisation.");
+        }
+
+        return StatusCode(StatusCodes.Status201Created, ToResponse(engagement!));
     }
 
     [HttpPatch("{engagementId:guid}")]

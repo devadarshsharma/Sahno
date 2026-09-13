@@ -19,27 +19,42 @@ public sealed class CommercialEndpointTests(SahnoApiFactory factory)
     : IClassFixture<SahnoApiFactory>
 {
     [Fact]
-    public async Task AnOrganiserKeepsTheCustomerAndTheirOwnNotes()
+    public async Task AnOrganiserLinksABookingToADirectoryCustomerAndKeepsTheirOwnNotes()
     {
         var org = await NewOrganisationAsync("comm-customer");
         var engagement = await NewDraftAsync(org, "Mehndi night");
+        var khans = await NewCustomerAsync(org, "The Khan family", "0400 000 000");
 
         var saved = await org.Owner.PutAsJsonAsync(
             $"{Engagement(org, engagement.Id)}/customer",
-            new UpdateCustomerRequest(
-                "The Khan family",
-                "Ayesha Khan",
-                "0400 000 000",
-                "ayesha@example.test",
+            new UpdateEngagementCustomerRequest(
+                khans.Id,
                 "Came via Imran. Wants the long qaul first."));
         Assert.Equal(HttpStatusCode.NoContent, saved.StatusCode);
 
-        var customer = await org.Owner.GetFromJsonAsync<CustomerResponse>(
+        var customer = await org.Owner.GetFromJsonAsync<EngagementCustomerResponse>(
             $"{Engagement(org, engagement.Id)}/customer");
         Assert.NotNull(customer);
-        Assert.Equal("The Khan family", customer.Name);
-        Assert.Equal("0400 000 000", customer.Phone);
+        Assert.NotNull(customer.Customer);
+        Assert.Equal("The Khan family", customer.Customer.Name);
+        Assert.Equal("0400 000 000", customer.Customer.Phone);
+        Assert.Equal(1, customer.Customer.BookingCount);
         Assert.Contains("Wants the long qaul first", customer.PrivateNotes);
+    }
+
+    /// <summary>A customer from some other organisation cannot be linked.</summary>
+    [Fact]
+    public async Task AnotherOrganisationsCustomerCannotBeLinked()
+    {
+        var ours = await NewOrganisationAsync("comm-cross-a");
+        var theirs = await NewOrganisationAsync("comm-cross-b");
+        var engagement = await NewDraftAsync(ours, "Ours");
+        var stranger = await NewCustomerAsync(theirs, "Their customer", null);
+
+        var saved = await ours.Owner.PutAsJsonAsync(
+            $"{Engagement(ours, engagement.Id)}/customer",
+            new UpdateEngagementCustomerRequest(stranger.Id, null));
+        Assert.Equal(HttpStatusCode.NotFound, saved.StatusCode);
     }
 
     /// <summary>
@@ -58,7 +73,7 @@ public sealed class CommercialEndpointTests(SahnoApiFactory factory)
 
         var write = await org.Members[0].PutAsJsonAsync(
             $"{Engagement(org, engagement.Id)}/customer",
-            new UpdateCustomerRequest("Me", null, null, null, null));
+            new UpdateEngagementCustomerRequest(null, "mine"));
         Assert.Equal(HttpStatusCode.Forbidden, write.StatusCode);
     }
 
@@ -72,9 +87,10 @@ public sealed class CommercialEndpointTests(SahnoApiFactory factory)
         var org = await NewOrganisationAsync("comm-shape", members: 1);
         var engagement = await NewDraftAsync(org, "Shape");
         await RequestAvailabilityAsync(org, engagement.Id, org.MemberIds);
+        var secret = await NewCustomerAsync(org, "Secret Customer", "0400 111 222");
         await org.Owner.PutAsJsonAsync(
             $"{Engagement(org, engagement.Id)}/customer",
-            new UpdateCustomerRequest("Secret Customer", null, "0400 111 222", null, "private"));
+            new UpdateEngagementCustomerRequest(secret.Id, "private"));
         await org.Owner.PutAsJsonAsync(
             $"{Engagement(org, engagement.Id)}/finance",
             new UpdateFinanceRequest(2500m, 2200m, 500m, null, null, "net 7"));
@@ -357,6 +373,20 @@ public sealed class CommercialEndpointTests(SahnoApiFactory factory)
             clients,
             directory.Skip(1).Select(row => row.UserId).ToList(),
             directory.Skip(1).Select(row => row.MembershipId).ToList());
+    }
+
+    private static async Task<CustomerResponse> NewCustomerAsync(
+        TestOrganisation org,
+        string name,
+        string? phone)
+    {
+        var response = await org.Owner.PostAsJsonAsync(
+            $"/api/organisations/{org.Id}/customers",
+            new SaveCustomerRequest(name, null, phone, null, null));
+        response.EnsureSuccessStatusCode();
+        var customer = await response.Content.ReadFromJsonAsync<CustomerResponse>();
+        Assert.NotNull(customer);
+        return customer;
     }
 
     private async Task<EngagementResponse> NewDraftAsync(TestOrganisation org, string title)

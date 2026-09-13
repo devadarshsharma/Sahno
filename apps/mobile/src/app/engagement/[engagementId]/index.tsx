@@ -8,7 +8,7 @@ import { AddToCalendarCard } from '@/components/calendar-card';
 import { formatClock, StatusChip } from '@/components/engagement-card';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { useAvailability, useOwnAvailability } from '@/hooks/use-availability';
-import { useFinancialAccess } from '@/hooks/use-commercial';
+import { useEngagementCustomer, useFinancialAccess } from '@/hooks/use-commercial';
 import { useDiscussion } from '@/hooks/use-discussion';
 import { formatEngagementDate, useEngagements } from '@/hooks/use-engagements';
 import { useActiveOrg } from '@/hooks/use-organisations';
@@ -38,6 +38,8 @@ export default function EngagementOverview() {
   const engagementsQuery = useEngagements();
   const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
   const hasFinance = useFinancialAccess();
+  // Off for members (the hook gates it), so this never fetches for them.
+  const customerName = useEngagementCustomer(engagementId).data?.customer?.name ?? null;
 
   const engagement = engagementsQuery.data?.find((row) => row.id === engagementId);
 
@@ -180,9 +182,11 @@ export default function EngagementOverview() {
             summary={
               hasFinance && owed > 0
                 ? `${owed} still owed`
-                : hasFinance
-                  ? 'Fees, deposit, performer payments'
-                  : 'Who this is for'
+                : customerName
+                  ? `For ${customerName}`
+                  : hasFinance
+                    ? 'Fees, deposit, performer payments'
+                    : 'Who this is for'
             }
             tone={hasFinance && owed > 0 ? 'attention' : 'default'}
             onPress={() => go('money')}

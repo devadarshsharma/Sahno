@@ -18,21 +18,8 @@ public sealed class EngagementCustomerConfiguration
             .HasColumnName("engagement_id")
             .ValueGeneratedNever();
 
-        builder.Property(customer => customer.Name)
-            .HasColumnName("name")
-            .HasMaxLength(EngagementCustomer.NameMaxLength);
-
-        builder.Property(customer => customer.ContactName)
-            .HasColumnName("contact_name")
-            .HasMaxLength(EngagementCustomer.ContactMaxLength);
-
-        builder.Property(customer => customer.Phone)
-            .HasColumnName("phone")
-            .HasMaxLength(EngagementCustomer.PhoneMaxLength);
-
-        builder.Property(customer => customer.Email)
-            .HasColumnName("email")
-            .HasMaxLength(EngagementCustomer.EmailMaxLength);
+        builder.Property(customer => customer.CustomerId)
+            .HasColumnName("customer_id");
 
         builder.Property(customer => customer.PrivateNotes)
             .HasColumnName("private_notes")
@@ -41,6 +28,8 @@ public sealed class EngagementCustomerConfiguration
         builder.Property(customer => customer.UpdatedAtUtc)
             .HasColumnName("updated_at_utc")
             .IsRequired();
+
+        builder.HasIndex(customer => customer.CustomerId);
     }
 }
 

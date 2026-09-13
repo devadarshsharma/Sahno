@@ -1432,3 +1432,19 @@ MVP invitations are **shareable link codes**:
 - Email-delivered invitations are modelled in the domain but not issued until the notifications slice provides durable email (D-066). When they arrive they are single-use and matched only after the invited email is securely verified.
 
 **Rationale:** Link codes deliver the invitation-only model (D-045) without requiring email infrastructure in this slice, and the multi-use link matches the real behaviour of groups that coordinate in a shared chat.
+
+---
+
+## D-078 — Customers are an organisation-level directory, not per-booking text
+
+**Date:** 13 September 2026
+**Status:** Accepted
+
+A **customer** (a family, a venue, a company) is one record per organisation, kept across bookings. A booking links to a customer rather than carrying its own copy of the name and contact details; per-booking private notes stay on the booking.
+
+- Organisers pick a returning customer from the directory (with search) or add a new one on the spot; a booking can also be started from a customer's page, already in their name.
+- The directory shows how often each customer has booked, and a customer's page lists every booking they have had — the "they have had us four times" record.
+- Everything here is organiser-only, in line with D-022. A Member has no route that reaches a customer, and the engagement response never carries one.
+- Existing per-booking customer names were carried into the directory by the migration, one customer per distinct name per organisation.
+
+**Rationale:** Groups have repeat customers, and retyping them on every booking produces three spellings of the same family and no history. A directory makes the returning customer the fast path and gives organisers the record of who has hired them and how often, which is the sort of thing they currently keep in their heads.

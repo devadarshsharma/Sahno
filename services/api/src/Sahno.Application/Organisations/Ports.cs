@@ -96,3 +96,41 @@ public interface IInvitationStore
 
     Task SaveAsync(Invitation invitation, CancellationToken cancellationToken);
 }
+
+/// <summary>A booking, as a line in a customer's history.</summary>
+public sealed record CustomerEngagement(
+    Guid EngagementId,
+    string Title,
+    string Status,
+    DateOnly? StartDate,
+    string? Venue);
+
+public interface ICustomerStore
+{
+    /// <summary>Every customer of one organisation, most recently updated first.</summary>
+    Task<IReadOnlyList<Customer>> ListForOrganisationAsync(
+        Guid organisationId,
+        CancellationToken cancellationToken);
+
+    Task<Customer?> FindAsync(
+        Guid organisationId,
+        Guid customerId,
+        CancellationToken cancellationToken);
+
+    /// <summary>The bookings linked to a customer, newest date first.</summary>
+    Task<IReadOnlyList<CustomerEngagement>> ListEngagementsAsync(
+        Guid customerId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// How many bookings each customer of one organisation has had — one query
+    /// for the whole directory, so the list can say "4 bookings" per row.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, int>> BookingCountsAsync(
+        Guid organisationId,
+        CancellationToken cancellationToken);
+
+    Task AddAsync(Customer customer, CancellationToken cancellationToken);
+
+    Task SaveAsync(CancellationToken cancellationToken);
+}

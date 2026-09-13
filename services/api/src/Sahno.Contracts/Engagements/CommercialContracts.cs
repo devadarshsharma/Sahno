@@ -1,23 +1,19 @@
 namespace Sahno.Contracts.Engagements;
 
 /// <summary>
-/// Who the booking is for (Slice 11, D-022). Organisers only; never on an
-/// engagement response, so a member's client has no field to accidentally
-/// render.
+/// Who the booking is for (Slice 11, D-022): the directory customer this
+/// booking is linked to, resolved, plus the organiser's notes about this
+/// booking in particular. Organisers only; never on an engagement response,
+/// so a member's client has no field to accidentally render.
 /// </summary>
-public sealed record CustomerResponse(
-    string? Name,
-    string? ContactName,
-    string? Phone,
-    string? Email,
+public sealed record EngagementCustomerResponse(
+    Sahno.Contracts.Organisations.CustomerResponse? Customer,
     string? PrivateNotes,
     DateTimeOffset UpdatedAtUtc);
 
-public sealed record UpdateCustomerRequest(
-    string? Name,
-    string? ContactName,
-    string? Phone,
-    string? Email,
+/// <summary>Null CustomerId clears the link; notes are per booking.</summary>
+public sealed record UpdateEngagementCustomerRequest(
+    Guid? CustomerId,
     string? PrivateNotes);
 
 /// <summary>
