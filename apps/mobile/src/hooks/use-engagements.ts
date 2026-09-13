@@ -162,3 +162,62 @@ export const MEMBER_STATUS_LABELS: Record<EngagementStatus, string> = {
   Completed: 'Past events',
   Cancelled: 'Cancelled',
 };
+
+/**
+ * Whether a booking is unresolved work for an organiser (D-041). Four things
+ * qualify: somebody has still to answer; everyone has answered and the lineup
+ * is now the organiser's call, because Sahno never advances to Tentative on
+ * its own (D-026); it is postponed; or it is on but critical detail is missing
+ * (D-048). A finished event is off the list unless money is still owed on it —
+ * and only whoever holds financial access gets that count at all (D-016).
+ *
+ * Shared by Home's attention list and the Bookings filter, so the tile, the
+ * list, and the page it opens can never disagree.
+ */
+export function needsAttention(engagement: Engagement): boolean {
+  if (engagement.status === 'Completed') {
+    return (engagement.financeOutstanding ?? 0) > 0;
+  }
+  if (engagement.status === 'Cancelled') {
+    return false;
+  }
+  if ((engagement.outstandingCount ?? 0) > 0) {
+    return true;
+  }
+  if (
+    engagement.status === 'CheckingAvailability' &&
+    (engagement.selectedCount ?? 0) > 0
+  ) {
+    return true;
+  }
+  if (engagement.status === 'Postponed') {
+    return true;
+  }
+  // Only once it is actually on. A Draft enquiry with no venue yet is not a
+  // loose end — nothing has been agreed for it to be loose about.
+  return (
+    (engagement.status === 'Confirmed' || engagement.status === 'Tentative') &&
+    (engagement.readinessOutstanding ?? 0) > 0
+  );
+}
+
+/**
+ * What the Bookings list can be narrowed to. A status, or the attention set —
+ * the same four things Home's tile counts, so the number and the page agree.
+ */
+export type BookingsFilter = 'attention' | EngagementStatus;
+
+export const FILTER_LABELS: Record<BookingsFilter, string> = {
+  attention: 'Needs attention',
+  Draft: 'Enquiries',
+  CheckingAvailability: 'Checking availability',
+  Tentative: 'Tentative',
+  Confirmed: 'Confirmed',
+  Postponed: 'Postponed',
+  Completed: 'Completed',
+  Cancelled: 'Cancelled',
+};
+
+export function matchesFilter(engagement: Engagement, filter: BookingsFilter): boolean {
+  return filter === 'attention' ? needsAttention(engagement) : engagement.status === filter;
+}

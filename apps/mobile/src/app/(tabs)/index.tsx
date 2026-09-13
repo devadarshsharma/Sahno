@@ -20,7 +20,11 @@ import { SahnoSymbol } from '@/components/brand';
 import { EngagementCard } from '@/components/engagement-card';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { firstNameOf, useMe, useNeedsDisplayName } from '@/hooks/use-me';
-import { useEngagements } from '@/hooks/use-engagements';
+import {
+  needsAttention,
+  useEngagements,
+  type BookingsFilter,
+} from '@/hooks/use-engagements';
 import { useMembers } from '@/hooks/use-members';
 import { useUnreadCount } from '@/hooks/use-notifications';
 import { useActiveOrg } from '@/hooks/use-organisations';
@@ -114,6 +118,10 @@ export default function Index() {
       params: { engagementId },
     });
 
+  // A tile is a count; tapping it opens the list it counts.
+  const openBookings = (filter: BookingsFilter) =>
+    router.push({ pathname: '/(tabs)/events', params: { filter } });
+
   const engagements = engagementsQuery.data ?? [];
 
   // The pipeline as D-041 ranks it, kept as separate lists rather than one
@@ -135,36 +143,7 @@ export default function Index() {
   // A booking here also stays in its diary section below — that is where it
   // IS, and this is what to DO. The two lists are different shapes so the
   // same booking never appears as two cards.
-  const waiting = engagements.filter((engagement) => {
-    // A finished event is off the list — unless money is still owed on it.
-    // Only whoever holds financial access gets a count here at all (D-016),
-    // so for everyone else this branch never fires.
-    if (engagement.status === 'Completed') {
-      return (engagement.financeOutstanding ?? 0) > 0;
-    }
-    if (engagement.status === 'Cancelled') {
-      return false;
-    }
-    if ((engagement.outstandingCount ?? 0) > 0) {
-      return true;
-    }
-    if (
-      engagement.status === 'CheckingAvailability' &&
-      (engagement.selectedCount ?? 0) > 0
-    ) {
-      return true;
-    }
-    if (engagement.status === 'Postponed') {
-      return true;
-    }
-    // Only once it is actually on. A Draft enquiry with no venue yet is not a
-    // loose end — nothing has been agreed for it to be loose about.
-    return (
-      (engagement.status === 'Confirmed' ||
-        engagement.status === 'Tentative') &&
-      (engagement.readinessOutstanding ?? 0) > 0
-    );
-  });
+  const waiting = engagements.filter(needsAttention);
 
   // With every section hiding itself when empty, a quiet organisation would
   // show a bare screen. One honest line is better than five "nothing yet"
@@ -280,10 +259,26 @@ export default function Index() {
             reads as one scale rather than four unrelated numbers. */}
         {isOrganiser ? (
           <View style={styles.statsRow}>
-            <StatTile value={String(waiting.length)} label="Needs attention" />
-            <StatTile value={String(confirmed.length)} label="Confirmed" />
-            <StatTile value={String(tentative.length)} label="Tentative" />
-            <StatTile value={String(enquiries.length)} label="Enquiries" />
+            <StatTile
+              value={String(waiting.length)}
+              label="Needs attention"
+              onPress={() => openBookings('attention')}
+            />
+            <StatTile
+              value={String(confirmed.length)}
+              label="Confirmed"
+              onPress={() => openBookings('Confirmed')}
+            />
+            <StatTile
+              value={String(tentative.length)}
+              label="Tentative"
+              onPress={() => openBookings('Tentative')}
+            />
+            <StatTile
+              value={String(enquiries.length)}
+              label="Enquiries"
+              onPress={() => openBookings('Draft')}
+            />
           </View>
         ) : null}
 
@@ -563,12 +558,25 @@ function Bell({ unread, onPress }: { unread: number; onPress: () => void }) {
   );
 }
 
-function StatTile({ value, label }: { value: string; label: string }) {
+function StatTile({
+  value,
+  label,
+  onPress,
+}: {
+  value: string;
+  label: string;
+  onPress: () => void;
+}) {
   return (
-    <View style={styles.statTile}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${value} ${label}. Open the list.`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.statTile, pressed ? styles.statTilePressed : null]}
+    >
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -766,6 +774,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 2,
     ...shadows.md,
+  },
+  statTilePressed: {
+    backgroundColor: colors.surface.subtle,
   },
   statValue: {
     fontFamily: fontFamilies.bold,

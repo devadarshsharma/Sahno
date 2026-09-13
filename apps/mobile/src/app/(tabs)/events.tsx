@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
@@ -7,14 +7,17 @@ import type { Engagement, EngagementStatus } from '@/api/engagements';
 import { EngagementCalendar } from '@/components/engagement-calendar';
 import { Button, Screen, Text } from '@/components/ui';
 import {
+  FILTER_LABELS,
   formatEngagementDate,
   groupByStatus,
+  matchesFilter,
   MEMBER_STATUS_LABELS,
   STATUS_LABELS,
   useEngagements,
+  type BookingsFilter,
 } from '@/hooks/use-engagements';
 import { useActiveOrg } from '@/hooks/use-organisations';
-import { colors, radii, shadows, spacing } from '@/theme';
+import { colors, fontFamilies, radii, shadows, spacing } from '@/theme';
 
 /**
  * The organiser's pipeline, labelled Bookings for them and Events for Members
@@ -26,6 +29,12 @@ export default function Events() {
   const { active } = useActiveOrg();
   const engagementsQuery = useEngagements();
   const [view, setView] = useState<'list' | 'calendar'>('list');
+
+  // Arrived from a Home tile: show only what that tile counted. Clearing it
+  // is one tap, and the param goes with it so a re-tap from Home still works.
+  const params = useLocalSearchParams<{ filter?: string }>();
+  const filter = (params.filter ?? null) as BookingsFilter | null;
+  const clearFilter = () => router.setParams({ filter: undefined });
 
   const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
 
@@ -55,7 +64,10 @@ export default function Events() {
     );
   }
 
-  const groups = groupByStatus(engagementsQuery.data);
+  const shown = filter
+    ? engagementsQuery.data.filter((engagement) => matchesFilter(engagement, filter))
+    : engagementsQuery.data;
+  const groups = groupByStatus(shown);
 
   return (
     <Screen
@@ -101,9 +113,27 @@ export default function Events() {
         })}
       </View>
 
+      {filter ? (
+        <View style={styles.filterBar}>
+          <Text variant="bodySmall" color="secondary">
+            Showing <Text style={styles.filterName}>{FILTER_LABELS[filter]}</Text>
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Show all bookings"
+            onPress={clearFilter}
+            hitSlop={8}
+          >
+            <Text variant="bodySmall" color="accent">
+              Show all
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       {view === 'calendar' ? (
         <EngagementCalendar
-          engagements={engagementsQuery.data}
+          engagements={shown}
           onOpen={(id) =>
             router.push({
               pathname: '/engagement/[engagementId]',
@@ -119,7 +149,11 @@ export default function Events() {
             color={colors.tealText}
           />
           <Text variant="subheading" style={styles.centeredText}>
-            {isOrganiser ? 'Nothing in the pipeline yet' : 'Nothing on yet'}
+            {filter
+              ? `Nothing under ${FILTER_LABELS[filter].toLowerCase()}`
+              : isOrganiser
+                ? 'Nothing in the pipeline yet'
+                : 'Nothing on yet'}
           </Text>
           <Text color="secondary" variant="bodySmall" style={styles.centeredText}>
             {isOrganiser
@@ -254,6 +288,16 @@ const styles = StyleSheet.create({
   },
   centeredText: {
     textAlign: 'center',
+  },
+  filterBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  filterName: {
+    fontFamily: fontFamilies.uiMedium,
+    color: colors.text.primary,
   },
   viewToggle: {
     flexDirection: 'row',
