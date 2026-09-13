@@ -27,7 +27,7 @@ import {
 import { Button, Card, DateField, Screen, Text, TextInput } from '@/components/ui';
 import {
   formatEngagementDate,
-  STATUS_LABELS,
+  STATUS_WORDS,
   TRANSITION_LABELS,
   useEngagementActivity,
   useEngagementMutation,
@@ -86,18 +86,15 @@ export default function EngagementDetail() {
       scroll
       onRefresh={() => engagementsQuery.refetch()}
       refreshing={engagementsQuery.isRefetching}
+      hero={{
+        back: true,
+        eyebrow: STATUS_WORDS[engagement.status],
+        title: engagement.title,
+        subtitle: engagement.venue
+          ? `${formatEngagementDate(engagement)} · ${engagement.venue}`
+          : formatEngagementDate(engagement),
+      }}
     >
-      <View style={styles.header}>
-        <Text variant="title">{engagement.title}</Text>
-        <Text color="secondary">
-          {STATUS_LABELS[engagement.status]} · {formatEngagementDate(engagement)}
-        </Text>
-        {engagement.venue ? (
-          <Text color="muted" variant="bodySmall">
-            {engagement.venue}
-          </Text>
-        ) : null}
-      </View>
 
       {!engagement.isSharedWithMembers ? (
         <Card style={styles.card}>
@@ -162,7 +159,6 @@ export default function EngagementDetail() {
         <DiscardCard engagement={engagement} onDiscarded={() => router.back()} />
       ) : null}
 
-      <Button label="Back" variant="ghost" onPress={() => router.back()} />
     </Screen>
   );
 }
@@ -499,8 +495,8 @@ function describeActivity(entry: {
     }`;
   }
 
-  const to = entry.toStatus ? STATUS_LABELS[entry.toStatus] : 'unknown';
-  const from = entry.fromStatus ? STATUS_LABELS[entry.fromStatus] : null;
+  const to = entry.toStatus ? STATUS_WORDS[entry.toStatus] : 'unknown';
+  const from = entry.fromStatus ? STATUS_WORDS[entry.fromStatus] : null;
   return from ? `${from} → ${to}` : to;
 }
 
@@ -567,10 +563,6 @@ const styles = StyleSheet.create({
   },
   centeredText: {
     textAlign: 'center',
-  },
-  header: {
-    gap: spacing.xs,
-    marginBottom: spacing.xl,
   },
   card: {
     gap: spacing.md,

@@ -84,6 +84,18 @@ export const PIPELINE_ORDER: EngagementStatus[] = [
 ];
 
 /** Owner/Admin wording for each state (D-039). */
+/** One engagement's state, as a word on its own page. */
+export const STATUS_WORDS: Record<EngagementStatus, string> = {
+  Draft: 'Enquiry',
+  CheckingAvailability: 'Checking availability',
+  Tentative: 'Tentative',
+  Confirmed: 'Confirmed',
+  Postponed: 'Postponed',
+  Completed: 'Completed',
+  Cancelled: 'Cancelled',
+};
+
+/** The list-section headings — plural where the section holds several. */
 export const STATUS_LABELS: Record<EngagementStatus, string> = {
   Draft: 'Enquiries',
   CheckingAvailability: 'Checking availability',

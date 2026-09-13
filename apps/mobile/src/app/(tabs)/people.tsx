@@ -62,15 +62,14 @@ export default function People() {
       scroll
       onRefresh={refresh}
       refreshing={membersQuery.isRefetching}
-    >
-      <View style={styles.header}>
-        <Text variant="title">People</Text>
-        <Text color="secondary" variant="bodySmall">
-          {members.length === 1
+      hero={{
+        title: 'People',
+        subtitle:
+          members.length === 1
             ? 'Just you so far.'
-            : `${members.length} people in ${active?.name}.`}
-        </Text>
-      </View>
+            : `${members.length} people in ${active?.name}.`,
+      }}
+    >
 
       <View style={styles.list}>
         {members.map((member) => (
@@ -178,10 +177,6 @@ const styles = StyleSheet.create({
   },
   centeredText: {
     textAlign: 'center',
-  },
-  header: {
-    gap: spacing.xs,
-    marginBottom: spacing.xl,
   },
   list: {
     gap: spacing.sm,

@@ -56,14 +56,15 @@ export default function SelectMembers() {
   }
 
   return (
-    <Screen scroll>
-      <View style={styles.header}>
-        <Text variant="title">Who do you need?</Text>
-        <Text color="secondary">
-          Everyone you pick is asked whether they are available. They see only
-          their own answer.
-        </Text>
-      </View>
+    <Screen
+      scroll
+      hero={{
+        back: true,
+        title: 'Who do you need?',
+        subtitle:
+          'Everyone you pick is asked whether they are available. They see only their own answer.',
+      }}
+    >
 
       <Card style={styles.card}>
         {candidates.map((member) => {
@@ -133,10 +134,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  header: {
-    gap: spacing.sm,
-    marginBottom: spacing.xl,
   },
   card: {
     gap: spacing.sm,

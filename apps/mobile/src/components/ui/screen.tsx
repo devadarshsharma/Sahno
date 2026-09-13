@@ -1,7 +1,9 @@
+import { StatusBar } from 'expo-status-bar';
 import type { PropsWithChildren } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Hero, type HeroProps } from '@/components/ui/hero';
 import { colors, spacing } from '@/theme';
 
 export type ScreenProps = PropsWithChildren<{
@@ -15,20 +17,38 @@ export type ScreenProps = PropsWithChildren<{
   onRefresh?: () => void;
   /** Whether a refresh is in flight, for the spinner. */
   refreshing?: boolean;
+  /**
+   * The navy page header shared with Home. When set, the header owns the top
+   * inset so the navy runs under the status bar, and the content starts
+   * beneath it.
+   */
+  hero?: HeroProps;
 }>;
 
 export function Screen({
   scroll = false,
   onRefresh,
   refreshing = false,
+  hero,
   children,
 }: ScreenProps) {
   // A pull gesture needs something scrollable to hang off, so asking for
   // refresh implies a ScrollView even on a screen that would otherwise fit.
   const scrollable = scroll || onRefresh !== undefined;
 
+  const body = (
+    <>
+      {hero ? <Hero {...hero} /> : null}
+      {children}
+    </>
+  );
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView
+      style={styles.safeArea}
+      edges={hero ? ['left', 'right', 'bottom'] : undefined}
+    >
+      {hero ? <StatusBar style="light" /> : null}
       {scrollable ? (
         <ScrollView
           contentContainerStyle={[
@@ -41,16 +61,17 @@ export function Screen({
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor={colors.tealText}
+                tintColor={hero ? colors.offWhite : colors.tealText}
                 colors={[colors.tealText]}
+                progressViewOffset={hero ? spacing.xxl : undefined}
               />
             ) : undefined
           }
         >
-          {children}
+          {body}
         </ScrollView>
       ) : (
-        <View style={[styles.content, styles.fill]}>{children}</View>
+        <View style={[styles.content, styles.fill]}>{body}</View>
       )}
     </SafeAreaView>
   );

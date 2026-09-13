@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { z } from 'zod';
 
 import { createEngagement } from '@/api/engagements';
@@ -63,14 +63,15 @@ export default function CreateEngagement() {
   });
 
   return (
-    <Screen scroll>
-      <View style={styles.header}>
-        <Text variant="title">New enquiry</Text>
-        <Text color="secondary">
-          A name is all you need to start. It stays private to you and your
-          admins until you request availability.
-        </Text>
-      </View>
+    <Screen
+      scroll
+      hero={{
+        back: true,
+        title: 'New enquiry',
+        subtitle:
+          'A name is all you need. It stays private to you and your admins until you request availability.',
+      }}
+    >
 
       <Card style={styles.card}>
         <Controller
@@ -140,10 +141,6 @@ export default function CreateEngagement() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    gap: spacing.sm,
-    marginBottom: spacing.xl,
-  },
   card: {
     gap: spacing.md,
   },

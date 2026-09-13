@@ -12,3 +12,5 @@ export { DateField, formatIsoDate, parseIsoDate, toIsoDate } from './date-field'
 export type { DateFieldProps } from './date-field';
 export { TimeField, formatTime, parseTime, toTimeString } from './time-field';
 export type { TimeFieldProps } from './time-field';
+export { Hero } from './hero';
+export type { HeroProps } from './hero';

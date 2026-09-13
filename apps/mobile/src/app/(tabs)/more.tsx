@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { useMe } from '@/hooks/use-me';
@@ -20,10 +20,7 @@ export default function More() {
   const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
 
   return (
-    <Screen scroll>
-      <View style={styles.header}>
-        <Text variant="title">More</Text>
-      </View>
+    <Screen scroll hero={{ title: 'More', subtitle: 'Your account and this organisation.' }}>
 
       <Card style={styles.card}>
         <Text variant="subheading">Account</Text>
@@ -84,9 +81,6 @@ export default function More() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    marginBottom: spacing.xl,
-  },
   card: {
     gap: spacing.md,
     marginBottom: spacing.lg,

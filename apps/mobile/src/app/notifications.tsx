@@ -49,17 +49,17 @@ export default function Notifications() {
       scroll
       onRefresh={() => query.refetch()}
       refreshing={query.isRefetching}
-    >
-      <View style={styles.header}>
-        <Text variant="title">Notifications</Text>
-        <Text color="secondary">
-          {rows.length === 0
+      hero={{
+        back: true,
+        title: 'Notifications',
+        subtitle:
+          rows.length === 0
             ? 'Nothing yet.'
             : unread === 0
               ? 'All caught up.'
-              : `${unread} unread.`}
-        </Text>
-      </View>
+              : `${unread} unread.`,
+      }}
+    >
 
       {query.isPending ? (
         <View style={styles.centered}>
@@ -117,7 +117,6 @@ export default function Notifications() {
         />
       ) : null}
 
-      <Button label="Back" variant="ghost" onPress={() => router.back()} />
     </Screen>
   );
 }
@@ -172,10 +171,6 @@ function formatWhen(createdAtUtc: string): string {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    gap: spacing.xs,
-    marginBottom: spacing.lg,
-  },
   centered: {
     paddingVertical: spacing.xl,
     alignItems: 'center',

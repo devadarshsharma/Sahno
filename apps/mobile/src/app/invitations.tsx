@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import {
@@ -20,7 +19,6 @@ import { spacing } from '@/theme';
  * dismissing the share sheet loses nothing.
  */
 export default function Invitations() {
-  const router = useRouter();
   const session = useSession();
   const queryClient = useQueryClient();
   const { active } = useActiveOrg();
@@ -87,15 +85,13 @@ export default function Invitations() {
       scroll
       onRefresh={() => invitationsQuery.refetch()}
       refreshing={invitationsQuery.isRefetching}
+      hero={{ back: true, title: 'Invite members', subtitle: 'Codes that work until you revoke them.' }}
     >
-      <View style={styles.header}>
-        <Text variant="title">Invite members</Text>
-        <Text color="secondary">
-          Share a code for {active.name}. Anyone with an active code joins as a
-          Member, and a code keeps working until you revoke it — so you can
-          share the same one with as many people as you like.
-        </Text>
-      </View>
+      <Text color="secondary" style={styles.intro}>
+        Share a code for {active.name}. Anyone with an active code joins as a
+        Member, and a code keeps working until you revoke it — so you can
+        share the same one with as many people as you like.
+      </Text>
 
       <Button
         label={hasCodes ? 'Create another code' : 'Create an invite code'}
@@ -147,15 +143,13 @@ export default function Invitations() {
         )}
       </View>
 
-      <Button label="Back" variant="ghost" onPress={() => router.back()} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    gap: spacing.sm,
-    marginBottom: spacing.xl,
+  intro: {
+    marginBottom: spacing.lg,
   },
   errorText: {
     marginTop: spacing.sm,

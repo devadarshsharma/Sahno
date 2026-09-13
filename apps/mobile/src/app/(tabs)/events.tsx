@@ -61,15 +61,13 @@ export default function Events() {
       scroll
       onRefresh={() => engagementsQuery.refetch()}
       refreshing={engagementsQuery.isRefetching}
+      hero={{
+        title: isOrganiser ? 'Bookings' : 'Events',
+        subtitle: isOrganiser
+          ? `Everything ${active?.name} is working on, from first enquiry to done.`
+          : 'The events you have been asked about or added to.',
+      }}
     >
-      <View style={styles.header}>
-        <Text variant="title">{isOrganiser ? 'Bookings' : 'Events'}</Text>
-        <Text color="secondary" variant="bodySmall">
-          {isOrganiser
-            ? `Everything ${active?.name} is working on, from first enquiry to done.`
-            : 'The events you have been asked about or added to.'}
-        </Text>
-      </View>
 
       {isOrganiser ? (
         <Button
@@ -251,10 +249,6 @@ const styles = StyleSheet.create({
   },
   centeredText: {
     textAlign: 'center',
-  },
-  header: {
-    gap: spacing.xs,
-    marginBottom: spacing.lg,
   },
   viewToggle: {
     flexDirection: 'row',

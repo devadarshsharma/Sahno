@@ -1,23 +1,37 @@
+import { useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
-import { Screen, Text } from '@/components/ui';
+import { Button, Screen, Text } from '@/components/ui';
 import { colors, spacing } from '@/theme';
 
-/** Placeholder until engagement discussion lands (D-024, D-067). */
+/**
+ * Discussion lives inside each event rather than in an inbox (D-024, D-047
+ * §6), so this tab is a signpost, not a screen of its own: it says where the
+ * conversations are and takes you there. A cross-event inbox is a later
+ * question, if a real group ever asks for one.
+ */
 export default function Chat() {
+  const router = useRouter();
+
   return (
-    <Screen>
+    <Screen
+      hero={{
+        title: 'Chat',
+        subtitle: 'Conversations live with their events.',
+      }}
+    >
       <View style={styles.container}>
         <View style={styles.illustration}>
           <Text style={styles.emoji}>💬</Text>
         </View>
         <Text variant="heading" style={styles.centered}>
-          Chat
+          Open an event to talk about it
         </Text>
         <Text color="secondary" variant="bodySmall" style={styles.centered}>
-          Event discussion arrives here in an upcoming update — conversations
-          live with their events, not in a separate inbox.
+          Every booking has its own discussion at the bottom of its page, so
+          what was said about Saturday stays next to Saturday.
         </Text>
+        <Button label="Go to events" onPress={() => router.push('/(tabs)/events')} />
       </View>
     </Screen>
   );
@@ -35,13 +49,13 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: colors.surface.subtle,
+    backgroundColor: colors.tealSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   emoji: {
     fontSize: 40,
-    lineHeight: 50,
+    lineHeight: 48,
   },
   centered: {
     textAlign: 'center',

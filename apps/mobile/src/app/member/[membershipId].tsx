@@ -74,15 +74,13 @@ export default function MemberDetail() {
       scroll
       onRefresh={() => membersQuery.refetch()}
       refreshing={membersQuery.isRefetching}
+      hero={{
+        back: true,
+        eyebrow: member.role,
+        title: member.displayName ?? 'Member',
+        subtitle: member.function ?? undefined,
+      }}
     >
-      <View style={styles.header}>
-        <Text variant="title">{member.displayName ?? 'Member'}</Text>
-        <Text color="secondary">
-          {member.role}
-          {member.function ? ` · ${member.function}` : ''}
-        </Text>
-      </View>
-
       <ContactCard member={member} />
 
       {member.isYou ? (
@@ -104,7 +102,6 @@ export default function MemberDetail() {
         <RemoveCard member={member} onRemoved={() => router.back()} />
       ) : null}
 
-      <Button label="Back" variant="ghost" onPress={() => router.back()} />
     </Screen>
   );
 }
@@ -409,10 +406,6 @@ const styles = StyleSheet.create({
   },
   centeredText: {
     textAlign: 'center',
-  },
-  header: {
-    gap: spacing.xs,
-    marginBottom: spacing.xl,
   },
   card: {
     gap: spacing.md,

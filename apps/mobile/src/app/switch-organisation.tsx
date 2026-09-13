@@ -11,14 +11,14 @@ export default function SwitchOrganisation() {
   const { organisations, active, switchTo } = useActiveOrg();
 
   return (
-    <Screen>
-      <View style={styles.header}>
-        <Text variant="title">Your organisations</Text>
-        <Text color="secondary">
-          Switching changes everything — bookings, members, and permissions are
-          strictly per organisation.
-        </Text>
-      </View>
+    <Screen
+      hero={{
+        back: true,
+        title: 'Your organisations',
+        subtitle:
+          'Switching changes everything — bookings, members, and permissions are strictly per organisation.',
+      }}
+    >
 
       <View style={styles.list}>
         {organisations.map((organisation) => {
@@ -60,16 +60,11 @@ export default function SwitchOrganisation() {
         variant="ghost"
         onPress={() => router.push('/create-organisation')}
       />
-      <Button label="Back" variant="ghost" onPress={() => router.back()} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    gap: spacing.sm,
-    marginBottom: spacing.xl,
-  },
   list: {
     gap: spacing.sm,
     marginBottom: spacing.xl,

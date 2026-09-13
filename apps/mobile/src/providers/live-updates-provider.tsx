@@ -56,7 +56,10 @@ export function LiveUpdatesProvider({ children }: PropsWithChildren) {
         },
       )
       .withAutomaticReconnect()
-      .configureLogging(__DEV__ ? LogLevel.Warning : LogLevel.None)
+      // Silent even in development. A dropped socket is reconnected without
+      // help, and a red box for every API restart teaches people to ignore
+      // red boxes.
+      .configureLogging(LogLevel.None)
       .build();
 
     connection.on('changed', invalidate);
