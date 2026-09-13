@@ -132,9 +132,9 @@ export default function Index() {
   //   - it is postponed, so it needs a new date or a decision to resume;
   //   - it is on, but critical detail is missing (Slice 7, D-048);
   //   - it is over, and somebody is still owed money (Slice 11, D-008).
-  // The last of those also stays in the confirmed or tentative list below: it
-  // is still in the diary, and dropping it would leave the tile counting one
-  // more booking than the list shows.
+  // A booking here also stays in its diary section below — that is where it
+  // IS, and this is what to DO. The two lists are different shapes so the
+  // same booking never appears as two cards.
   const waiting = engagements.filter((engagement) => {
     // A finished event is off the list — unless money is still owed on it.
     // Only whoever holds financial access gets a count here at all (D-016),
@@ -321,15 +321,15 @@ export default function Index() {
                   <Text variant="subheading">Needs your attention</Text>
                 </View>
 
-                {waiting.map((engagement) => (
-                  <EngagementCard
-                    key={engagement.id}
-                    engagement={engagement}
-                    isOrganiser
-                    reason={attentionReason(engagement)}
-                    onPress={() => openEngagement(engagement.id)}
-                  />
-                ))}
+                <View style={styles.attentionList}>
+                  {waiting.map((engagement) => (
+                    <AttentionRow
+                      key={engagement.id}
+                      engagement={engagement}
+                      onPress={() => openEngagement(engagement.id)}
+                    />
+                  ))}
+                </View>
               </View>
               ) : null}
 
@@ -424,44 +424,79 @@ export default function Index() {
  */
 
 /**
- * Why this booking is on the attention list. Naming the reason matters more
- * than flagging it: "still to answer" and "ready to decide" need opposite
- * actions from the organiser.
+ * What to DO about this booking, in the order things usually need doing.
+ * Written as an action rather than a description — "chase 2 members", not
+ * "2 members outstanding" — because this list is a to-do list, and the diary
+ * below it already says what each booking is.
  */
 function attentionReason(engagement: Engagement): string {
   const waiting = engagement.outstandingCount ?? 0;
   if (waiting > 0) {
     return waiting === 1
-      ? '1 member still to answer'
-      : `${waiting} members still to answer`;
+      ? 'Chase 1 member for an answer'
+      : `Chase ${waiting} members for an answer`;
   }
 
   if (engagement.status === 'CheckingAvailability') {
-    const answered = engagement.selectedCount ?? 0;
-    return answered === 1
-      ? 'Answered · ready to decide'
-      : `All ${answered} answered · ready to decide`;
+    return 'Everyone has answered — decide the lineup';
   }
 
   if (engagement.status === 'Postponed') {
     return engagement.startDate === null
-      ? 'Postponed · needs a new date'
-      : 'Postponed · resume when ready';
+      ? 'Set a new date'
+      : 'Resume when ready';
   }
 
   const owed = engagement.financeOutstanding ?? 0;
   if (engagement.status === 'Completed' && owed > 0) {
-    return owed === 1 ? 'Payment still owed' : `${owed} payments still owed`;
+    return owed === 1 ? 'Settle 1 payment' : `Settle ${owed} payments`;
   }
 
   const missing = engagement.readinessOutstanding ?? 0;
   if (missing > 0) {
     return missing === 1
-      ? '1 detail still to sort out'
-      : `${missing} details still to sort out`;
+      ? '1 thing to sort out'
+      : `${missing} things to sort out`;
   }
 
   return 'Needs a look';
+}
+
+/**
+ * One line per booking in Needs attention: the name, and what to do. No
+ * card, no chips, no venue — that is all in the diary below, and repeating
+ * it here would have every booking on the screen twice.
+ */
+function AttentionRow({
+  engagement,
+  onPress,
+}: {
+  engagement: Engagement;
+  onPress: () => void;
+}) {
+  const reason = attentionReason(engagement);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${engagement.title}. ${reason}.`}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.attentionRow,
+        pressed ? styles.attentionRowPressed : null,
+      ]}
+    >
+      <View style={styles.attentionText}>
+        <Text numberOfLines={1} style={styles.attentionTitle}>
+          {engagement.title}
+        </Text>
+        <Text variant="bodySmall" color="secondary" numberOfLines={1}>
+          {reason}
+        </Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={colors.text.muted} />
+    </Pressable>
+  );
 }
 function EngagementList({
   title,
@@ -777,15 +812,28 @@ const styles = StyleSheet.create({
   sectionCard: {
     gap: 0,
   },
+  attentionList: {
+    backgroundColor: colors.surface.raised,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+  },
   attentionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: spacing.sm,
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border.default,
+  },
+  attentionRowPressed: {
+    opacity: 0.7,
   },
   attentionText: {
     flex: 1,
     gap: 2,
+  },
+  attentionTitle: {
+    fontFamily: fontFamilies.uiMedium,
   },
   section: {
     gap: spacing.sm,

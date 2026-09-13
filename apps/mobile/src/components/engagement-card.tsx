@@ -21,23 +21,17 @@ export function EngagementCard({
   engagement,
   isOrganiser,
   onPress,
-  reason,
 }: {
   engagement: Engagement;
   isOrganiser: boolean;
   onPress: () => void;
-  /**
-   * When the card sits in Needs attention, the reason it is there. Shown in
-   * place of the venue line, because it is the more urgent of the two.
-   */
-  reason?: string;
 }) {
   const when = formatWhen(engagement);
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${engagement.title}. ${when}.${reason ? ` ${reason}.` : ''}`}
+      accessibilityLabel={`${engagement.title}. ${when}.`}
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed ? styles.cardPressed : null]}
     >
@@ -50,9 +44,7 @@ export function EngagementCard({
 
       <View style={styles.lines}>
         <Line icon="calendar-outline" text={when} />
-        {reason ? (
-          <Line icon="alert-circle-outline" text={reason} tone="attention" />
-        ) : engagement.venue ? (
+        {engagement.venue ? (
           <Line icon="location-outline" text={engagement.venue} />
         ) : null}
       </View>
