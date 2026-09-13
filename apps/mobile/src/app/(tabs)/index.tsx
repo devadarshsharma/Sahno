@@ -209,6 +209,11 @@ export default function Index() {
   return (
     <View style={styles.screen}>
       <StatusBar style="light" />
+      {/* The page scrolls under this strip rather than under the clock. */}
+      <View
+        pointerEvents="none"
+        style={[styles.statusStrip, { height: insets.top }]}
+      />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -590,6 +595,14 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.surface.canvas,
+  },
+  statusStrip: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.navy,
+    zIndex: 1,
   },
   scrollContent: {
     paddingBottom: spacing.xxl,

@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import type { PropsWithChildren } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Hero, type HeroProps } from '@/components/ui/hero';
 import { colors, spacing } from '@/theme';
@@ -32,6 +32,8 @@ export function Screen({
   hero,
   children,
 }: ScreenProps) {
+  const insets = useSafeAreaInsets();
+
   // A pull gesture needs something scrollable to hang off, so asking for
   // refresh implies a ScrollView even on a screen that would otherwise fit.
   const scrollable = scroll || onRefresh !== undefined;
@@ -49,6 +51,15 @@ export function Screen({
       edges={hero ? ['left', 'right', 'bottom'] : undefined}
     >
       {hero ? <StatusBar style="light" /> : null}
+      {/* Android draws the app edge to edge, so scrolled content would pass
+          under the clock. This strip owns that space: the page scrolls
+          beneath it and the status bar stays on navy. */}
+      {hero ? (
+        <View
+          pointerEvents="none"
+          style={[styles.statusStrip, { height: insets.top }]}
+        />
+      ) : null}
       {scrollable ? (
         <ScrollView
           contentContainerStyle={[
@@ -93,5 +104,13 @@ const styles = StyleSheet.create({
   },
   fill: {
     flex: 1,
+  },
+  statusStrip: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.navy,
+    zIndex: 1,
   },
 });
