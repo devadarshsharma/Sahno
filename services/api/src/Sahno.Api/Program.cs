@@ -7,6 +7,7 @@ using Sahno.Api.Live;
 using Sahno.Application.Engagements;
 using Sahno.Application.Notifications;
 using Sahno.Application.Organisations;
+using Sahno.Application.Repertoire;
 using Sahno.Application.Users;
 using Sahno.Infrastructure;
 
@@ -28,6 +29,8 @@ builder.Services.AddScoped<OrganisationService>();
 builder.Services.AddScoped<InvitationService>();
 builder.Services.AddScoped<MembershipService>();
 builder.Services.AddScoped<CustomerService>();
+builder.Services.AddScoped<RepertoireService>();
+builder.Services.AddScoped<SetListService>();
 builder.Services.AddScoped<EngagementService>();
 builder.Services.AddScoped<AvailabilityService>();
 builder.Services.AddScoped<ReadinessService>();

@@ -18,6 +18,7 @@ import {
   useResponsibilities,
 } from '@/hooks/use-preparation';
 import { useReadiness } from '@/hooks/use-readiness';
+import { useSetList } from '@/hooks/use-repertoire';
 import { colors, fontFamilies, radii, spacing } from '@/theme';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -50,6 +51,7 @@ export default function EngagementOverview() {
   const jobs = useResponsibilities(engagementId);
   const rehearsals = useRehearsals(engagementId);
   const resources = useResources(engagementId);
+  const setList = useSetList(engagementId);
   const thread = useDiscussion(engagementId);
   const readiness = useReadiness(engagementId);
 
@@ -107,6 +109,9 @@ export default function EngagementOverview() {
   const filesSummary =
     rehearsals.data && resources.data
       ? [
+          !setList.data || setList.data.length === 0
+            ? null
+            : ` on the set list`,
           rehearsals.data.length === 0
             ? null
             : `${rehearsals.data.length} rehearsal${rehearsals.data.length === 1 ? '' : 's'}`,
@@ -164,7 +169,7 @@ export default function EngagementOverview() {
         <Row icon="information-circle-outline" title="Details" summary="Date, venue, times, dress" onPress={() => go('details')} />
         <Row icon="people-outline" title="People" summary={peopleSummary} onPress={() => go('people')} />
         <Row icon="clipboard-outline" title="Jobs" summary={jobsSummary} onPress={() => go('jobs')} />
-        <Row icon="folder-open-outline" title="Rehearsals & files" summary={filesSummary} onPress={() => go('files')} />
+        <Row icon="folder-open-outline" title="Set list & rehearsals" summary={filesSummary} onPress={() => go('files')} />
         <Row icon="chatbubble-outline" title="Chat" summary={chatSummary} onPress={() => go('chat')} />
         {isOrganiser ? (
           <Row

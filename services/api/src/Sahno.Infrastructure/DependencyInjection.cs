@@ -4,10 +4,12 @@ using Microsoft.Extensions.Options;
 using Sahno.Application.Engagements;
 using Sahno.Application.Notifications;
 using Sahno.Application.Organisations;
+using Sahno.Application.Repertoire;
 using Sahno.Application.Users;
 using Sahno.Infrastructure.Engagements;
 using Sahno.Infrastructure.Notifications;
 using Sahno.Infrastructure.Organisations;
+using Sahno.Infrastructure.Repertoire;
 using Sahno.Infrastructure.Persistence;
 using Sahno.Infrastructure.Users;
 
@@ -40,6 +42,8 @@ public static class DependencyInjection
         services.AddScoped<IDiscussionStore, DiscussionStore>();
         services.AddScoped<ICommercialStore, CommercialStore>();
         services.AddScoped<ICustomerStore, CustomerStore>();
+        services.AddScoped<IPieceStore, PieceStore>();
+        services.AddScoped<ISetListStore, SetListStore>();
         services.AddScoped<INotificationStore, NotificationStore>();
         services.AddScoped<IOutboxStore, OutboxStore>();
 

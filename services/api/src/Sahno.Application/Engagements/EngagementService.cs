@@ -1,5 +1,6 @@
 using Sahno.Application.Notifications;
 using Sahno.Application.Organisations;
+using Sahno.Application.Repertoire;
 using Sahno.Domain.Engagements;
 using Sahno.Domain.Organisations;
 
@@ -61,6 +62,7 @@ public sealed class EngagementService(
     IReadinessStore waivers,
     ICommercialStore commercial,
     ICustomerStore customers,
+    ISetListStore setLists,
     Notifier notifier)
 {
     /// <summary>
@@ -155,10 +157,11 @@ public sealed class EngagementService(
                 actor.OrganisationId,
                 cancellationToken)
             : null;
+        // A set list counts as repertoire ready, the same as an attached note.
         var withResources = isOrganiser
-            ? await resources.EngagementIdsWithResourcesAsync(
-                actor.OrganisationId,
-                cancellationToken)
+            ? (await resources.EngagementIdsWithResourcesAsync(actor.OrganisationId, cancellationToken))
+                .Union(await setLists.EngagementIdsWithSetListAsync(actor.OrganisationId, cancellationToken))
+                .ToHashSet()
             : null;
 
         // Money is a narrower audience than the rest of the context: financial

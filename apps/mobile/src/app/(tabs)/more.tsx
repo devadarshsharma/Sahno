@@ -63,6 +63,18 @@ export default function More() {
         ) : null}
       </Card>
 
+      <Card style={styles.card}>
+        <Text variant="subheading">Repertoire</Text>
+        <Text color="secondary" variant="bodySmall">
+          Everything you perform, with the lyrics to hand. Anyone can add to it.
+        </Text>
+        <Button
+          label="Repertoire"
+          variant="secondary"
+          onPress={() => router.push('/repertoire')}
+        />
+      </Card>
+
       {isOrganiser ? (
         <Card style={styles.card}>
           <Text variant="subheading">Customers</Text>

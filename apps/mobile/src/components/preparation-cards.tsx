@@ -628,7 +628,7 @@ export function ResourcesCard({
 
   return (
     <Card style={styles.card}>
-      <Text variant="subheading">Repertoire and resources</Text>
+      <Text variant="subheading">Notes & links</Text>
       <Text color="secondary" variant="bodySmall">
         {resources.length === 0
           ? 'Nothing attached yet.'

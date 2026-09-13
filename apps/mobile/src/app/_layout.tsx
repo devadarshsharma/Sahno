@@ -114,6 +114,10 @@ function RootNavigator() {
         <Stack.Screen name="customers/index" />
         <Stack.Screen name="customers/new" />
         <Stack.Screen name="customers/[customerId]" />
+        <Stack.Screen name="repertoire/index" />
+        <Stack.Screen name="repertoire/new" />
+        <Stack.Screen name="repertoire/[pieceId]/index" />
+        <Stack.Screen name="repertoire/[pieceId]/lyrics" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="engagement/[engagementId]" />
         <Stack.Screen name="select-members" />
         <Stack.Screen name="create-organisation" />

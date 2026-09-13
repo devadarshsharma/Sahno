@@ -1448,3 +1448,19 @@ A **customer** (a family, a venue, a company) is one record per organisation, ke
 - Existing per-booking customer names were carried into the directory by the migration, one customer per distinct name per organisation.
 
 **Rationale:** Groups have repeat customers, and retyping them on every booking produces three spellings of the same family and no history. A directory makes the returning customer the fast path and gives organisers the record of who has hired them and how often, which is the sort of thing they currently keep in their heads.
+
+---
+
+## D-079 — The repertoire is an organisation record; bookings carry a set list
+
+**Date:** 14 September 2026
+**Status:** Accepted
+
+A **piece** — a qawwali, a song, a set — is one record per organisation: title, who it is by, language, key or raag, duration, the **lyrics** as text, links out (a recording, a reference), and organiser-only notes. A booking carries a **set list**: pieces from the repertoire in running order, each with a note for that booking. The per-booking notes and links from D-047 §5 remain as they were, alongside.
+
+- The repertoire is the group's shared knowledge. **Any member** may add a piece and edit it, lyrics included; who last changed it is recorded. Deleting a piece, and the organiser notes on it, are organiser-only. A deleted piece leaves every set list it was on.
+- The set list is read by everyone on the lineup, in line with a note addressed to participants (D-023), and arranged by organisers. A set list counts as "repertoire ready" for the readiness checklist (D-048), the same as an attached note.
+- Lyrics are read in the app on a purpose-made screen: large type, adjustable, dark or light, and the screen stays awake. The list of pieces travels without lyrics; a piece's detail carries them and is cached for a day, so the words that were there a minute ago are still there when the venue's signal drops.
+- Audio and PDF uploads wait for object storage, as files do (D-047 §5). Translations and transliteration are one text block for now; separate fields can come later without changing the shape.
+
+**Rationale:** The same twenty pieces are performed at booking after booking, and typing "the list" into a note each time produced neither history nor lyrics. A repertoire makes choosing the fast path, gives the performers the words on the phone in their hand, and tells the organiser what has been performed where.

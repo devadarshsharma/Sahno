@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Sahno.Domain.Engagements;
 using Sahno.Domain.Notifications;
 using Sahno.Domain.Organisations;
+using Sahno.Domain.Repertoire;
 using Sahno.Domain.Users;
 
 namespace Sahno.Infrastructure.Persistence;
@@ -38,6 +39,12 @@ public sealed class SahnoDbContext(DbContextOptions<SahnoDbContext> options)
         Set<DiscussionMessage>();
 
     public DbSet<Customer> Customers => Set<Customer>();
+
+    public DbSet<Piece> Pieces => Set<Piece>();
+
+    public DbSet<PieceLink> PieceLinks => Set<PieceLink>();
+
+    public DbSet<SetListEntry> SetListEntries => Set<SetListEntry>();
 
     public DbSet<EngagementCustomer> EngagementCustomers => Set<EngagementCustomer>();
 
