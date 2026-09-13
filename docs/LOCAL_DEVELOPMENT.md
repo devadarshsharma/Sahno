@@ -171,6 +171,27 @@ Without these the API logs a startup warning and rejects every authenticated req
 3. Kill and reopen the app: the session should restore from secure storage without showing sign-in.
 4. Sign out: the app returns to the sign-in screen; reopening does not restore the session.
 
+## Installing a standalone build on a phone
+
+A release APK bundles the JavaScript, so it runs without Metro or a USB cable.
+It still talks to the API on this machine, over Wi-Fi, so bake the LAN address
+in at build time rather than the `localhost` the emulator uses:
+
+```bash
+cd apps/mobile/android
+EXPO_PUBLIC_API_URL=http://192.168.20.14:5062 ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
+adb install -r app/build/outputs/apk/release/app-release.apk
+```
+
+Two things to know about that build:
+
+- **It allows plain `http://`.** Android release builds block cleartext by
+  default; `expo-build-properties` in `app.json` turns it on because the pilot
+  API has no TLS. Turn it off again once the API is behind HTTPS.
+- **It is signed with the debug keystore.** Fine for sideloading; not fine for
+  the Play Store. A real keystore is a release-day task, and installing a
+  differently-signed build later means uninstalling this one first.
+
 ## Email (Resend)
 
 Product email — availability requests, reminders, confirmations, postponements,

@@ -26,6 +26,14 @@
     "plugins": [
       "expo-router",
       [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      [
         "expo-calendar",
         {
           "calendarPermission": "Sahno adds the events you are booked for to your calendar."
