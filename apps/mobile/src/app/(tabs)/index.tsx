@@ -5,6 +5,7 @@ import { Redirect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
+  AppState,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -12,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import type { Engagement } from '@/api/engagements';
 import type { Member } from '@/api/members';
@@ -970,9 +971,11 @@ function RecentJoins({
   onSeeAll: () => void;
 }) {
   const seenAtUtc = useSeenPeople((state) => state.seenAtUtc);
+  const hydrated = useSeenPeople((state) => state.hydrated);
+  const markJoinsSeen = useSeenPeople((state) => state.markJoinsSeen);
 
-  // Anything since they last looked at People, within the outer window. Once
-  // they have looked, the notice has done its job and goes.
+  // Anything since they last looked, within the outer window. Once they have
+  // looked, the notice has done its job and goes.
   // Fixed at mount: a clock read during render would give a cutoff that moves
   // every re-render, which React treats as impure and which could drop a row
   // mid-scroll.
@@ -982,11 +985,33 @@ function RecentJoins({
     seenAtUtc ? Date.parse(seenAtUtc) : 0,
   );
 
-  const recent = members
-    .filter((member) => !member.isYou)
-    .filter((member) => Date.parse(member.joinedAtUtc) >= cutoff)
-    .sort((a, b) => Date.parse(b.joinedAtUtc) - Date.parse(a.joinedAtUtc))
-    .slice(0, 3);
+  const recent = hydrated
+    ? members
+        .filter((member) => !member.isYou)
+        .filter((member) => Date.parse(member.joinedAtUtc) > cutoff)
+        .sort((a, b) => Date.parse(b.joinedAtUtc) - Date.parse(a.joinedAtUtc))
+        .slice(0, 3)
+    : [];
+
+  // Once the notice has been on screen for a session — the app goes to the
+  // background, or Home is left — these joins count as seen, so the next open
+  // does not repeat it. Marked at the end rather than on mount, so a glance
+  // that missed it below the fold still gets the one showing.
+  const newestUtc = recent[0]?.joinedAtUtc ?? null;
+  useEffect(() => {
+    if (!newestUtc) {
+      return;
+    }
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') {
+        markJoinsSeen(newestUtc);
+      }
+    });
+    return () => {
+      subscription.remove();
+      markJoinsSeen(newestUtc);
+    };
+  }, [newestUtc, markJoinsSeen]);
 
   if (recent.length === 0) {
     return null;
