@@ -175,7 +175,8 @@ Without these the API logs a startup warning and rejects every authenticated req
 
 A release APK bundles the JavaScript, so it runs without Metro or a USB cable.
 It still talks to the API on this machine, over Wi-Fi, so bake the LAN address
-in at build time rather than the `localhost` the emulator uses:
+in at build time rather than the `localhost` the emulator uses (check `ipconfig`
+first — the address below is an example, and it changes when the network does):
 
 ```bash
 cd apps/mobile/android
