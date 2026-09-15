@@ -111,7 +111,7 @@ export default function EngagementOverview() {
       ? [
           !setList.data || setList.data.length === 0
             ? null
-            : ` on the set list`,
+            : `${setList.data.length} on the set list`,
           rehearsals.data.length === 0
             ? null
             : `${rehearsals.data.length} rehearsal${rehearsals.data.length === 1 ? '' : 's'}`,
@@ -147,7 +147,22 @@ export default function EngagementOverview() {
       hero={{
         title: engagement.title,
         subtitle: engagement.venue ? `${when} · ${engagement.venue}` : when,
-        right: <StatusChip status={engagement.status} />,
+        // Organisers tap the chip to move the booking on; for everyone else
+        // it is just the fact.
+        right: isOrganiser ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Status: . Change.`}
+            onPress={() => go('status')}
+            hitSlop={8}
+            style={({ pressed }) => [styles.statusButton, pressed ? styles.rowPressed : null]}
+          >
+            <StatusChip status={engagement.status} />
+            <Ionicons name="chevron-down" size={14} color={colors.offWhite} />
+          </Pressable>
+        ) : (
+          <StatusChip status={engagement.status} />
+        ),
       }}
     >
       {!engagement.isSharedWithMembers ? (
@@ -199,9 +214,9 @@ export default function EngagementOverview() {
         ) : null}
         {isOrganiser ? (
           <Row
-            icon="git-branch-outline"
-            title="Status & history"
-            summary={`${engagement.allowedTransitions.length} move${engagement.allowedTransitions.length === 1 ? '' : 's'} available`}
+            icon="time-outline"
+            title="History"
+            summary="Every change, who made it, and when"
             onPress={() => go('admin')}
             last
           />
@@ -368,6 +383,11 @@ const styles = StyleSheet.create({
   },
   rowPressed: {
     opacity: 0.7,
+  },
+  statusButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   rowIcon: {
     width: 36,

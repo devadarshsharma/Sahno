@@ -389,12 +389,6 @@ export default function Index() {
                 members={membersQuery.data ?? []}
                 onSeeAll={() => router.push('/(tabs)/people')}
               />
-
-              <Button
-                label="Invite members"
-                variant="secondary"
-                onPress={() => router.push('/invitations')}
-              />
             </>
           ) : (
             <>

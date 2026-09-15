@@ -1,3 +1,4 @@
+import { DatesCard } from '@/components/admin-cards';
 import { EngagementSectionScreen } from '@/components/engagement-screen';
 import { DayOfCard, DetailsCard } from '@/components/workspace-cards';
 
@@ -8,6 +9,7 @@ export default function Details() {
       {({ engagement, isOrganiser }) => (
         <>
           <DayOfCard engagement={engagement} />
+          {isOrganiser ? <DatesCard engagement={engagement} /> : null}
           {isOrganiser ? <DetailsCard engagement={engagement} /> : null}
         </>
       )}

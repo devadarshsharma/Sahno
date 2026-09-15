@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
@@ -68,6 +69,17 @@ export default function People() {
           members.length === 1
             ? 'Just you so far.'
             : `${members.length} people in ${active?.name}.`,
+        right: isOrganiser ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Invite members"
+            onPress={() => router.push('/invitations')}
+            hitSlop={8}
+            style={({ pressed }) => [styles.inviteButton, pressed ? styles.pressed : null]}
+          >
+            <Ionicons name="person-add-outline" size={20} color={colors.text.inverse} />
+          </Pressable>
+        ) : undefined,
       }}
     >
 
@@ -169,6 +181,17 @@ function initialOf(name: string): string {
 }
 
 const styles = StyleSheet.create({
+  inviteButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.full,
+    backgroundColor: colors.navySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pressed: {
+    opacity: 0.6,
+  },
   centered: {
     flex: 1,
     alignItems: 'center',

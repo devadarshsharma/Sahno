@@ -1,27 +1,21 @@
 import { useRouter } from 'expo-router';
 
-import {
-  DatesCard,
-  DiscardCard,
-  HistoryCard,
-  TransitionsCard,
-} from '@/components/admin-cards';
+import { DiscardCard, HistoryCard } from '@/components/admin-cards';
 import { EngagementSectionScreen } from '@/components/engagement-screen';
 
 /**
- * The lifecycle controls and the record of every move — last in the overview
- * because they are the least often needed and the most consequential.
+ * The record of every move, and the one irreversible action — last in the
+ * overview because they are the least often needed and the most consequential.
+ * Changing the status lives with the status chip; dates live with Details.
  */
-export default function Admin() {
+export default function History() {
   const router = useRouter();
 
   return (
-    <EngagementSectionScreen title="Status & history">
+    <EngagementSectionScreen title="History">
       {({ engagement, isOrganiser }) =>
         isOrganiser ? (
           <>
-            <TransitionsCard engagement={engagement} />
-            <DatesCard engagement={engagement} />
             <HistoryCard engagementId={engagement.id} />
             {engagement.canBeDiscarded ? (
               <DiscardCard

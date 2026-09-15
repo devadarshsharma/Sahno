@@ -54,13 +54,6 @@ export default function More() {
           variant="secondary"
           onPress={() => router.push('/switch-organisation')}
         />
-        {isOrganiser ? (
-          <Button
-            label="Invite members"
-            variant="secondary"
-            onPress={() => router.push('/invitations')}
-          />
-        ) : null}
       </Card>
 
       <Card style={styles.card}>
