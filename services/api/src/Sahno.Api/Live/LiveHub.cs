@@ -10,8 +10,9 @@ namespace Sahno.Api.Live;
 /// One connection per app session, one group per organisation
 /// (TECHNICAL_ARCHITECTURE: accepted realtime architecture).
 ///
-/// The only thing sent down it is "changed", and the only thing checked on
-/// the way in is membership — a connection asks to join an organisation, and
+/// Two things come down it: "changed" for the organisation, and
+/// "notification" for the person alone. The only thing checked on the way in
+/// is membership — a connection asks to join an organisation, and
 /// is refused unless the caller belongs to it. There are no hub methods to
 /// call: the client listens, refetches over REST, and REST decides what it may
 /// see. Nothing here needs to know what the change was.
@@ -24,8 +25,12 @@ public sealed class LiveHub(
 {
     public const string Path = "/hubs/live";
     public const string ChangedEvent = "changed";
+    public const string NotificationEvent = "notification";
 
     public static string GroupFor(Guid organisationId) => $"org:{organisationId}";
+
+    /// <summary>One person's own group: where their notifications are sent (D-080).</summary>
+    public static string GroupForUser(Guid userId) => $"user:{userId}";
 
     public override async Task OnConnectedAsync()
     {
@@ -58,6 +63,10 @@ public sealed class LiveHub(
         await Groups.AddToGroupAsync(
             Context.ConnectionId,
             GroupFor(organisationId.Value),
+            Context.ConnectionAborted);
+        await Groups.AddToGroupAsync(
+            Context.ConnectionId,
+            GroupForUser(user.Id),
             Context.ConnectionAborted);
 
         // One line per join is worth having: it is how an operator sees that

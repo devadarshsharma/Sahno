@@ -98,6 +98,40 @@ public sealed class NotificationsController(
         return NoContent();
     }
 
+    /// <summary>
+    /// An organiser writes to everybody (D-080): the bell for every member,
+    /// and a push to every phone they are signed in on. Members get 403.
+    /// </summary>
+    [HttpPost("announcements")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Announce(
+        Guid organisationId,
+        AnnouncementRequest request,
+        CancellationToken cancellationToken)
+    {
+        var caller = await CallerAsync(organisationId, cancellationToken);
+        if (caller is null)
+        {
+            return NotFound();
+        }
+
+        if (!OrganisationAuthorizationService.IsOrganiser(caller))
+        {
+            return Forbid();
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Title))
+        {
+            return ValidationProblem("An announcement needs a title.");
+        }
+
+        await notificationService.AnnounceAsync(caller, request.Title, request.Body, cancellationToken);
+        return NoContent();
+    }
+
     private static NotificationResponse ToResponse(Notification notification)
     {
         return new NotificationResponse(
@@ -106,6 +140,7 @@ public sealed class NotificationsController(
             notification.Title,
             notification.Body,
             notification.EngagementId,
+            NotificationRoutes.For(notification.Kind, notification.EngagementId),
             notification.IsRead,
             notification.CreatedAtUtc);
     }

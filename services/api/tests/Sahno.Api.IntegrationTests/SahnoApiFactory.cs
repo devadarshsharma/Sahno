@@ -64,6 +64,10 @@ public sealed class SahnoApiFactory
             services.AddSingleton<RecordingEmailSender>();
             services.AddSingleton<IEmailSender>(provider =>
                 provider.GetRequiredService<RecordingEmailSender>());
+            services.RemoveAll<IPushSender>();
+            services.AddSingleton<RecordingPushSender>();
+            services.AddSingleton<IPushSender>(provider =>
+                provider.GetRequiredService<RecordingPushSender>());
 
             var worker = services.FirstOrDefault(descriptor =>
                 descriptor.ImplementationType == typeof(OutboxWorker));

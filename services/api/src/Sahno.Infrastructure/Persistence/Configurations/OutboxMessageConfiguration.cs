@@ -16,10 +16,19 @@ public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outbox
             .HasColumnName("id")
             .ValueGeneratedNever();
 
-        builder.Property(message => message.ToEmail)
-            .HasColumnName("to_email")
+        builder.Property(message => message.Channel)
+            .HasColumnName("channel")
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
+
+        builder.Property(message => message.Recipient)
+            .HasColumnName("recipient")
             .HasMaxLength(320)
             .IsRequired();
+
+        builder.Property(message => message.DataJson)
+            .HasColumnName("data_json");
 
         builder.Property(message => message.Subject)
             .HasColumnName("subject")

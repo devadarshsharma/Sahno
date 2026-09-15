@@ -30,17 +30,10 @@ export default function Notifications() {
       markRead.mutate(notification.id);
     }
 
-    if (notification.engagementId) {
-      router.push({
-        pathname: '/engagement/[engagementId]',
-        params: { engagementId: notification.engagementId },
-      });
-      return;
-    }
-
-    // Organisation-level news — a new member — goes to People.
-    if (notification.kind === 'MemberJoined') {
-      router.push('/(tabs)/people');
+    // The API names where each kind goes (D-080), so the bell, the banner
+    // and the tray all land in one place. An announcement points here.
+    if (notification.route !== '/notifications') {
+      router.push(notification.route as never);
     }
   }
 
@@ -149,6 +142,8 @@ function kindLabel(kind: NotificationKind): string {
       return 'Discussion';
     case 'MemberJoined':
       return 'New member';
+    case 'OrganiserAnnouncement':
+      return 'Announcement';
   }
 }
 

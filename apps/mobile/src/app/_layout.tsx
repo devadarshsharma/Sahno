@@ -20,6 +20,7 @@ import { Appearance, StyleSheet, View } from 'react-native';
 import { SahnoSymbol } from '@/components/brand';
 import { AuthProvider, useSession } from '@/providers/auth-provider';
 import { LiveUpdatesProvider } from '@/providers/live-updates-provider';
+import { NotificationsProvider } from '@/providers/notifications-provider';
 import { QueryProvider } from '@/providers/query-provider';
 import { useActiveOrganisation } from '@/stores/active-organisation';
 import { colors } from '@/theme';
@@ -59,9 +60,11 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <QueryProvider>
-        <LiveUpdatesProvider>
-          <RootNavigator />
-        </LiveUpdatesProvider>
+        <NotificationsProvider>
+          <LiveUpdatesProvider>
+            <RootNavigator />
+          </LiveUpdatesProvider>
+        </NotificationsProvider>
       </QueryProvider>
     </AuthProvider>
   );
@@ -124,6 +127,7 @@ function RootNavigator() {
         <Stack.Screen name="join" />
         <Stack.Screen name="invitations" />
         <Stack.Screen name="notifications" />
+        <Stack.Screen name="announce" />
         <Stack.Screen name="switch-organisation" />
         <Stack.Screen name="brand-preview" />
       </Stack.Protected>

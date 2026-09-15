@@ -37,6 +37,9 @@ public enum NotificationKind
 
     /// <summary>Somebody accepted an invitation. Organisers only.</summary>
     MemberJoined = 40,
+
+    /// <summary>An organiser wrote to the whole organisation.</summary>
+    OrganiserAnnouncement = 50,
 }
 
 /// <summary>

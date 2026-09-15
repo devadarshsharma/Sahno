@@ -8,9 +8,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, type PropsWithChildren } from 'react';
 import { AppState } from 'react-native';
 
+import { isNotificationPayload } from '@/api/notifications';
 import { environment } from '@/config/environment';
 import { useActiveOrg } from '@/hooks/use-organisations';
 import { useSession } from '@/providers/auth-provider';
+import { useNotificationsContext } from '@/providers/notifications-provider';
 
 /**
  * Keeps one hub connection open for the active organisation while the app is
@@ -22,12 +24,15 @@ import { useSession } from '@/providers/auth-provider';
  * is actually on screen through the REST endpoints it already trusts. A
  * reconnect does the same, because anything could have happened while the
  * socket was down. Dropping the connection in the background is what keeps
- * the phone's battery out of it.
+ * the phone's battery out of it — and what hands the job to push (D-080):
+ * while this socket is up the banner is Sahno's own, and when it is down the
+ * phone's tray takes over, so nothing is ever shown twice.
  */
 export function LiveUpdatesProvider({ children }: PropsWithChildren) {
   const session = useSession();
   const queryClient = useQueryClient();
   const { active } = useActiveOrg();
+  const { announce } = useNotificationsContext();
   const connectionRef = useRef<HubConnection | null>(null);
 
   const organisationId = active?.id ?? null;
@@ -62,7 +67,16 @@ export function LiveUpdatesProvider({ children }: PropsWithChildren) {
       .configureLogging(LogLevel.None)
       .build();
 
+    // The one event with a payload: this person's own new notification, so
+    // the banner goes up the moment it commits rather than after a refetch.
+    const notify = (payload: unknown) => {
+      if (isNotificationPayload(payload)) {
+        announce(payload);
+      }
+    };
+
     connection.on('changed', invalidate);
+    connection.on('notification', notify);
     connection.onreconnected(invalidate);
     connectionRef.current = connection;
 
@@ -96,10 +110,11 @@ export function LiveUpdatesProvider({ children }: PropsWithChildren) {
       disposed = true;
       subscription.remove();
       connection.off('changed', invalidate);
+      connection.off('notification', notify);
       void stop();
       connectionRef.current = null;
     };
-  }, [authenticated, organisationId, getAccessToken, queryClient]);
+  }, [authenticated, organisationId, getAccessToken, queryClient, announce]);
 
   return <>{children}</>;
 }

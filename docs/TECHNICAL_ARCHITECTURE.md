@@ -82,12 +82,13 @@ Infrastructure implements ports declared by Application. API is the composition 
 - Auth0 production authentication email uses a configured custom provider.
 - Domain changes and Outbox messages commit atomically.
 - A Worker processes Outbox messages asynchronously with retries and idempotency.
-- Expo push can be added later as another delivery adapter.
+- Expo push is a second delivery adapter on the same Outbox: one row per registered device, sent through Expo's push service, which fronts FCM and APNs with credentials held on the EAS project (D-080).
 - Sahno owns non-critical notification preferences.
 
 ## Accepted realtime architecture
 
 - ASP.NET Core SignalR provides realtime discussion, availability progress, in-app notification, and active-screen Booking/Event updates.
+- A connected client receives its own new notifications over SignalR (a per-user group) and shows an in-app banner; push is suppressed in the foreground by notification id, so nothing is shown twice.
 - REST remains authoritative for durable reads and writes.
 - Reconnection invalidates/refetches relevant TanStack Query data.
 - SignalR channels/groups enforce organisation and Engagement authorisation server-side.

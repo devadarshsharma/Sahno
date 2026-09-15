@@ -1,14 +1,23 @@
 namespace Sahno.Domain.Notifications;
 
+/// <summary>How an outbox message leaves the building.</summary>
+public enum OutboxChannel
+{
+    Email = 1,
+
+    /// <summary>A native push to one device, through Expo's push service.</summary>
+    Push = 2,
+}
+
 /// <summary>
-/// An email waiting to be sent (TECHNICAL_ARCHITECTURE: accepted notification
-/// architecture).
+/// A message waiting to be sent (TECHNICAL_ARCHITECTURE: accepted notification
+/// architecture) — an email, or a push to one phone.
 ///
 /// The row is written in the same transaction as the change it describes, so
-/// a confirmation can never be saved without its email being queued, and an
-/// email can never be queued for a confirmation that was rolled back. A worker
-/// sends it afterwards and records the attempt; a provider outage delays the
-/// email rather than failing the booking.
+/// a confirmation can never be saved without its messages being queued, and a
+/// message can never be queued for a confirmation that was rolled back. A
+/// worker sends it afterwards and records the attempt; a provider outage
+/// delays the message rather than failing the booking.
 /// </summary>
 public sealed class OutboxMessage
 {
@@ -17,9 +26,11 @@ public sealed class OutboxMessage
 
     private OutboxMessage(
         Guid id,
-        string toEmail,
+        OutboxChannel channel,
+        string recipient,
         string subject,
         string textBody,
+        string? dataJson,
         DateTimeOffset createdAtUtc,
         int attemptCount,
         DateTimeOffset? lastAttemptAtUtc,
@@ -27,9 +38,11 @@ public sealed class OutboxMessage
         string? lastError)
     {
         Id = id;
-        ToEmail = toEmail;
+        Channel = channel;
+        Recipient = recipient;
         Subject = subject;
         TextBody = textBody;
+        DataJson = dataJson;
         CreatedAtUtc = createdAtUtc;
         AttemptCount = attemptCount;
         LastAttemptAtUtc = lastAttemptAtUtc;
@@ -39,16 +52,26 @@ public sealed class OutboxMessage
 
     public Guid Id { get; }
 
-    public string ToEmail { get; }
+    public OutboxChannel Channel { get; }
 
+    /// <summary>An email address, or an Expo push token, by channel.</summary>
+    public string Recipient { get; }
+
+    /// <summary>The email subject, or the push title.</summary>
     public string Subject { get; }
 
     /// <summary>
     /// Plain text. A performer reading a cancellation on a phone in a car park
     /// needs the words, not a layout, and plain text is what survives every
-    /// mail client.
+    /// mail client. For a push it is the body under the title.
     /// </summary>
     public string TextBody { get; }
+
+    /// <summary>
+    /// Push only: the structured payload the app reads to know where to go —
+    /// kind, notification id, engagement, route. Null on email.
+    /// </summary>
+    public string? DataJson { get; }
 
     public DateTimeOffset CreatedAtUtc { get; }
 
@@ -85,19 +108,38 @@ public sealed class OutboxMessage
             throw new ArgumentException("An email needs a recipient.", nameof(toEmail));
         }
 
-        var cleanSubject = subject?.Trim() ?? string.Empty;
-        if (cleanSubject.Length == 0)
+        return new OutboxMessage(
+            Guid.CreateVersion7(),
+            OutboxChannel.Email,
+            toEmail.Trim(),
+            RequireSubject(subject),
+            textBody?.Trim() ?? string.Empty,
+            dataJson: null,
+            DateTimeOffset.UtcNow,
+            attemptCount: 0,
+            lastAttemptAtUtc: null,
+            sentAtUtc: null,
+            lastError: null);
+    }
+
+    public static OutboxMessage Push(
+        string pushToken,
+        string title,
+        string? body,
+        string dataJson)
+    {
+        if (!PushDevice.IsValidToken(pushToken))
         {
-            throw new ArgumentException("An email needs a subject.", nameof(subject));
+            throw new ArgumentException("A push needs an Expo push token.", nameof(pushToken));
         }
 
         return new OutboxMessage(
             Guid.CreateVersion7(),
-            toEmail.Trim(),
-            cleanSubject.Length > SubjectMaxLength
-                ? cleanSubject[..SubjectMaxLength]
-                : cleanSubject,
-            textBody?.Trim() ?? string.Empty,
+            OutboxChannel.Push,
+            pushToken.Trim(),
+            RequireSubject(title),
+            body?.Trim() ?? string.Empty,
+            dataJson,
             DateTimeOffset.UtcNow,
             attemptCount: 0,
             lastAttemptAtUtc: null,
@@ -117,6 +159,33 @@ public sealed class OutboxMessage
     {
         AttemptCount += 1;
         LastAttemptAtUtc = DateTimeOffset.UtcNow;
-        LastError = error.Length > 1000 ? error[..1000] : error;
+        LastError = Clip(error);
     }
+
+    /// <summary>
+    /// Will never succeed — the device is gone, the address bounced for good.
+    /// Retrying would be noise; the reason is kept so the row still explains
+    /// itself.
+    /// </summary>
+    public void MarkUndeliverable(string reason)
+    {
+        AttemptCount = MaxAttempts;
+        LastAttemptAtUtc = DateTimeOffset.UtcNow;
+        LastError = Clip(reason);
+    }
+
+    private static string RequireSubject(string subject)
+    {
+        var cleanSubject = subject?.Trim() ?? string.Empty;
+        if (cleanSubject.Length == 0)
+        {
+            throw new ArgumentException("A message needs a subject.", nameof(subject));
+        }
+
+        return cleanSubject.Length > SubjectMaxLength
+            ? cleanSubject[..SubjectMaxLength]
+            : cleanSubject;
+    }
+
+    private static string Clip(string text) => text.Length > 1000 ? text[..1000] : text;
 }

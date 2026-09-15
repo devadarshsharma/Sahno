@@ -40,6 +40,12 @@ async function main() {
     path.join(images, 'android-icon-monochrome.png'),
   );
 
+  // Android status-bar (small) notification icon: white silhouette on
+  // transparent — Android tints it, so colour would be lost anyway.
+  await compose(96, 0x00000000, silhouette, 0.9).writeAsync(
+    path.join(images, 'notification-icon.png'),
+  );
+
   // Web favicon: the same navy square, small.
   await compose(SIZE, NAVY, symbol, 0.7)
     .resize(64, 64)

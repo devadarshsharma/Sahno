@@ -46,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<ISetListStore, SetListStore>();
         services.AddScoped<INotificationStore, NotificationStore>();
         services.AddScoped<IOutboxStore, OutboxStore>();
+        services.AddScoped<IPushDeviceStore, PushDeviceStore>();
 
         // Email goes through Resend when a key is configured and to the log
         // otherwise, so the whole outbox path runs on every developer machine
@@ -72,6 +73,25 @@ public static class DependencyInjection
                 : provider.GetRequiredService<ResendEmailSender>();
         });
         services.AddScoped<LoggingEmailSender>();
+
+        // Push goes through Expo's push service unless switched off, in which
+        // case it is logged like a keyless email. The Expo endpoint needs no
+        // credentials of its own; the FCM and APNs keys live on the EAS project.
+        services.AddOptions<PushOptions>().BindConfiguration(PushOptions.SectionName);
+        services.AddHttpClient<ExpoPushSender>(client =>
+        {
+            client.BaseAddress = new Uri("https://exp.host/--/api/v2/");
+            client.DefaultRequestHeaders.Accept.Add(
+                new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+        });
+        services.AddScoped<IPushSender>(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<PushOptions>>().Value;
+            return options.Enabled
+                ? provider.GetRequiredService<ExpoPushSender>()
+                : provider.GetRequiredService<LoggingPushSender>();
+        });
+        services.AddScoped<LoggingPushSender>();
         services.AddScoped<OutboxDispatcher>();
         services.AddHostedService<OutboxWorker>();
 

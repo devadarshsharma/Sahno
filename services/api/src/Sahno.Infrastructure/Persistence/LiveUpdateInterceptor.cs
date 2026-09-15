@@ -29,6 +29,7 @@ public sealed class LiveUpdateInterceptor(
 {
     private readonly List<Guid> _organisations = [];
     private readonly List<Guid> _engagements = [];
+    private readonly List<Notification> _notifications = [];
 
     public override InterceptionResult<int> SavingChanges(
         DbContextEventData eventData,
@@ -71,6 +72,7 @@ public sealed class LiveUpdateInterceptor(
     {
         _organisations.Clear();
         _engagements.Clear();
+        _notifications.Clear();
         if (context is null)
         {
             return;
@@ -87,6 +89,13 @@ public sealed class LiveUpdateInterceptor(
             {
                 case Notification notification:
                     _organisations.Add(notification.OrganisationId);
+                    // A new row is also told to its recipient directly, payload
+                    // and all, so a banner can go up without a refetch (D-080).
+                    if (entry.State == EntityState.Added)
+                    {
+                        _notifications.Add(notification);
+                    }
+
                     break;
                 case Engagement engagement:
                     _organisations.Add(engagement.OrganisationId);
@@ -130,9 +139,29 @@ public sealed class LiveUpdateInterceptor(
 
     private async Task PublishAsync(DbContext? context, CancellationToken cancellationToken)
     {
-        if (context is null || (_organisations.Count == 0 && _engagements.Count == 0))
+        if (context is null
+            || (_organisations.Count == 0 && _engagements.Count == 0 && _notifications.Count == 0))
         {
             return;
+        }
+
+        foreach (var notification in _notifications)
+        {
+            try
+            {
+                await liveUpdates.NotificationCreatedAsync(
+                    notification.RecipientUserId,
+                    NotificationPayload.From(notification),
+                    cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                logger.LogWarning(
+                    exception,
+                    "Live notification {NotificationId} for user {UserId} was not sent",
+                    notification.Id,
+                    notification.RecipientUserId);
+            }
         }
 
         var organisations = _organisations.ToHashSet();

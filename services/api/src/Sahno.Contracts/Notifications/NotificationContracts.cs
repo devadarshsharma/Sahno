@@ -10,6 +10,7 @@ public sealed record NotificationResponse(
     string Title,
     string? Body,
     Guid? EngagementId,
+    string Route,
     bool IsRead,
     DateTimeOffset CreatedAtUtc);
 

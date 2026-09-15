@@ -56,6 +56,8 @@ public sealed class SahnoDbContext(DbContextOptions<SahnoDbContext> options)
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
+    public DbSet<PushDevice> PushDevices => Set<PushDevice>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(

@@ -1464,3 +1464,20 @@ A **piece** — a qawwali, a song, a set — is one record per organisation: tit
 - Audio and PDF uploads wait for object storage, as files do (D-047 §5). Translations and transliteration are one text block for now; separate fields can come later without changing the shape.
 
 **Rationale:** The same twenty pieces are performed at booking after booking, and typing "the list" into a note each time produced neither history nor lyrics. A repertoire makes choosing the fast path, gives the performers the words on the phone in their hand, and tells the organiser what has been performed where.
+
+---
+
+## D-080 — Native push through Expo, on the same outbox as email
+
+**Date:** 15 September 2026
+**Status:** Accepted
+
+D-049 deferred native push until the mobile delivery approach was decided. It is decided: **Expo push**, with FCM under Android and APNs under iOS, credentials held on the EAS project rather than in the API.
+
+- A person's phones are `push_devices`: one row per Expo push token, associated with whoever is signed in on that phone, refreshed on every sign-in and token change, removed on sign-out. A device the push service reports gone is disabled with the reason, and comes back on its next registration.
+- Push rides the **same outbox as email**: the `Notifier` stages one push row per active device of each recipient, in the same transaction as the in-app row and the change itself. The same worker, retries, and backoff apply. A push carries a structured payload — kind, notification id, organisation, engagement, and the **route** the app should open — and the bell's API returns the same route, so every path lands in one place.
+- Which kinds push: everything the bell shows, except organiser bookkeeping (somebody answered, somebody joined), which stays on the bell. Nobody is pushed about their own action. A new kind, **OrganiserAnnouncement**, lets an organiser write to everybody at once.
+- **Foreground vs background.** While the app is open, the live connection delivers the recipient's own new notification (payload and all, to a per-user group) and Sahno shows its own banner; a push arriving for the same id is dropped. In the background or closed, the live connection is down and the OS tray shows the push. A tap — banner, tray, lock screen, or cold start — opens the route, switching organisation if it must.
+- Denied permission changes nothing else: the bell, the banner over the live connection, and email all continue.
+
+**Rationale:** The outbox already gave email the guarantees push needs (same-transaction staging, retry, a row that explains a silence); a second queue would have duplicated them. Expo's service keeps FCM and APNs credentials out of the API and lets one code path serve both platforms. Sending the notification itself over SignalR, to the recipient alone, is the one departure from the bare "changed" signal, and it is safe for the same reason the bell is: it is that person's own row.

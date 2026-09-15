@@ -238,6 +238,53 @@ The worker polls every ten seconds. A failed send backs off (one, two, four,
 eight minutes) and is abandoned after five attempts; unsent rows stay in
 `outbox_messages` with `last_error` set.
 
+## Push notifications (Expo)
+
+Push rides the same outbox as email (D-080): when something is worth telling
+somebody, the API stages one row per phone they are signed in on, in the same
+transaction as the change itself, and the worker sends it through Expo's push
+service. Expo forwards to FCM (Android) and APNs (iOS) with credentials held on
+the EAS project, so the API holds none.
+
+While the app is **open**, the banner you see is Sahno's own, sent over the
+live (SignalR) connection the moment the notification commits; the push that
+follows is recognised by id and dropped. In the background, or with the app
+closed, the phone's tray shows the push, and a tap opens the screen it names.
+
+### What the API needs
+
+Nothing, to develop against: the Expo endpoint takes no credentials. Two
+optional settings, both via user secrets or environment variables:
+
+```bash
+dotnet user-secrets set "Push:ExpoAccessToken" "..." --project services/api/src/Sahno.Api   # Expo "enhanced push security"
+dotnet user-secrets set "Push:Enabled" "false" --project services/api/src/Sahno.Api           # log pushes instead of sending
+```
+
+Push rows in `outbox_messages` have `channel = 'Push'`, the token as the
+recipient, and the payload in `data_json`. A push Expo answers
+`DeviceNotRegistered` to is marked undeliverable and the row in
+`push_devices` is disabled; the next registration from that phone re-enables
+it.
+
+### What the app needs (one-time, per project)
+
+1. **An EAS project id** — `npx eas init` in `apps/mobile` with an Expo
+   account. It writes `extra.eas.projectId` to `app.json`; without it
+   `getExpoPushTokenAsync` refuses and the app logs `[push] not registered`.
+2. **Android: Firebase.** Create a Firebase project, add an Android app with
+   package `app.sahno.mobile`, download `google-services.json` into
+   `apps/mobile/` (gitignored; `app.config.js` wires it in when present),
+   then give Expo the FCM V1 service-account key: Firebase → Project settings
+   → Service accounts → generate key, and `eas credentials` → Android → push.
+3. **iOS: an APNs key** through `eas credentials` → iOS → push, once iOS is
+   built at all.
+4. **A native build** after any of the above — `expo-notifications` is a
+   native module, and the Firebase config is compiled in.
+
+The app asks for permission on first sign-in. Denied means no push and nothing
+else; the bell and the in-app banner still work.
+
 ## Port-conflict troubleshooting
 
 If readiness reports password or connection failures while the Docker container itself is healthy, check whether another PostgreSQL installation owns the configured host port:

@@ -70,6 +70,20 @@ export default function More() {
 
       {isOrganiser ? (
         <Card style={styles.card}>
+          <Text variant="subheading">Announcement</Text>
+          <Text color="secondary" variant="bodySmall">
+            Write to everybody at once — it reaches every phone.
+          </Text>
+          <Button
+            label="Send an announcement"
+            variant="secondary"
+            onPress={() => router.push('/announce')}
+          />
+        </Card>
+      ) : null}
+
+      {isOrganiser ? (
+        <Card style={styles.card}>
           <Text variant="subheading">Customers</Text>
           <Text color="secondary" variant="bodySmall">
             Everyone who has booked you, and how often. Members never see this.

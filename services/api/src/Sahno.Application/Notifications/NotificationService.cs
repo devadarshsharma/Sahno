@@ -1,3 +1,4 @@
+using Sahno.Application.Organisations;
 using Sahno.Domain.Notifications;
 using Sahno.Domain.Organisations;
 
@@ -8,8 +9,12 @@ namespace Sahno.Application.Notifications;
 /// so a person in two organisations sees each organisation's news only while
 /// they are in it (D-013).
 /// </summary>
-public sealed class NotificationService(INotificationStore notifications)
+public sealed class NotificationService(
+    INotificationStore notifications,
+    Notifier notifier)
 {
+    public const int AnnouncementTitleMaxLength = 120;
+
     public const int PageSize = 50;
 
     public Task<IReadOnlyList<Notification>> ListAsync(
@@ -65,5 +70,35 @@ public sealed class NotificationService(INotificationStore notifications)
             actor.OrganisationId,
             actor.UserId,
             cancellationToken);
+    }
+
+    /// <summary>
+    /// An organiser writes to everybody (D-080). Reaches every other member
+    /// in-app and by push; false when the caller is not an organiser or the
+    /// title is empty, and nothing is sent.
+    /// </summary>
+    public async Task<bool> AnnounceAsync(
+        Membership actor,
+        string title,
+        string? body,
+        CancellationToken cancellationToken)
+    {
+        if (!OrganisationAuthorizationService.IsOrganiser(actor)
+            || string.IsNullOrWhiteSpace(title))
+        {
+            return false;
+        }
+
+        var cleanTitle = title.Trim();
+        await notifier.AnnouncementAsync(
+            actor.OrganisationId,
+            actor.UserId,
+            cleanTitle.Length > AnnouncementTitleMaxLength
+                ? cleanTitle[..AnnouncementTitleMaxLength]
+                : cleanTitle,
+            body,
+            cancellationToken);
+        await notifications.SaveAsync(cancellationToken);
+        return true;
     }
 }
