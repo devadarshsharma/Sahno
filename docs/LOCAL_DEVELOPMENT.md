@@ -273,10 +273,13 @@ it.
    account. It writes `extra.eas.projectId` to `app.json`; without it
    `getExpoPushTokenAsync` refuses and the app logs `[push] not registered`.
 2. **Android: Firebase.** Create a Firebase project, add an Android app with
-   package `app.sahno.mobile`, download `google-services.json` into
-   `apps/mobile/` (gitignored; `app.config.js` wires it in when present),
-   then give Expo the FCM V1 service-account key: Firebase → Project settings
-   → Service accounts → generate key, and `eas credentials` → Android → push.
+   package `app.sahno.mobile`, and download `google-services.json` into
+   `apps/mobile/`. It is gitignored — a credential-adjacent file that belongs
+   to the machine, not the repo — but `app.json` refers to it, so `expo
+   prebuild` fails without it. Then give Expo the FCM V1 service-account key:
+   Firebase → Project settings → Service accounts → generate key, and
+   `eas credentials` → Android → **Google Service Account** → *for FCM V1*
+   (not the Legacy API key, which Google has switched off).
 3. **iOS: an APNs key** through `eas credentials` → iOS → push, once iOS is
    built at all.
 4. **A native build** after any of the above — `expo-notifications` is a

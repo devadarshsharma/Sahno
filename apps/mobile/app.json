@@ -9,6 +9,7 @@
     "userInterfaceStyle": "light",
     "ios": {},
     "android": {
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0B1B2A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
