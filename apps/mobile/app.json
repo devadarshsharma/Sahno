@@ -57,6 +57,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "041628f0-e601-43ba-adb7-cc8f2b5469d8"
+      }
+    },
+    "owner": "adarsh.farnese"
   }
 }
