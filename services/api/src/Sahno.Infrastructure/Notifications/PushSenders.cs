@@ -74,14 +74,17 @@ public sealed class ExpoPushSender(
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, "push/send")
         {
-            Content = JsonContent.Create(new ExpoPushMessage(
+            // Sent as a batch of one: Expo answers a single message with a bare
+            // ticket object and a batch with an array, and one shape to parse is
+            // better than two.
+            Content = JsonContent.Create(new[] { new ExpoPushMessage(
                 pushToken,
                 title,
                 body,
                 dataJson is null ? null : JsonSerializer.Deserialize<JsonElement>(dataJson),
                 "default",
                 "high",
-                "default")),
+                "default") }),
         };
 
         if (!string.IsNullOrWhiteSpace(options.Value.ExpoAccessToken))
