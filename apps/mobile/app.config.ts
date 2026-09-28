@@ -14,6 +14,13 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
  */
 const auth0Domain =
   process.env.EXPO_PUBLIC_AUTH0_DOMAIN ?? 'unconfigured.invalid';
+  
+ // google-services.json is gitignored (it belongs to the machine, not the
+// repo), so it never reaches an EAS worker through the project archive. On
+// EAS it arrives as a file-type environment variable holding an absolute
+// path; locally the variable is unset and the sibling file is used.
+const googleServicesFile =
+  process.env.GOOGLE_SERVICES_JSON ?? './google-services.json';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -26,6 +33,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     ...config.android,
     package: 'app.sahno.mobile',
+    googleServicesFile,
   },
   plugins: [
     ...(config.plugins ?? []),
