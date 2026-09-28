@@ -25,7 +25,17 @@ const auth0 =
       }
     : null;
 
+const apiBaseUrl = apiUrl.replace(/\/+$/, '');
+
+/**
+ * Every address the app calls is derived from EXPO_PUBLIC_API_URL, which is
+ * chosen per build: .env for local development, the EAS environment for
+ * preview (test) and production builds. Moving the API to another host is a
+ * change of that one value — see docs/TEST_DEPLOYMENT.md.
+ */
 export const environment = {
-  apiUrl: apiUrl.replace(/\/+$/, ''),
+  apiUrl: apiBaseUrl,
+  /** The SignalR hub (LiveHub.Path on the API). */
+  liveHubUrl: `${apiBaseUrl}/hubs/live`,
   auth0,
 } as const;

@@ -1,0 +1,46 @@
+# Render Blueprint for the Sahno TEST environment only (docs/TEST_DEPLOYMENT.md).
+# Production is a separate environment on separate infrastructure (D-065); do
+# not add production services to this file.
+#
+# Secrets are declared with `sync: false`: Render asks for their values once,
+# in its dashboard, and they never live in Git.
+
+services:
+  - type: web
+    name: sahno-api-test
+    runtime: docker
+    # Free sleeps after 15 idle minutes (see TEST_DEPLOYMENT.md, "Free plan").
+    plan: free
+    # Closest Render region to Australia. Put the Supabase project in
+    # Southeast Asia (Singapore) too, so every query is not an ocean crossing.
+    region: singapore
+    branch: test
+    dockerContext: ./services/api
+    dockerfilePath: ./services/api/Dockerfile
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    # Mobile-only commits to the test branch do not rebuild the API.
+    buildFilter:
+      paths:
+        - services/api/**
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Staging
+      # Render terminates TLS; trust its X-Forwarded-Proto/For headers.
+      - key: ASPNETCORE_FORWARDEDHEADERS_ENABLED
+        value: "true"
+      - key: OpenApi__Enabled
+        value: "true"
+      # Supabase session-pooler connection string, with SSL Mode=Require.
+      - key: ConnectionStrings__Sahno
+        sync: false
+      - key: Auth0__Domain
+        sync: false
+      - key: Auth0__Audience
+        sync: false
+      # Optional. Unset means email is written to the log instead of sent.
+      - key: Email__ResendApiKey
+        sync: false
+      # Optional. Only needed if "enhanced push security" is on in Expo.
+      - key: Push__ExpoAccessToken
+        sync: false

@@ -4,9 +4,12 @@ on:
   pull_request:
     branches:
       - main
+      - test
   push:
     branches:
       - main
+      # Render deploys the test API from this branch (render.yaml).
+      - test
 
 permissions:
   contents: read

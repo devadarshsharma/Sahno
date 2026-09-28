@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Sahno.Api.Authentication;
 using Sahno.Api.Health;
@@ -12,6 +13,15 @@ using Sahno.Application.Users;
 using Sahno.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Hosts such as Render and DigitalOcean App Platform tell the container which
+// port to listen on through PORT. Honour it when present; otherwise the usual
+// ASP.NET Core settings (launchSettings, ASPNETCORE_URLS/HTTP_PORTS) apply.
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(port))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
 
 // Add services to the container.
 
@@ -110,6 +120,26 @@ else
 
 builder.Services.AddAuthorization();
 
+// Browser origins allowed to call the API. The phone app is not a browser and
+// is never subject to CORS, so by default the list is empty and no
+// cross-origin browser call is allowed at all. Add an origin (for example the
+// Expo web dev server) through Cors__AllowedOrigins__0 and friends.
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>()?
+    .Where(origin => !string.IsNullOrWhiteSpace(origin))
+    .ToArray() ?? [];
+
+if (allowedOrigins.Length > 0)
+{
+    builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy
+        .WithOrigins(allowedOrigins)
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        // SignalR's negotiate request from a browser carries credentials.
+        .AllowCredentials()));
+}
+
 var app = builder.Build();
 
 if (!auth0Configured)
@@ -121,11 +151,20 @@ if (!auth0Configured)
 }
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// The OpenAPI document describes endpoints and shapes only — no secrets — so
+// a test deployment may publish it with OpenApi__Enabled=true. Production
+// leaves it off.
+if (app.Environment.IsDevelopment()
+    || app.Configuration.GetValue<bool>("OpenApi:Enabled"))
 {
     app.MapOpenApi();
 }
 
+// Behind a TLS-terminating proxy (Render, DigitalOcean) the request reaches
+// Kestrel as plain HTTP. Hosted environments set
+// ASPNETCORE_FORWARDEDHEADERS_ENABLED=true, which makes ASP.NET Core honour
+// X-Forwarded-Proto/For before anything else runs, so the request is seen as
+// the HTTPS it was and this redirect never loops.
 if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
@@ -139,11 +178,21 @@ app.Use(async (context, next) =>
     await next();
 });
 
+if (allowedOrigins.Length > 0)
+{
+    app.UseCors();
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<LiveHub>(LiveHub.Path);
+
+// Liveness: the process is up and serving. No checks run, so a database blip
+// does not make the host restart a healthy container — that is what the
+// readiness endpoint below is for. Both answer with a bare status word.
+app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready");
 
 app.Run();

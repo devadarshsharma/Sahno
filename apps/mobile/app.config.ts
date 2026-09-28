@@ -22,6 +22,12 @@ const auth0Domain =
 const googleServicesFile =
   process.env.GOOGLE_SERVICES_JSON ?? './google-services.json';
 
+// Android release builds refuse plain http:// unless told otherwise. Allow it
+// only when this build talks to an http:// API (a laptop on the LAN); a build
+// for the hosted test or production API is HTTPS-only.
+const usesCleartextTraffic =
+  process.env.EXPO_PUBLIC_API_URL?.startsWith('http://') ?? false;
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: config.name ?? 'sahno',
@@ -37,6 +43,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   plugins: [
     ...(config.plugins ?? []),
+    ['expo-build-properties', { android: { usesCleartextTraffic } }],
     [
       'react-native-auth0',
       {
