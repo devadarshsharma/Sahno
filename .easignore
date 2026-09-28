@@ -1,0 +1,56 @@
+# What EAS Build uploads. When this file exists EAS uses it INSTEAD of
+# .gitignore, and it does not read apps/mobile/.gitignore at all — so every
+# rule the upload needs is here. Without it, the local android/ project and
+# its build output (over a gigabyte) were uploaded and EAS skipped prebuild.
+
+# Operating system and editors
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vs/
+.idea/
+.vscode/
+.claude/
+
+# Node, Expo and React Native
+**/node_modules/
+**/.expo/
+**/.turbo/
+**/dist/
+**/web-build/
+*.log
+*.tmp
+*.temp
+**/*.tsbuildinfo
+**/.metro-health-check*
+
+# Native projects are generated on the build server by prebuild
+apps/mobile/android/
+apps/mobile/ios/
+apps/mobile/.kotlin/
+
+# Environment files: EAS builds read the EAS environment, never .env
+.env
+.env.*
+!.env.example
+
+# Credentials and signing files (EAS holds these)
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+credentials.json
+google-services.json
+GoogleService-Info.plist
+
+# Not needed to build the app
+services/
+docs/
+*.md
+compose.yaml
+render.yaml
+**/bin/
+**/obj/
