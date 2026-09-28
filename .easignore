@@ -54,3 +54,6 @@ compose.yaml
 render.yaml
 **/bin/
 **/obj/
+
+# Server deployment files
+deploy/

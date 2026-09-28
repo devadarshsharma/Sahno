@@ -371,6 +371,13 @@ from outbox_messages order by created_at_utc desc limit 20;
 Expo's own tool, <https://expo.dev/notifications>, can send a test push to a
 token from `push_devices` — it isolates "the phone/credentials" from "the API".
 
+### EAS build
+
+| Symptom | Check |
+|---|---|
+| `package.json does not exist in …/build/apps/mobile`, with `tar: … Cannot mkdir: Permission denied` in *Prepare project* | A folder on your Windows disk has the **Read-only** attribute. Windows ignores it on folders; the EAS upload turns it into "no write permission" and Linux cannot unpack into it. Clear it (PowerShell, repo root): `Get-ChildItem -Directory -Recurse -Force \| Where-Object { $_.FullName -notmatch '\\(node_modules\|\.git)(\\\|$)' } \| ForEach-Object { $_.Attributes = $_.Attributes -band (-bnot [IO.FileAttributes]::ReadOnly) }` |
+| Upload is hundreds of MB | something `.easignore` should exclude (it replaces `.gitignore` for EAS). Check with `eas build:inspect --stage archive --output <new folder>` |
+
 ### Supabase
 
 - `Failed to connect` / timeout → host/port wrong (use the **session** pooler),
@@ -418,3 +425,67 @@ What is host-specific, and where it lives:
 a secret. When production exists, give it its **own** database, Auth0 tenant
 (or API), and EAS `production` variables — do not point production at the
 Supabase test database.
+
+---
+
+## 14. Self-hosted test server (alternative to Render)
+
+Render's nearest region is Singapore, and its free instance sleeps and gets a
+tenth of a CPU, so from Australia the app felt slow. The same image runs on
+any Docker host; `deploy/test-server/` runs it on an Ubuntu server in
+Australia, next to a **Sydney** Supabase project.
+
+```text
+phones ──HTTPS/WSS──► Caddy :443 (automatic Let's Encrypt certificate)
+                        └─► api:8080 (services/api/Dockerfile, not published)
+                              └─► Supabase Sydney (session pooler, SSL)
+```
+
+**No domain?** Use [sslip.io](https://sslip.io): `sahno.203-0-113-10.sslip.io`
+resolves to `203.0.113.10`, and Caddy can get a real certificate for it. That
+keeps `https://`/`wss://`, which iOS requires and which keeps sign-in tokens
+off the wire in clear text. Swapping in a real domain later is a change to
+`SAHNO_HOST` and the app's `EXPO_PUBLIC_API_URL`.
+
+### Prerequisites on the server
+
+- Docker Engine with the Compose plugin (`docker compose version`).
+- Ports **80 and 443** free on the host and open to the internet (host
+  firewall *and* the cloud provider's security group). Caddy needs 80 for the
+  certificate challenge and to redirect to HTTPS.
+  Check: `sudo ss -ltnp '( sport = :80 or sport = :443 )'` — no output means free.
+- If another reverse proxy already owns 80/443, do not run the `caddy` service;
+  add a site for `SAHNO_HOST` in that proxy pointing at the API instead (publish
+  the API on `127.0.0.1:8080` only), with WebSocket upgrade enabled.
+
+### First deployment
+
+```bash
+git clone https://github.com/devadarshsharma/Sahno.git ~/sahno
+cd ~/sahno && git switch test
+cd deploy/test-server
+cp .env.example .env && nano .env      # SAHNO_HOST, SAHNO_DB_CONNECTION, AUTH0_*
+docker compose up -d --build
+docker compose logs -f caddy           # wait for "certificate obtained successfully"
+curl https://<SAHNO_HOST>/health/ready # Healthy
+```
+
+In `.env`, a literal `$` must be written `$$`. Apply migrations to the Sydney
+database exactly as in §3, with its connection string.
+
+Point the app at it: set `EXPO_PUBLIC_API_URL` in the EAS `preview`
+environment to `https://<SAHNO_HOST>` (`eas env:update`), then **rebuild** — the
+URL is compiled into the app.
+
+### Updates, logs, restart
+
+```bash
+cd ~/sahno && git pull && cd deploy/test-server && docker compose up -d --build
+docker compose logs -f api             # the same log lines as §6
+docker compose restart api
+docker compose down                    # stop (certificates are kept in a volume)
+```
+
+There is no automatic deploy from GitHub here; `git pull` + `up --build` is the
+deploy. Suspend the Render service while this server is in use, so there is one
+test API, not two.

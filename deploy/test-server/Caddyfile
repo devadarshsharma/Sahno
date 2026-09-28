@@ -1,0 +1,7 @@
+# Serves the Sahno API over HTTPS. Caddy obtains and renews the certificate
+# itself (ports 80 and 443 must be reachable from the internet), passes
+# WebSockets through for SignalR, and sets X-Forwarded-Proto/For for the API.
+
+{$SAHNO_HOST} {
+	reverse_proxy api:8080
+}
