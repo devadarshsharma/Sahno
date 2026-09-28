@@ -1481,3 +1481,22 @@ D-049 deferred native push until the mobile delivery approach was decided. It is
 - Denied permission changes nothing else: the bell, the banner over the live connection, and email all continue.
 
 **Rationale:** The outbox already gave email the guarantees push needs (same-transaction staging, retry, a row that explains a silence); a second queue would have duplicated them. Expo's service keeps FCM and APNs credentials out of the API and lets one code path serve both platforms. Sending the notification itself over SignalR, to the recipient alone, is the one departure from the bare "changed" signal, and it is safe for the same reason the bell is: it is that person's own row.
+
+---
+
+## D-081 — Render and Supabase for the test environment only
+
+**Date:** 28 September 2026
+**Status:** Accepted
+
+Testing on real phones needs an API reachable over HTTPS from anywhere. Until the DigitalOcean environments of D-065 exist, the **test** environment is:
+
+- the API as a Docker container on **Render**, deployed automatically from the **`test`** branch (`render.yaml`);
+- **Supabase used only as hosted PostgreSQL** — EF Core and Npgsql as everywhere else, connected through the session pooler with SSL; no Supabase SDK, and the Data API switched off;
+- EAS **preview** builds pointed at it through the EAS `preview` environment.
+
+Nothing in code is specific to either: the API reads `PORT`, `ConnectionStrings__Sahno` and standard forwarded headers; the app reads one `EXPO_PUBLIC_API_URL`. Migrations stay an explicit `dotnet ef database update`, never a startup step.
+
+This departs from D-072's "automatic Staging deployment from `main`": a separate `test` branch lets unmerged work reach the phones without touching `main`. Production remains separate, on D-065 infrastructure, with its own database and manual approval.
+
+**Rationale:** The cheapest way to put the real system on real phones, without anything that would have to be unpicked when production arrives. See docs/TEST_DEPLOYMENT.md.

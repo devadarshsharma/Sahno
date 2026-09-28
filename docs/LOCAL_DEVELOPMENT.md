@@ -187,8 +187,10 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 Two things to know about that build:
 
 - **It allows plain `http://`.** Android release builds block cleartext by
-  default; `expo-build-properties` in `app.json` turns it on because the pilot
-  API has no TLS. Turn it off again once the API is behind HTTPS.
+  default; `app.config.ts` turns it on only when `EXPO_PUBLIC_API_URL` starts
+  with `http://` at prebuild time. Builds for the hosted test API
+  (docs/TEST_DEPLOYMENT.md) are HTTPS-only. After changing the URL's scheme,
+  run `npx expo prebuild --clean` so the native manifest follows.
 - **It is signed with the debug keystore.** Fine for sideloading; not fine for
   the Play Store. A real keystore is a release-day task, and installing a
   differently-signed build later means uninstalling this one first.
