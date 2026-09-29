@@ -5,9 +5,14 @@
 #   cp .env.example .env    # then fill it in — .env is gitignored
 #   docker compose up -d --build
 #
-# Caddy terminates HTTPS (automatic Let's Encrypt certificate) and is the only
-# thing published on the host. The API is reachable solely through it, which
-# is what makes trusting its X-Forwarded-* headers safe.
+# HTTPS is terminated by a reverse proxy in front of the API:
+# - a Caddy the server already runs: add a site for SAHNO_HOST that proxies to
+#   127.0.0.1:SAHNO_API_PORT (the default — only the API starts), or
+# - the Caddy bundled here, on a host with ports 80/443 free:
+#   docker compose --profile caddy up -d --build
+#
+# Either way the API is only reachable through the proxy (its port is bound
+# to 127.0.0.1), which is what makes trusting X-Forwarded-* headers safe.
 
 name: sahno-test
 
@@ -25,11 +30,13 @@ services:
       Auth0__Audience: ${AUTH0_AUDIENCE:?Set AUTH0_AUDIENCE in .env}
       Email__ResendApiKey: ${RESEND_API_KEY:-}
       Push__ExpoAccessToken: ${EXPO_ACCESS_TOKEN:-}
-    expose:
-      - "8080"
+    ports:
+      - "127.0.0.1:${SAHNO_API_PORT:-8080}:8080"
 
   caddy:
     image: caddy:2
+    profiles:
+      - caddy
     restart: unless-stopped
     depends_on:
       - api

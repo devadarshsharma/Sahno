@@ -454,9 +454,22 @@ off the wire in clear text. Swapping in a real domain later is a change to
   firewall *and* the cloud provider's security group). Caddy needs 80 for the
   certificate challenge and to redirect to HTTPS.
   Check: `sudo ss -ltnp '( sport = :80 or sport = :443 )'` — no output means free.
-- If another reverse proxy already owns 80/443, do not run the `caddy` service;
-  add a site for `SAHNO_HOST` in that proxy pointing at the API instead (publish
-  the API on `127.0.0.1:8080` only), with WebSocket upgrade enabled.
+- **A Caddy already on the server** (the usual case): only the API container
+  starts (bound to `127.0.0.1:SAHNO_API_PORT`); add to the existing Caddyfile
+
+  ```text
+  api-test.sahno.app {
+  	reverse_proxy 127.0.0.1:8080
+  }
+  ```
+
+  and reload Caddy. It fetches the certificate itself and passes WebSockets through.
+  If that Caddy runs in a container, it must reach the host port (host network
+  or `host.docker.internal`) instead of `127.0.0.1`.
+- **Ports 80/443 free:** start the bundled Caddy too with
+  `docker compose --profile caddy up -d --build`.
+- **Cloudflare DNS:** set the record to *DNS only* (grey cloud), so the server
+  gets its own certificate and there is one TLS hop to reason about.
 
 ### First deployment
 
@@ -466,7 +479,7 @@ cd ~/sahno && git switch test
 cd deploy/test-server
 cp .env.example .env && nano .env      # SAHNO_HOST, SAHNO_DB_CONNECTION, AUTH0_*
 docker compose up -d --build
-docker compose logs -f caddy           # wait for "certificate obtained successfully"
+docker compose logs -f api             # wait for "Now listening on: http://[::]:8080"
 curl https://<SAHNO_HOST>/health/ready # Healthy
 ```
 
