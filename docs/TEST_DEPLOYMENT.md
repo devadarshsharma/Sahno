@@ -464,8 +464,11 @@ off the wire in clear text. Swapping in a real domain later is a change to
   ```
 
   and reload Caddy. It fetches the certificate itself and passes WebSockets through.
-  If that Caddy runs in a container, it must reach the host port (host network
-  or `host.docker.internal`) instead of `127.0.0.1`.
+- **That Caddy runs in a container** (as on the Farnese sandbox server):
+  `127.0.0.1` inside it is the container itself. Set `COMPOSE_FILE` and
+  `PROXY_NETWORK` in `.env` (see `.env.example`) so the API joins the proxy's
+  Docker network, and proxy to `sahno-api:8080` instead. The service is named
+  `sahno-api` so it can never be confused with another project's `api`.
 - **Ports 80/443 free:** start the bundled Caddy too with
   `docker compose --profile caddy up -d --build`.
 - **Cloudflare DNS:** set the record to *DNS only* (grey cloud), so the server
@@ -479,7 +482,7 @@ cd ~/sahno && git switch test
 cd deploy/test-server
 cp .env.example .env && nano .env      # SAHNO_HOST, SAHNO_DB_CONNECTION, AUTH0_*
 docker compose up -d --build
-docker compose logs -f api             # wait for "Now listening on: http://[::]:8080"
+docker compose logs -f sahno-api             # wait for "Now listening on: http://[::]:8080"
 curl https://<SAHNO_HOST>/health/ready # Healthy
 ```
 
@@ -494,8 +497,8 @@ URL is compiled into the app.
 
 ```bash
 cd ~/sahno && git pull && cd deploy/test-server && docker compose up -d --build
-docker compose logs -f api             # the same log lines as §6
-docker compose restart api
+docker compose logs -f sahno-api             # the same log lines as §6
+docker compose restart sahno-api
 docker compose down                    # stop (certificates are kept in a volume)
 ```
 

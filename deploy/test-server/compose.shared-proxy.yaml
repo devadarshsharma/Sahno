@@ -1,0 +1,22 @@
+# For a server whose reverse proxy already runs as a Docker container (for
+# example another project's Caddy on ports 80/443). Joins the API to that
+# proxy's network so the proxy can reach it as "sahno-api:8080".
+#
+# Enable it from .env, so plain `docker compose` commands include it:
+#   COMPOSE_FILE=compose.yaml:compose.shared-proxy.yaml
+#   PROXY_NETWORK=<the proxy's network, from `docker inspect <proxy container>`>
+#
+# The service is deliberately named sahno-api, not api: every name a service
+# has is resolvable on every network it joins, and the other project may well
+# have an "api" of its own.
+
+services:
+  sahno-api:
+    networks:
+      - default
+      - proxy
+
+networks:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:?Set PROXY_NETWORK in .env to the existing proxy's Docker network}

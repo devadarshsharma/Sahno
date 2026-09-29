@@ -17,7 +17,7 @@
 name: sahno-test
 
 services:
-  api:
+  sahno-api:
     build:
       context: ../../services/api
     restart: unless-stopped
@@ -39,7 +39,7 @@ services:
       - caddy
     restart: unless-stopped
     depends_on:
-      - api
+      - sahno-api
     environment:
       SAHNO_HOST: ${SAHNO_HOST:?Set SAHNO_HOST in .env}
     ports:

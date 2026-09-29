@@ -3,5 +3,5 @@
 # WebSockets through for SignalR, and sets X-Forwarded-Proto/For for the API.
 
 {$SAHNO_HOST} {
-	reverse_proxy api:8080
+	reverse_proxy sahno-api:8080
 }
