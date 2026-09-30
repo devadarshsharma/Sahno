@@ -447,29 +447,31 @@ keeps `https://`/`wss://`, which iOS requires and which keeps sign-in tokens
 off the wire in clear text. Swapping in a real domain later is a change to
 `SAHNO_HOST` and the app's `EXPO_PUBLIC_API_URL`.
 
-### On the Farnese sandbox server: Cloudflare Tunnel
+### On the Farnese sandbox server: Sahno's own Caddy on port 8443
 
 That server's ports 80/443 belong to the Farnese Caddy, and its Caddyfile is
-not Sahno's to edit. So Sahno arrives through a **Cloudflare Tunnel** instead:
-the `cloudflared` container (profile `tunnel`) connects *out* to Cloudflare,
-which serves `https://api-test.sahno.app` with its own certificate and forwards
-each request, WebSockets included, to `http://sahno-api:8080`.
+not Sahno's to edit. So Sahno runs its own Caddy (profile `caddy`) on port
+**8443**, and the app's API URL is `https://api-test.sahno.app:8443`.
 
-- Nothing of Farnese's changes: not its Caddyfile, network, or ports. No
-  inbound firewall rule is needed.
-- Cloudflare side: Zero Trust → **Networks → Tunnels** → create a
-  *Cloudflared* tunnel `sahno-test` → copy its **token** into
-  `CLOUDFLARE_TUNNEL_TOKEN` → add the public hostname `api-test.sahno.app`
-  with service **HTTP** `sahno-api:8080`. Cloudflare creates the DNS record;
-  delete any existing `api-test` A record first.
-- `.env`: `COMPOSE_PROFILES=tunnel`, and leave `COMPOSE_FILE`/`PROXY_NETWORK`
-  commented out.
-- Cloudflare adds `X-Forwarded-Proto: https` and `X-Forwarded-For`, which the
-  API already honours.
-- Troubleshooting: `docker compose logs cloudflared` should show
-  "Registered tunnel connection" four times. Cloudflare error **1033** = the
-  tunnel is not running; **502** = the tunnel runs but `sahno-api` is not
-  answering (`docker compose logs sahno-api`).
+- Caddy cannot answer Let's Encrypt on 80/443, so it proves the domain with
+  Cloudflare's **DNS challenge** (a TXT record written through
+  `CLOUDFLARE_API_TOKEN`). That needs the Cloudflare module, so the image is
+  `ghcr.io/devadarshsharma/sahno-caddy`, built on GitHub from `deploy/caddy`.
+- DNS: `api-test` is an **A** record to the server, **DNS only** (grey cloud).
+  Proxied, traffic would enter Cloudflare — which from Australian networks
+  was measured going via Singapore, ~0.3 s per request. Direct it is ~0.04 s.
+- Token: Cloudflare → My Profile → API Tokens → *Edit zone DNS* template,
+  zone `sahno.app` only.
+- Firewall: allow **8443/tcp** (and 8443/udp for HTTP/3) in `ufw` and in the
+  cloud provider's firewall, if either is active.
+- Nothing of Farnese's changes: not its Caddyfile, network, or ports.
+- Troubleshooting: `docker compose logs caddy` should show "certificate
+  obtained successfully" for `api-test.sahno.app`. A DNS-challenge error there
+  is the token (wrong zone, or missing DNS edit permission). A timeout from
+  outside is the firewall.
+
+A Cloudflare Tunnel was tried first (no inbound port at all) and dropped for
+that Singapore detour.
 
 ### Prerequisites on the server (bundled or existing proxy)
 

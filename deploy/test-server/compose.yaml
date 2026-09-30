@@ -1,19 +1,19 @@
 # Sahno TEST environment on a self-managed Docker host (docs/TEST_DEPLOYMENT.md,
-# "Self-hosted test server"). Same image as every other environment; only
+# "Self-hosted test server"). Same API image as every other environment; only
 # configuration differs.
 #
 #   cp .env.example .env    # then fill it in — .env is gitignored
 #   docker compose pull && docker compose up -d
 #
-# Nothing is built here: the API image comes from GitHub's registry.
+# Nothing is built here: both images come from GitHub's registry
+# (.github/workflows/api-image.yml and caddy-image.yml).
 #
-# HTTPS is terminated in front of the API by one of:
-# - Cloudflare Tunnel (profile "tunnel"): no inbound ports at all; used on the
-#   Farnese sandbox server, whose 80/443 belong to its own Caddy;
-# - the Caddy bundled here (profile "caddy"), on a host with 80/443 free;
+# HTTPS is terminated in front of the API by either:
+# - the Caddy here (profile "caddy"), on SAHNO_HTTPS_PORT — 8443 on the Farnese
+#   sandbox server, whose 80/443 belong to its own Caddy; or
 # - a reverse proxy the server already runs (no profile; see
 #   compose.shared-proxy.yaml when that proxy is itself a container).
-# Pick one with COMPOSE_PROFILES in .env.
+# Pick with COMPOSE_PROFILES in .env.
 #
 # Whichever it is, the API is reachable only through it (its host port is
 # bound to 127.0.0.1), which is what makes trusting X-Forwarded-* safe.
@@ -22,8 +22,8 @@ name: sahno-test
 
 services:
   sahno-api:
-    # Built and tested on GitHub (.github/workflows/api-image.yml); this host
-    # only pulls it. Pin a sha-<commit> tag here to roll back.
+    # Built and tested on GitHub; this host only pulls it. Pin a sha-<commit>
+    # tag with SAHNO_API_IMAGE to roll back.
     image: ${SAHNO_API_IMAGE:-ghcr.io/devadarshsharma/sahno-api:test}
     restart: unless-stopped
     environment:
@@ -38,23 +38,9 @@ services:
     ports:
       - "127.0.0.1:${SAHNO_API_PORT:-8080}:8080"
 
-  # Cloudflare Tunnel: an OUTBOUND connection to Cloudflare, which serves
-  # SAHNO_HOST over HTTPS and sends its requests down it. Needs no inbound
-  # ports, so it fits a server whose 80/443 belong to another project.
-  # The tunnel's public hostname points at http://sahno-api:8080.
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    profiles:
-      - tunnel
-    restart: unless-stopped
-    command: tunnel --no-autoupdate run
-    environment:
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN in .env}
-    depends_on:
-      - sahno-api
-
   caddy:
-    image: caddy:2
+    # Caddy plus the Cloudflare DNS module (deploy/caddy).
+    image: ${SAHNO_CADDY_IMAGE:-ghcr.io/devadarshsharma/sahno-caddy:latest}
     profiles:
       - caddy
     restart: unless-stopped
@@ -62,10 +48,12 @@ services:
       - sahno-api
     environment:
       SAHNO_HOST: ${SAHNO_HOST:?Set SAHNO_HOST in .env}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?Set CLOUDFLARE_API_TOKEN in .env}
     ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+      # Caddy listens on 443 inside the container; the host exposes it on
+      # SAHNO_HTTPS_PORT. Port 80 is not published at all.
+      - "${SAHNO_HTTPS_PORT:-443}:443"
+      - "${SAHNO_HTTPS_PORT:-443}:443/udp"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       # Certificates live here; keeping them avoids re-issuing on every restart.

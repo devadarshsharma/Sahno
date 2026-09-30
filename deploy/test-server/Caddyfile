@@ -1,7 +1,21 @@
-# Serves the Sahno API over HTTPS. Caddy obtains and renews the certificate
-# itself (ports 80 and 443 must be reachable from the internet), passes
-# WebSockets through for SignalR, and sets X-Forwarded-Proto/For for the API.
+# Serves the Sahno API over HTTPS on SAHNO_HTTPS_PORT (8443 on the Farnese
+# sandbox server, whose 80/443 belong to its own Caddy).
+#
+# The certificate is obtained with Cloudflare's DNS challenge — a TXT record
+# written through CLOUDFLARE_API_TOKEN — because ports 80/443 are not ours to
+# answer the HTTP or TLS challenges on. Caddy renews it the same way.
+# reverse_proxy passes WebSockets through for SignalR and sets
+# X-Forwarded-Proto/For for the API.
+
+{
+	# Nothing listens on port 80 here, so no HTTP-to-HTTPS redirect server.
+	auto_https disable_redirects
+}
 
 {$SAHNO_HOST} {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+	}
+
 	reverse_proxy sahno-api:8080
 }
