@@ -447,7 +447,31 @@ keeps `https://`/`wss://`, which iOS requires and which keeps sign-in tokens
 off the wire in clear text. Swapping in a real domain later is a change to
 `SAHNO_HOST` and the app's `EXPO_PUBLIC_API_URL`.
 
-### Prerequisites on the server
+### On the Farnese sandbox server: Cloudflare Tunnel
+
+That server's ports 80/443 belong to the Farnese Caddy, and its Caddyfile is
+not Sahno's to edit. So Sahno arrives through a **Cloudflare Tunnel** instead:
+the `cloudflared` container (profile `tunnel`) connects *out* to Cloudflare,
+which serves `https://api-test.sahno.app` with its own certificate and forwards
+each request, WebSockets included, to `http://sahno-api:8080`.
+
+- Nothing of Farnese's changes: not its Caddyfile, network, or ports. No
+  inbound firewall rule is needed.
+- Cloudflare side: Zero Trust → **Networks → Tunnels** → create a
+  *Cloudflared* tunnel `sahno-test` → copy its **token** into
+  `CLOUDFLARE_TUNNEL_TOKEN` → add the public hostname `api-test.sahno.app`
+  with service **HTTP** `sahno-api:8080`. Cloudflare creates the DNS record;
+  delete any existing `api-test` A record first.
+- `.env`: `COMPOSE_PROFILES=tunnel`, and leave `COMPOSE_FILE`/`PROXY_NETWORK`
+  commented out.
+- Cloudflare adds `X-Forwarded-Proto: https` and `X-Forwarded-For`, which the
+  API already honours.
+- Troubleshooting: `docker compose logs cloudflared` should show
+  "Registered tunnel connection" four times. Cloudflare error **1033** = the
+  tunnel is not running; **502** = the tunnel runs but `sahno-api` is not
+  answering (`docker compose logs sahno-api`).
+
+### Prerequisites on the server (bundled or existing proxy)
 
 - Docker Engine with the Compose plugin (`docker compose version`).
 - Ports **80 and 443** free on the host and open to the internet (host
@@ -483,6 +507,7 @@ cd deploy/test-server
 cp .env.example .env && nano .env      # SAHNO_HOST, SAHNO_DB_CONNECTION, AUTH0_*
 docker compose up -d --build
 docker compose logs -f sahno-api             # wait for "Now listening on: http://[::]:8080"
+curl http://127.0.0.1:8080/health/ready       # Healthy, on the server itself
 curl https://<SAHNO_HOST>/health/ready # Healthy
 ```
 

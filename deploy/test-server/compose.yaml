@@ -5,14 +5,16 @@
 #   cp .env.example .env    # then fill it in — .env is gitignored
 #   docker compose up -d --build
 #
-# HTTPS is terminated by a reverse proxy in front of the API:
-# - a Caddy the server already runs: add a site for SAHNO_HOST that proxies to
-#   127.0.0.1:SAHNO_API_PORT (the default — only the API starts), or
-# - the Caddy bundled here, on a host with ports 80/443 free:
-#   docker compose --profile caddy up -d --build
+# HTTPS is terminated in front of the API by one of:
+# - Cloudflare Tunnel (profile "tunnel"): no inbound ports at all; used on the
+#   Farnese sandbox server, whose 80/443 belong to its own Caddy;
+# - the Caddy bundled here (profile "caddy"), on a host with 80/443 free;
+# - a reverse proxy the server already runs (no profile; see
+#   compose.shared-proxy.yaml when that proxy is itself a container).
+# Pick one with COMPOSE_PROFILES in .env.
 #
-# Either way the API is only reachable through the proxy (its port is bound
-# to 127.0.0.1), which is what makes trusting X-Forwarded-* headers safe.
+# Whichever it is, the API is reachable only through it (its host port is
+# bound to 127.0.0.1), which is what makes trusting X-Forwarded-* safe.
 
 name: sahno-test
 
@@ -32,6 +34,21 @@ services:
       Push__ExpoAccessToken: ${EXPO_ACCESS_TOKEN:-}
     ports:
       - "127.0.0.1:${SAHNO_API_PORT:-8080}:8080"
+
+  # Cloudflare Tunnel: an OUTBOUND connection to Cloudflare, which serves
+  # SAHNO_HOST over HTTPS and sends its requests down it. Needs no inbound
+  # ports, so it fits a server whose 80/443 belong to another project.
+  # The tunnel's public hostname points at http://sahno-api:8080.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles:
+      - tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN in .env}
+    depends_on:
+      - sahno-api
 
   caddy:
     image: caddy:2
