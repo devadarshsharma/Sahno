@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using Sahno.Api.Authentication;
 using Sahno.Api.Health;
 using Sahno.Api.Live;
+using Sahno.Api.RateLimiting;
 using Sahno.Application.Engagements;
 using Sahno.Application.Notifications;
 using Sahno.Application.Organisations;
@@ -119,6 +120,7 @@ else
 }
 
 builder.Services.AddAuthorization();
+builder.Services.AddSahnoRateLimiting();
 
 // Browser origins allowed to call the API. The phone app is not a browser and
 // is never subject to CORS, so by default the list is empty and no
@@ -185,6 +187,9 @@ if (allowedOrigins.Length > 0)
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// After authentication, so a limit can be kept per signed-in account.
+app.UseRateLimiter();
 
 app.MapControllers();
 app.MapHub<LiveHub>(LiveHub.Path);

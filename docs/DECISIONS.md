@@ -1433,6 +1433,8 @@ MVP invitations are **shareable link codes**:
 
 **Rationale:** Link codes deliver the invitation-only model (D-045) without requiring email infrastructure in this slice, and the multi-use link matches the real behaviour of groups that coordinate in a shared chat.
 
+**Amended 1 October 2026.** Codes were 26 mixed-case characters (~130 bits) — safe, but hard to read out or type on a phone. They are now **8 characters** of an upper-case alphabet without look-alikes (no I, L, O, 0, 1), shown as `K7MP-9QAB`; the API ignores case, spaces and the dash. That is ~39 bits, so guessing is now limited instead of impossible: code lookups already require sign-in, and each account gets 30 lookups a minute (HTTP 429 beyond), about 43,000 a day against 8.5 × 10^11 codes. Codes issued before the change keep working exactly as they were.
+
 ---
 
 ## D-078 — Customers are an organisation-level directory, not per-booking text

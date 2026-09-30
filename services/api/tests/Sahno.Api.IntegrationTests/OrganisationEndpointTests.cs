@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Sahno.Api.IntegrationTests.Authentication;
+using Sahno.Api.RateLimiting;
 using Sahno.Contracts.Organisations;
 using Sahno.Domain.Organisations;
 using Sahno.Infrastructure.Persistence;
@@ -91,6 +92,49 @@ public sealed class OrganisationEndpointTests(SahnoApiFactory factory)
         var membershipCount = await dbContext.Memberships.CountAsync(
             membership => membership.OrganisationId == organisation.Id);
         Assert.Equal(2, membershipCount);
+    }
+
+    [Fact]
+    public async Task InviteCode_IsShortAndForgivingToType()
+    {
+        using var owner = CreateClient("auth0|code-owner");
+        using var joiner = CreateClient("auth0|code-joiner");
+
+        var organisation = await CreateOrganisationAsync(owner, "Short Code Org");
+        var invitation = await CreateInvitationAsync(owner, organisation.Id);
+
+        Assert.Equal(Invitation.TokenLength, invitation.Token.Length);
+        Assert.All(invitation.Token, character =>
+            Assert.Contains(character, Invitation.TokenAlphabet));
+
+        // Typed the way people type it: lower case, with a dash in the middle.
+        var typed = $"{invitation.Token[..4]}-{invitation.Token[4..]}".ToLowerInvariant();
+
+        var preview = await joiner.GetAsync($"/api/invitations/{typed}");
+        Assert.Equal(HttpStatusCode.OK, preview.StatusCode);
+
+        var accept = await joiner.PostAsync($"/api/invitations/{typed}/accept", content: null);
+        Assert.Equal(HttpStatusCode.OK, accept.StatusCode);
+    }
+
+    [Fact]
+    public async Task InviteCodeGuessing_IsLimitedPerAccount()
+    {
+        using var guesser = CreateClient("auth0|code-guesser");
+        using var someoneElse = CreateClient("auth0|code-bystander");
+
+        for (var attempt = 0; attempt < RateLimitPolicies.InviteCodeAttemptsPerMinute; attempt++)
+        {
+            var miss = await guesser.GetAsync($"/api/invitations/ZZZZ{attempt:0000}");
+            Assert.Equal(HttpStatusCode.NotFound, miss.StatusCode);
+        }
+
+        var limited = await guesser.GetAsync("/api/invitations/ZZZZZZZZ");
+        Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);
+
+        // The limit is the guesser's own; nobody else is locked out by it.
+        var unaffected = await someoneElse.GetAsync("/api/invitations/ZZZZZZZZ");
+        Assert.Equal(HttpStatusCode.NotFound, unaffected.StatusCode);
     }
 
     [Fact]

@@ -73,7 +73,9 @@ public sealed class InvitationService(
         string token,
         CancellationToken cancellationToken)
     {
-        var invitation = await invitations.FindByTokenAsync(token, cancellationToken);
+        var invitation = await invitations.FindByTokenAsync(
+            Invitation.NormalizeToken(token),
+            cancellationToken);
         if (invitation is null || !invitation.IsUsable(DateTimeOffset.UtcNow))
         {
             return null;
@@ -99,7 +101,9 @@ public sealed class InvitationService(
         Guid userId,
         CancellationToken cancellationToken)
     {
-        var invitation = await invitations.FindByTokenAsync(token, cancellationToken);
+        var invitation = await invitations.FindByTokenAsync(
+            Invitation.NormalizeToken(token),
+            cancellationToken);
         if (invitation is null || !invitation.IsUsable(DateTimeOffset.UtcNow))
         {
             return (AcceptInvitationResult.NotUsable, null);

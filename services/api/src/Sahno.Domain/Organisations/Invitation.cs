@@ -20,7 +20,18 @@ public enum InvitationType
 /// </summary>
 public sealed class Invitation
 {
-    public const int TokenLength = 26;
+    /// <summary>
+    /// Invite codes are read aloud and typed on phones, so they are short.
+    /// 31^8 ≈ 8.5 × 10^11 codes (~39 bits): guessing one takes an account and
+    /// is capped per account by the API's rate limit on code lookups.
+    /// </summary>
+    public const int TokenLength = 8;
+
+    /// <summary>
+    /// Upper-case letters and digits with the look-alikes removed (no I, L, O,
+    /// 0, 1), so a code copied by eye cannot be misread.
+    /// </summary>
+    public const string TokenAlphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
     private Invitation(
         Guid id,
@@ -52,7 +63,7 @@ public sealed class Invitation
 
     public Guid OrganisationId { get; }
 
-    /// <summary>URL-safe random token (~130 bits of entropy).</summary>
+    /// <summary>The invite code: <see cref="TokenLength"/> characters of <see cref="TokenAlphabet"/>.</summary>
     public string Token { get; }
 
     public InvitationType Type { get; }
@@ -135,20 +146,27 @@ public sealed class Invitation
             acceptedAtUtc: null);
     }
 
+    /// <summary>
+    /// The code as it is stored, from however it was typed: spaces and dashes
+    /// dropped ("K7MP-9QAB", "k7mp 9qab") and, for a code of the current
+    /// length, upper-cased. Anything longer is left alone, so a 26-character
+    /// code issued before codes were shortened still matches exactly.
+    /// </summary>
+    public static string NormalizeToken(string typed)
+    {
+        var compact = new string(typed
+            .Where(character => !char.IsWhiteSpace(character) && character != '-')
+            .ToArray());
+
+        return compact.Length == TokenLength
+            ? compact.ToUpperInvariant()
+            : compact;
+    }
+
     private static string GenerateToken()
     {
-        // Crockford-style alphabet without ambiguous characters; 26 chars of
-        // a 32-character alphabet = 130 bits of entropy.
-        const string alphabet = "abcdefghjkmnpqrstvwxyz23456789AB";
-        Span<byte> bytes = stackalloc byte[TokenLength];
-        RandomNumberGenerator.Fill(bytes);
-
-        Span<char> chars = stackalloc char[TokenLength];
-        for (var i = 0; i < TokenLength; i++)
-        {
-            chars[i] = alphabet[bytes[i] % alphabet.Length];
-        }
-
-        return new string(chars);
+        // GetString draws each character uniformly, whatever the alphabet's
+        // size — no modulo bias from a 31-character alphabet.
+        return RandomNumberGenerator.GetString(TokenAlphabet, TokenLength);
     }
 }

@@ -103,13 +103,13 @@ export default function Join() {
       <Card style={styles.card}>
         <TextInput
           label="Invite code"
-          placeholder="e.g. kx7m2p9qanb3vwrt56hjde2c8f"
+          placeholder="e.g. K7MP-9QAB"
           value={code}
           onChangeText={(value) => {
             setCode(value);
             setPreview(null);
           }}
-          autoCapitalize="none"
+          autoCapitalize="characters"
           autoCorrect={false}
           error={error ?? undefined}
         />

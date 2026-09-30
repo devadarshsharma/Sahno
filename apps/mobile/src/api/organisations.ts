@@ -3,6 +3,7 @@ import {
   postAuthorizedJson,
   sendAuthorized,
 } from '@/api/client';
+import { normalizeInviteCode } from '@/lib/invite';
 
 export type Organisation = {
   id: string;
@@ -154,7 +155,7 @@ export function previewInvitation(
   signal?: AbortSignal,
 ): Promise<InvitationPreview> {
   return getAuthorizedJson(
-    `/api/invitations/${token.trim()}`,
+    `/api/invitations/${encodeURIComponent(normalizeInviteCode(token))}`,
     accessToken,
     isInvitationPreview,
     signal,
@@ -166,7 +167,7 @@ export function acceptInvitation(
   token: string,
 ): Promise<AcceptedInvitation> {
   return postAuthorizedJson(
-    `/api/invitations/${token.trim()}/accept`,
+    `/api/invitations/${encodeURIComponent(normalizeInviteCode(token))}/accept`,
     accessToken,
     undefined,
     isAcceptedInvitation,

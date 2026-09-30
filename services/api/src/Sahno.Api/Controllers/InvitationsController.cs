@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Sahno.Api.Authentication;
+using Sahno.Api.RateLimiting;
 using Sahno.Application.Organisations;
 using Sahno.Application.Users;
 using Sahno.Contracts.Organisations;
@@ -21,6 +23,7 @@ public sealed class InvitationsController(
     /// more. Unknown, revoked, and expired tokens are indistinguishable.
     /// </summary>
     [HttpGet("{token}")]
+    [EnableRateLimiting(RateLimitPolicies.InviteCode)]
     [ProducesResponseType<InvitationPreviewResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<InvitationPreviewResponse>> Preview(
@@ -40,6 +43,7 @@ public sealed class InvitationsController(
     }
 
     [HttpPost("{token}/accept")]
+    [EnableRateLimiting(RateLimitPolicies.InviteCode)]
     [ProducesResponseType<AcceptInvitationResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<AcceptInvitationResponse>> Accept(

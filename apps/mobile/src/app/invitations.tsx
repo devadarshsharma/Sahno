@@ -9,7 +9,7 @@ import {
 } from '@/api/organisations';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { useActiveOrg } from '@/hooks/use-organisations';
-import { shareInvite } from '@/lib/invite';
+import { formatInviteCode, shareInvite } from '@/lib/invite';
 import { useSession } from '@/providers/auth-provider';
 import { spacing } from '@/theme';
 
@@ -119,7 +119,7 @@ export default function Invitations() {
           activeInvitations.map((invitation) => (
             <Card key={invitation.id} style={styles.inviteCard}>
               <Text variant="subheading" selectable style={styles.token}>
-                {invitation.token}
+                {formatInviteCode(invitation.token)}
               </Text>
               <Text variant="caption" color="muted">
                 Created {new Date(invitation.createdAtUtc).toLocaleDateString()}
