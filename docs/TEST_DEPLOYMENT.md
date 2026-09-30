@@ -4,6 +4,12 @@
 **Last updated:** 28 September 2026
 **Scope:** TEST environment only. Production is separate (D-065, D-081).
 
+> **Current test setup (30 Sep 2026):** the API runs on the Farnese sandbox
+> server in Sydney at **`https://api-test.sahno.app:8443`** against **Supabase
+> Sydney** — see [§14](#14-self-hosted-test-server-alternative-to-render).
+> Render (§4) is suspended and kept as a fallback; its Supabase project is in
+> Singapore. Sections 2–13 still apply except where they name Render.
+
 ```text
 Sahno app (EAS preview build, iPhone + Android)
         │  HTTPS (REST)  +  WSS (SignalR /hubs/live)
@@ -27,11 +33,11 @@ change (see [Moving to production infrastructure](#moving-to-production-infrastr
 
 | | Local | Test | Production |
 |---|---|---|---|
-| API | `dotnet run` on your PC | Render `sahno-api-test` | DigitalOcean App Platform (D-065) |
-| Database | Docker Compose Postgres (`compose.yaml`) | Supabase | DigitalOcean Managed PostgreSQL |
-| API URL in app | `apps/mobile/.env` (`http://192.168.x.x:5062`) | EAS env `preview` (`https://…onrender.com`) | EAS env `production` |
+| API | `dotnet run` on your PC | Farnese sandbox server, `api-test.sahno.app:8443` (Render suspended) | DigitalOcean App Platform (D-065) |
+| Database | Docker Compose Postgres (`compose.yaml`) | Supabase Sydney | DigitalOcean Managed PostgreSQL |
+| API URL in app | `apps/mobile/.env` (`http://192.168.x.x:5062`) | EAS env `preview` (`https://api-test.sahno.app:8443`) | EAS env `production` |
 | App build | `npx expo run:android` / EAS `development` | EAS `preview` | EAS `production` |
-| Deployed from | — | `test` branch (auto) | separate, manual (future) |
+| Deployed from | — | `test` branch → images on GHCR → `docker compose pull` | separate, manual (future) |
 | `ASPNETCORE_ENVIRONMENT` | `Development` | `Staging` | `Production` |
 
 ---
@@ -228,7 +234,7 @@ Test builds use the **preview** profile. Create its variables once (from
 `apps/mobile`):
 
 ```bash
-eas env:create --environment preview --name EXPO_PUBLIC_API_URL --value https://sahno-api-test.onrender.com --visibility plaintext
+eas env:create --environment preview --name EXPO_PUBLIC_API_URL --value https://api-test.sahno.app:8443 --visibility plaintext --force
 eas env:create --environment preview --name EXPO_PUBLIC_AUTH0_DOMAIN --value <domain> --visibility plaintext
 eas env:create --environment preview --name EXPO_PUBLIC_AUTH0_CLIENT_ID --value <client id> --visibility plaintext
 eas env:create --environment preview --name EXPO_PUBLIC_AUTH0_AUDIENCE --value <audience> --visibility plaintext
@@ -244,7 +250,7 @@ with `http://` (`app.config.ts`). A preview build for Render is HTTPS-only.
 
 ## 8. SignalR
 
-- Hub: `wss://<service>.onrender.com/hubs/live?organisationId=<id>`.
+- Hub: `wss://api-test.sahno.app:8443/hubs/live?organisationId=<id>`.
 - Auth: the Auth0 access token in `access_token` (accepted for the hub path
   only). A fresh token is requested for every connect and reconnect.
 - CORS does not apply — the app is not a browser.
