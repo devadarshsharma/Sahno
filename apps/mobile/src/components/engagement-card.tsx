@@ -3,9 +3,18 @@ import type { ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Engagement, EngagementStatus } from '@/api/engagements';
+import { AvailabilityAnswerButtons } from '@/components/availability-cards';
 import { Text } from '@/components/ui';
 import { formatEngagementDate } from '@/hooks/use-engagements';
 import { colors, fontFamilies, radii, shadows, spacing } from '@/theme';
+
+/** The statuses in which a member's answer is still being counted. */
+function answerable(engagement: Engagement): boolean {
+  return (
+    engagement.status === 'CheckingAvailability' ||
+    engagement.status === 'Tentative'
+  );
+}
 
 /**
  * One booking as a card: what it is, when, where, and three numbers that say
@@ -16,6 +25,11 @@ import { colors, fontFamilies, radii, shadows, spacing } from '@/theme';
  * the questions differ. An organiser wants to know how many have answered and
  * how much is still to sort out; a member wants to know what they said and
  * when to turn up.
+ *
+ * While the organiser is still deciding (checking availability, or
+ * tentative), a member answers right here on the card — the three buttons are
+ * the answer, so the "your answer" figure makes way for them. Taps on the
+ * buttons are theirs; anywhere else on the card still opens the event.
  */
 export function EngagementCard({
   engagement,
@@ -27,6 +41,7 @@ export function EngagementCard({
   onPress: () => void;
 }) {
   const when = formatWhen(engagement);
+  const answerHere = !isOrganiser && answerable(engagement);
 
   return (
     <Pressable
@@ -53,9 +68,23 @@ export function EngagementCard({
         {isOrganiser ? (
           <OrganiserStats engagement={engagement} />
         ) : (
-          <MemberStats engagement={engagement} />
+          <MemberStats engagement={engagement} showAnswer={!answerHere} />
         )}
       </View>
+
+      {answerHere ? (
+        <View style={styles.answer}>
+          <Text variant="caption" color="secondary">
+            {engagement.yourResponse === null
+              ? 'Are you available? Only the organisers see your answer.'
+              : 'Your answer — tap another to change it.'}
+          </Text>
+          <AvailabilityAnswerButtons
+            engagementId={engagement.id}
+            current={engagement.yourResponse}
+          />
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -94,23 +123,31 @@ function OrganiserStats({ engagement }: { engagement: Engagement }) {
   );
 }
 
-function MemberStats({ engagement }: { engagement: Engagement }) {
+function MemberStats({
+  engagement,
+  showAnswer,
+}: {
+  engagement: Engagement;
+  showAnswer: boolean;
+}) {
   return (
     <>
-      <Stat
-        icon="hand-left-outline"
-        value={
-          engagement.yourResponse === null
-            ? 'Not yet'
-            : engagement.yourResponse === 'Available'
-              ? 'Available'
-              : engagement.yourResponse === 'Maybe'
-                ? 'Maybe'
-                : 'Not available'
-        }
-        label="your answer"
-        tone={engagement.yourResponse === null ? 'attention' : 'default'}
-      />
+      {showAnswer ? (
+        <Stat
+          icon="hand-left-outline"
+          value={
+            engagement.yourResponse === null
+              ? 'Not yet'
+              : engagement.yourResponse === 'Available'
+                ? 'Available'
+                : engagement.yourResponse === 'Maybe'
+                  ? 'Maybe'
+                  : 'Not available'
+          }
+          label="your answer"
+          tone={engagement.yourResponse === null ? 'attention' : 'default'}
+        />
+      ) : null}
       <Stat
         icon="mic-outline"
         value={engagement.callTime ? formatClock(engagement.callTime) : '—'}
@@ -270,6 +307,9 @@ const styles = StyleSheet.create({
   },
   stats: {
     flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  answer: {
     gap: spacing.sm,
   },
   stat: {

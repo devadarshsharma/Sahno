@@ -189,6 +189,12 @@ export default function Index() {
   const yourTentative = yourEvents.filter(
     (engagement) => engagement.status === 'Tentative',
   );
+  // Answered, and the organiser has not decided yet. Without this list an
+  // answer made on Home would take its card off Home altogether — and with it
+  // the only easy way to change that answer.
+  const awaitingOrganiser = yourEvents.filter(
+    (engagement) => engagement.status === 'CheckingAvailability',
+  );
 
   const memberHasNothing =
     !loadingBookings &&
@@ -415,6 +421,12 @@ export default function Index() {
               <EngagementList
                 title="Tentative events"
                 engagements={yourTentative}
+                isOrganiser={isOrganiser}
+                onOpen={openEngagement}
+              />
+              <EngagementList
+                title="Waiting on the organiser"
+                engagements={awaitingOrganiser}
                 isOrganiser={isOrganiser}
                 onOpen={openEngagement}
               />

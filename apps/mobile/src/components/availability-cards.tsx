@@ -26,12 +26,6 @@ const ANSWERS: AvailabilityAnswer[] = ['Available', 'Maybe', 'Unavailable'];
  */
 export function MyAvailabilityCard({ engagementId }: { engagementId: string }) {
   const ownQuery = useOwnAvailability(engagementId);
-  const [error, setError] = useState<string | null>(null);
-
-  const respond = useAvailabilityMutation<AvailabilityAnswer>(
-    (accessToken, organisationId, answer) =>
-      respondToAvailability(accessToken, organisationId, engagementId, answer),
-  );
 
   if (!ownQuery.isSuccess || !ownQuery.data.isSelected) {
     return null;
@@ -50,20 +44,50 @@ export function MyAvailabilityCard({ engagementId }: { engagementId: string }) {
           : 'Only the organisers see your answer.'}
       </Text>
 
+      <AvailabilityAnswerButtons engagementId={engagementId} current={current} />
+    </Card>
+  );
+}
+
+/**
+ * Available / Maybe / Not available, saved on tap. Used on the event page and
+ * straight on the member's Home card, so answering never needs a detour.
+ *
+ * The press stays "pending" until the refetched lists arrive (the mutation
+ * waits for its invalidation), so the chosen answer never flickers back.
+ */
+export function AvailabilityAnswerButtons({
+  engagementId,
+  current,
+}: {
+  engagementId: string;
+  current: AvailabilityAnswer | null;
+}) {
+  const [error, setError] = useState<string | null>(null);
+
+  const respond = useAvailabilityMutation<AvailabilityAnswer>(
+    (accessToken, organisationId, answer) =>
+      respondToAvailability(accessToken, organisationId, engagementId, answer),
+  );
+
+  const shown = respond.isPending ? respond.variables : current;
+
+  return (
+    <View style={styles.answerGroup}>
       <View style={styles.answers}>
         {ANSWERS.map((answer) => {
-          const selected = current === answer;
+          const selected = shown === answer;
           return (
             <Pressable
               key={answer}
               accessibilityRole="button"
-              accessibilityState={{ selected }}
+              accessibilityState={{ selected, busy: respond.isPending }}
               accessibilityLabel={ANSWER_LABELS[answer]}
               disabled={respond.isPending}
               onPress={() => {
                 setError(null);
                 respond.mutate(answer, {
-                  onError: () => setError('Could not save your answer.'),
+                  onError: () => setError('Could not save your answer. Try again.'),
                 });
               }}
               style={[styles.answer, selected ? styles.answerSelected : null]}
@@ -85,7 +109,7 @@ export function MyAvailabilityCard({ engagementId }: { engagementId: string }) {
           {error}
         </Text>
       ) : null}
-    </Card>
+    </View>
   );
 }
 
@@ -246,6 +270,9 @@ const styles = StyleSheet.create({
   card: {
     gap: spacing.md,
     marginBottom: spacing.lg,
+  },
+  answerGroup: {
+    gap: spacing.sm,
   },
   answers: {
     flexDirection: 'row',
