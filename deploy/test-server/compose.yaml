@@ -3,7 +3,9 @@
 # configuration differs.
 #
 #   cp .env.example .env    # then fill it in — .env is gitignored
-#   docker compose up -d --build
+#   docker compose pull && docker compose up -d
+#
+# Nothing is built here: the API image comes from GitHub's registry.
 #
 # HTTPS is terminated in front of the API by one of:
 # - Cloudflare Tunnel (profile "tunnel"): no inbound ports at all; used on the
@@ -20,8 +22,9 @@ name: sahno-test
 
 services:
   sahno-api:
-    build:
-      context: ../../services/api
+    # Built and tested on GitHub (.github/workflows/api-image.yml); this host
+    # only pulls it. Pin a sha-<commit> tag here to roll back.
+    image: ${SAHNO_API_IMAGE:-ghcr.io/devadarshsharma/sahno-api:test}
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Staging

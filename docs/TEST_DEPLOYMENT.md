@@ -494,18 +494,18 @@ each request, WebSockets included, to `http://sahno-api:8080`.
   Docker network, and proxy to `sahno-api:8080` instead. The service is named
   `sahno-api` so it can never be confused with another project's `api`.
 - **Ports 80/443 free:** start the bundled Caddy too with
-  `docker compose --profile caddy up -d --build`.
+  `docker compose --profile caddy up -d`.
 - **Cloudflare DNS:** set the record to *DNS only* (grey cloud), so the server
   gets its own certificate and there is one TLS hop to reason about.
 
 ### First deployment
 
 ```bash
-git clone https://github.com/devadarshsharma/Sahno.git ~/sahno
-cd ~/sahno && git switch test
+git clone https://github.com/devadarshsharma/Sahno.git /srv/sahno-test
+cd /srv/sahno-test && git switch test
 cd deploy/test-server
-cp .env.example .env && nano .env      # SAHNO_HOST, SAHNO_DB_CONNECTION, AUTH0_*
-docker compose up -d --build
+cp .env.example .env && chmod 600 .env && nano .env
+docker compose pull && docker compose up -d
 docker compose logs -f sahno-api             # wait for "Now listening on: http://[::]:8080"
 curl http://127.0.0.1:8080/health/ready       # Healthy, on the server itself
 curl https://<SAHNO_HOST>/health/ready # Healthy
@@ -520,13 +520,21 @@ URL is compiled into the app.
 
 ### Updates, logs, restart
 
+The server never builds. A push to `test` that touches `services/api` runs
+`.github/workflows/api-image.yml`: it runs the API tests and, only if they pass,
+builds the image on GitHub and pushes
+`ghcr.io/devadarshsharma/sahno-api:test` (and `:sha-<commit>`). Then, on the server:
+
 ```bash
-cd ~/sahno && git pull && cd deploy/test-server && docker compose up -d --build
+cd /srv/sahno-test && git pull && cd deploy/test-server && docker compose pull && docker compose up -d
 docker compose logs -f sahno-api             # the same log lines as §6
 docker compose restart sahno-api
 docker compose down                    # stop (certificates are kept in a volume)
 ```
 
-There is no automatic deploy from GitHub here; `git pull` + `up --build` is the
-deploy. Suspend the Render service while this server is in use, so there is one
+`git pull` only matters when `deploy/test-server` itself changed. To roll back,
+set `SAHNO_API_IMAGE` in `.env` to an earlier `sha-<commit>` tag (GitHub →
+Packages → sahno-api) and `up -d` again. The image is private if the package
+is: `docker login ghcr.io` on the server with a token that has `read:packages`,
+or make the package public (the source already is). Suspend the Render service while this server is in use, so there is one
 test API, not two.

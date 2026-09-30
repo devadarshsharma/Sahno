@@ -1,0 +1,89 @@
+name: API image
+
+# Builds the API container for the test server and pushes it to GitHub's
+# container registry, so that server only ever pulls and runs a finished,
+# tested image — it never compiles anything itself.
+#
+#   ghcr.io/<owner>/sahno-api:test          the latest tested test-branch build
+#   ghcr.io/<owner>/sahno-api:sha-<commit>  that exact build, for rollback
+#
+# Deploy on the server: docker compose pull && docker compose up -d
+# (deploy/test-server). Render builds from source and is unaffected.
+#
+# Triggered by the push itself rather than by CI finishing: GitHub only fires
+# workflow_run for workflows on the default branch, and this one lives on
+# test until it is merged. The tests run here first instead.
+
+on:
+  push:
+    branches:
+      - test
+    paths:
+      - services/api/**
+      - .github/workflows/api-image.yml
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: api-image
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test API
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Test API
+        run: dotnet test services/api/Sahno.slnx --configuration Release
+
+  image:
+    name: Build and push
+    # No image for a commit whose tests failed.
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Work out the tags
+        id: tags
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/sahno-api"
+          echo "list=${image}:test,${image}:sha-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Sign in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: services/api
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.tags.outputs.list }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
