@@ -138,3 +138,22 @@ public interface IPushSender
         string? dataJson,
         CancellationToken cancellationToken);
 }
+
+/// <summary>Which scheduled reminders have gone out (D-085).</summary>
+public interface IReminderLogStore
+{
+    Task<bool> WasSentAsync(
+        ReminderKind kind,
+        Guid subjectId,
+        DateOnly occasionDate,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Adds the row WITHOUT saving: the caller saves it together with the
+    /// notifications the reminder produced, so the two cannot disagree.
+    /// </summary>
+    void Stage(ReminderLog log);
+
+    /// <summary>Commits the unit of work: the reminder's notifications and its log row.</summary>
+    Task SaveAsync(CancellationToken cancellationToken);
+}

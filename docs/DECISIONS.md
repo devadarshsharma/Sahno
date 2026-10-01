@@ -1549,3 +1549,22 @@ Conversations still belong to their events (D-024). What changes is the Chat tab
 Served by `GET /api/organisations/{id}/chats`; the Chat tab badge totals the inbox's unread, so the tab counts what it shows.
 
 **Rationale:** People coming from group messaging look for a chat list; making them open events one by one to catch up is the friction testers felt. An index keeps chat attached to its event while giving it a home. It is also where a group-wide channel would go, if one is ever decided.
+
+---
+
+## D-085 — Rehearsals are announced and shown; reminders go out on the day
+
+**Date:** 1 October 2026
+**Status:** Accepted
+
+Rehearsals were only visible on their event's own page, and nothing told anyone one had been booked. Now:
+
+- **Booking or moving a rehearsal** (its date, times or venue) notifies the event's **expected lineup**: everyone on it who has not said they are unavailable. Not the organiser who made the change. Title or notes edits are not news.
+- **Upcoming rehearsals** (from today, soonest first) appear on **Home** — for organisers (every event's) and members (the events they are expected at) — and as a ring on the **calendar** beside the event dot. Tapping one opens the event's "Set list & rehearsals" page. Only events still going ahead (checking availability, tentative, confirmed).
+- **Scheduled reminders**, in the organisation's own time zone:
+  - **Rehearsal day** — each rehearsal, to its event's expected lineup.
+  - **Event day** — confirmed events only, to the expected lineup. Somebody with **jobs still unticked** on that event gets them in the same message ("Still to do: …"), which opens Jobs; everyone else gets the plain reminder, which opens the event. One buzz per person.
+  - **When:** 8:00 on the day, or two hours before the start (rehearsal) or arrival (call time, else start) when that is earlier. Not sent once that time has passed. A rehearsal booked after its reminder would have gone gets only its booking notification.
+- A background scheduler checks every five minutes. Each reminder is logged (`reminder_log`, unique per subject per local day) **in the same save as its notifications**, so it is sent exactly once across restarts and redeploys. An unknown time zone falls back to UTC rather than stopping reminders.
+
+**Rationale:** A rehearsal nobody hears about is a meeting nobody attends, and the morning of an event is when people actually check what they need to bring. Folding open jobs into the day reminder keeps it to one notification.

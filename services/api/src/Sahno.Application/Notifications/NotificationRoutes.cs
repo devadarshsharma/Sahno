@@ -28,7 +28,10 @@ public static class NotificationRoutes
         {
             // Organisers are told about answers: the lineup is where they act.
             NotificationKind.AvailabilityAnswered => $"{engagement}/people",
-            NotificationKind.ResponsibilityAssigned => $"{engagement}/jobs",
+            NotificationKind.ResponsibilityAssigned
+                or NotificationKind.ResponsibilityReminder => $"{engagement}/jobs",
+            NotificationKind.RehearsalScheduled
+                or NotificationKind.RehearsalReminder => $"{engagement}/files",
             NotificationKind.DiscussionMessage => $"{engagement}/chat",
             // A request, a reminder, or changed details lands on the event
             // itself: its header carries the date, times, venue and dress,

@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Engagement } from '@/api/engagements';
+import type { UpcomingRehearsal } from '@/api/upcoming-rehearsals';
+import { rehearsalTimes } from '@/components/rehearsal-list';
 import { Text } from '@/components/ui';
 import { colors, radii, spacing } from '@/theme';
 
@@ -50,14 +52,21 @@ function isoDay(date: Date): string {
 
 /**
  * A month at a glance. Days carry a dot in the colour of the most urgent thing
- * happening on them; choosing a day lists what is actually on.
+ * happening on them; choosing a day lists what is actually on. Rehearsals
+ * (D-085) are a separate mark — a ring beside the dot — because a rehearsal
+ * has no status of its own to colour, and must never be read as a booking.
  */
 export function EngagementCalendar({
   engagements,
   onOpen,
+  rehearsals = [],
+  onOpenRehearsal,
 }: {
   engagements: Engagement[];
   onOpen: (engagementId: string) => void;
+  /** Upcoming rehearsals; past ones are not loaded, so earlier months show none. */
+  rehearsals?: UpcomingRehearsal[];
+  onOpenRehearsal?: (rehearsal: UpcomingRehearsal) => void;
 }) {
   const today = useMemo(() => new Date(), []);
   const [month, setMonth] = useState(
@@ -83,6 +92,19 @@ export function EngagementCalendar({
     return map;
   }, [engagements]);
 
+  const rehearsalsByDay = useMemo(() => {
+    const map = new Map<string, UpcomingRehearsal[]>();
+    for (const rehearsal of rehearsals) {
+      const existing = map.get(rehearsal.date);
+      if (existing) {
+        existing.push(rehearsal);
+      } else {
+        map.set(rehearsal.date, [rehearsal]);
+      }
+    }
+    return map;
+  }, [rehearsals]);
+
   const firstOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
   const daysInMonth = new Date(
     month.getFullYear(),
@@ -101,6 +123,7 @@ export function EngagementCalendar({
   ];
 
   const chosenEvents = chosen ? (byDay.get(chosen) ?? []) : [];
+  const chosenRehearsals = chosen ? (rehearsalsByDay.get(chosen) ?? []) : [];
 
   return (
     <View style={styles.wrap}>
@@ -160,6 +183,7 @@ export function EngagementCalendar({
 
           const key = isoDay(date);
           const events = byDay.get(key) ?? [];
+          const dayRehearsals = rehearsalsByDay.get(key) ?? [];
           const state = events
             .map(stateOf)
             .filter((value): value is DayState => value !== null)
@@ -175,7 +199,7 @@ export function EngagementCalendar({
               accessibilityState={{ selected: isChosen }}
               accessibilityLabel={`${date.getDate()} ${month.toLocaleDateString(undefined, { month: 'long' })}${
                 events.length > 0 ? `, ${events.length} on` : ''
-              }`}
+              }${dayRehearsals.length > 0 ? `, ${dayRehearsals.length} rehearsal${dayRehearsals.length === 1 ? '' : 's'}` : ''}`}
               onPress={() => setChosen(key)}
               style={[styles.cell, isChosen ? styles.cellChosen : null]}
             >
@@ -188,9 +212,13 @@ export function EngagementCalendar({
               <View style={styles.dotRow}>
                 {state ? (
                   <View style={[styles.dot, dotStyle(state)]} />
-                ) : (
+                ) : null}
+                {dayRehearsals.length > 0 ? (
+                  <View style={[styles.ring, isChosen ? styles.ringOnChosen : null]} />
+                ) : null}
+                {!state && dayRehearsals.length === 0 ? (
                   <View style={styles.dotSpacer} />
-                )}
+                ) : null}
               </View>
             </Pressable>
           );
@@ -206,6 +234,12 @@ export function EngagementCalendar({
             </Text>
           </View>
         ))}
+        <View style={styles.keyItem}>
+          <View style={styles.ring} />
+          <Text variant="caption" color="muted">
+            Rehearsal
+          </Text>
+        </View>
       </View>
 
       <View style={styles.dayList}>
@@ -219,7 +253,7 @@ export function EngagementCalendar({
             : 'Pick a day'}
         </Text>
 
-        {chosenEvents.length === 0 ? (
+        {chosenEvents.length === 0 && chosenRehearsals.length === 0 ? (
           <Text color="muted" variant="bodySmall">
             Nothing on this day.
           </Text>
@@ -250,6 +284,29 @@ export function EngagementCalendar({
             </Pressable>
           ))
         )}
+
+        {chosenRehearsals.map((rehearsal) => (
+          <Pressable
+            key={rehearsal.id}
+            accessibilityRole="button"
+            accessibilityLabel={`${rehearsal.title ?? 'Rehearsal'} for ${rehearsal.engagementTitle}`}
+            onPress={() => onOpenRehearsal?.(rehearsal)}
+            style={styles.dayRow}
+          >
+            <View style={[styles.dayStripe, styles.rehearsalStripe]} />
+            <View style={styles.dayText}>
+              <Text numberOfLines={1}>
+                {rehearsal.title ?? 'Rehearsal'} · {rehearsal.engagementTitle}
+              </Text>
+              {rehearsalTimes(rehearsal) || rehearsal.venue ? (
+                <Text variant="caption" color="muted" numberOfLines={1}>
+                  {[rehearsalTimes(rehearsal), rehearsal.venue].filter(Boolean).join(' · ')}
+                </Text>
+              ) : null}
+            </View>
+            <Text color="muted">›</Text>
+          </Pressable>
+        ))}
       </View>
     </View>
   );
@@ -304,7 +361,22 @@ const styles = StyleSheet.create({
   },
   dotRow: {
     height: 6,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  ring: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    borderWidth: 1.5,
+    borderColor: colors.text.primary,
+  },
+  ringOnChosen: {
+    borderColor: colors.offWhite,
+  },
+  rehearsalStripe: {
+    backgroundColor: colors.text.primary,
   },
   dot: {
     width: 6,

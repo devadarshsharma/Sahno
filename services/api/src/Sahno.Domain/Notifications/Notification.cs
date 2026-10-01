@@ -29,8 +29,17 @@ public enum NotificationKind
     /// <summary>Venue, call time, or start time changed on a shared event.</summary>
     EngagementDetailsChanged = 15,
 
+    /// <summary>It is the day of a confirmed event you are on (D-085).</summary>
+    EngagementDayReminder = 16,
+
     /// <summary>A job on an event has been given to you.</summary>
     ResponsibilityAssigned = 20,
+
+    /// <summary>
+    /// The day-of reminder for somebody who still has jobs open on the event:
+    /// the event and the list together, so it is one buzz, not two (D-085).
+    /// </summary>
+    ResponsibilityReminder = 21,
 
     /// <summary>Somebody said something in an event's discussion.</summary>
     DiscussionMessage = 30,
@@ -40,6 +49,12 @@ public enum NotificationKind
 
     /// <summary>An organiser wrote to the whole organisation.</summary>
     OrganiserAnnouncement = 50,
+
+    /// <summary>A rehearsal was booked, or its time or place changed (D-085).</summary>
+    RehearsalScheduled = 60,
+
+    /// <summary>A rehearsal you are expected at is today (D-085).</summary>
+    RehearsalReminder = 61,
 }
 
 /// <summary>

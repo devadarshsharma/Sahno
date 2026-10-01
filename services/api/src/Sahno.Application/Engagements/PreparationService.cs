@@ -1,3 +1,4 @@
+using Sahno.Application.Notifications;
 using Sahno.Application.Organisations;
 using Sahno.Domain.Engagements;
 using Sahno.Domain.Organisations;
@@ -14,12 +15,67 @@ namespace Sahno.Application.Engagements;
 /// Participants, because most event material exists to be shared, and the
 /// person who needs to hide something will say so deliberately.
 /// </summary>
+/// <summary>A rehearsal with the event it belongs to, for lists across events.</summary>
+public sealed record UpcomingRehearsal(Rehearsal Rehearsal, Engagement Engagement);
+
 public sealed class PreparationService(
     IEngagementStore engagements,
     IEngagementParticipantStore participants,
     IRehearsalStore rehearsals,
-    IEngagementResourceStore resources)
+    IEngagementResourceStore resources,
+    IOrganisationStore organisations,
+    Notifier notifier,
+    TimeProvider time)
 {
+    /// <summary>
+    /// Rehearsals from today on, soonest first, across every event the caller
+    /// is expected at (D-085) — the Home list and the calendar. Organisers see
+    /// every event's; a member the events they are on and have not declined.
+    /// Only events still going ahead. "Today" is the organisation's today.
+    /// </summary>
+    public async Task<IReadOnlyList<UpcomingRehearsal>> UpcomingRehearsalsAsync(
+        Membership actor,
+        CancellationToken cancellationToken)
+    {
+        var organisation = await organisations.FindByIdAsync(actor.OrganisationId, cancellationToken);
+        if (organisation is null)
+        {
+            return [];
+        }
+
+        var zone = TimeZoneInfo.TryFindSystemTimeZoneById(organisation.TimeZoneId, out var found)
+            ? found
+            : TimeZoneInfo.Utc;
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(time.GetUtcNow(), zone).DateTime);
+
+        var goingAhead = (await engagements.ListForOrganisationAsync(actor.OrganisationId, cancellationToken))
+            .Where(ExpectedLineup.IsGoingAhead)
+            .ToList();
+
+        if (!OrganisationAuthorizationService.IsOrganiser(actor))
+        {
+            var expectedAt = new HashSet<Guid>();
+            foreach (var engagement in goingAhead)
+            {
+                var lineup = ExpectedLineup.Of(
+                    await participants.ListForEngagementAsync(engagement.Id, cancellationToken));
+                if (lineup.Contains(actor.UserId))
+                {
+                    expectedAt.Add(engagement.Id);
+                }
+            }
+
+            goingAhead = goingAhead.Where(engagement => expectedAt.Contains(engagement.Id)).ToList();
+        }
+
+        var byId = goingAhead.ToDictionary(engagement => engagement.Id);
+        var upcoming = await rehearsals.ListFromDateAsync(byId.Keys, today, cancellationToken);
+
+        return upcoming
+            .Select(rehearsal => new UpcomingRehearsal(rehearsal, byId[rehearsal.EngagementId]))
+            .ToList();
+    }
+
     /// <summary>
     /// Rehearsals for this engagement. Participant-facing in full: a rehearsal
     /// nobody on the lineup can see is a meeting nobody attends.
@@ -68,6 +124,10 @@ public sealed class PreparationService(
             notes,
             actor.UserId);
 
+        // Staged first, so the booking and the news of it commit in the one
+        // save AddAsync makes (D-085).
+        await TellLineupAsync(actor, engagementId, rehearsal, isChange: false, cancellationToken);
+
         await rehearsals.AddAsync(rehearsal, cancellationToken);
         return (EngagementResult.Success, rehearsal);
     }
@@ -103,7 +163,21 @@ public sealed class PreparationService(
             return EngagementResult.NotFound;
         }
 
+        // Only a change somebody would act on is news: when and where. A new
+        // title or notes is not worth a buzz.
+        // Compared after the domain has normalised the input, so trimming or
+        // an empty venue never reads as a move.
+        var before = (rehearsal.Date, rehearsal.StartTime, rehearsal.EndTime, rehearsal.Venue);
+
         rehearsal.Update(title, date, startTime, endTime, venue, notes);
+
+        var moved = before != (rehearsal.Date, rehearsal.StartTime, rehearsal.EndTime, rehearsal.Venue);
+
+        if (moved)
+        {
+            await TellLineupAsync(actor, engagementId, rehearsal, isChange: true, cancellationToken);
+        }
+
         await rehearsals.SaveAsync(cancellationToken);
         return EngagementResult.Success;
     }
@@ -301,5 +375,37 @@ public sealed class PreparationService(
             cancellationToken);
 
         return participant is { IsActive: true };
+    }
+
+    /// <summary>
+    /// Tells the expected lineup about a rehearsal booked or moved, while the
+    /// event is still going ahead. Stages only; the caller's save commits it.
+    /// </summary>
+    private async Task TellLineupAsync(
+        Membership actor,
+        Guid engagementId,
+        Rehearsal rehearsal,
+        bool isChange,
+        CancellationToken cancellationToken)
+    {
+        var engagement = await engagements.FindByIdAsync(
+            actor.OrganisationId,
+            engagementId,
+            cancellationToken);
+        if (engagement is null || !ExpectedLineup.IsGoingAhead(engagement))
+        {
+            return;
+        }
+
+        var lineup = ExpectedLineup.Of(
+            await participants.ListForEngagementAsync(engagementId, cancellationToken));
+
+        await notifier.RehearsalScheduledAsync(
+            engagement,
+            rehearsal,
+            lineup,
+            actor.UserId,
+            isChange,
+            cancellationToken);
     }
 }

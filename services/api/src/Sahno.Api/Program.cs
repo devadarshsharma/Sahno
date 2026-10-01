@@ -52,6 +52,7 @@ builder.Services.AddScoped<CommercialService>();
 builder.Services.AddScoped<Notifier>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<PushDeviceService>();
+builder.Services.AddScoped<ReminderService>();
 builder.Services.AddScoped<OrganisationAuthorizationService>();
 builder.Services
     .AddHealthChecks()

@@ -23,6 +23,9 @@ public interface IOrganisationStore
 {
     Task<Organisation?> FindByIdAsync(Guid id, CancellationToken cancellationToken);
 
+    /// <summary>Every organisation, for work that runs across all of them (the reminder scheduler).</summary>
+    Task<IReadOnlyList<Organisation>> ListAllAsync(CancellationToken cancellationToken);
+
     /// <summary>Persists a new organisation and its Owner membership atomically.</summary>
     Task AddWithOwnerAsync(
         Organisation organisation,

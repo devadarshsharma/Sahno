@@ -86,7 +86,13 @@ export function NotificationBanner({
 function iconFor(kind: NotificationKind): React.ComponentProps<typeof Ionicons>['name'] {
   switch (kind) {
     case 'ResponsibilityAssigned':
+    case 'ResponsibilityReminder':
       return 'clipboard-outline';
+    case 'EngagementDayReminder':
+      return 'today-outline';
+    case 'RehearsalScheduled':
+    case 'RehearsalReminder':
+      return 'musical-notes-outline';
     case 'DiscussionMessage':
       return 'chatbubble-outline';
     case 'AvailabilityRequested':

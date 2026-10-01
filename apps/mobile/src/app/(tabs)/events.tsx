@@ -17,6 +17,7 @@ import {
   type BookingsFilter,
 } from '@/hooks/use-engagements';
 import { useActiveOrg } from '@/hooks/use-organisations';
+import { useUpcomingRehearsals } from '@/hooks/use-upcoming-rehearsals';
 import { colors, fontFamilies, radii, shadows, spacing } from '@/theme';
 
 /**
@@ -37,6 +38,7 @@ export default function Events() {
   const clearFilter = () => router.setParams({ filter: undefined });
 
   const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
+  const rehearsalsQuery = useUpcomingRehearsals();
 
   if (engagementsQuery.isPending) {
     return (
@@ -138,6 +140,13 @@ export default function Events() {
             router.push({
               pathname: '/engagement/[engagementId]',
               params: { engagementId: id },
+            })
+          }
+          rehearsals={rehearsalsQuery.data ?? []}
+          onOpenRehearsal={(rehearsal) =>
+            router.push({
+              pathname: '/engagement/[engagementId]/files',
+              params: { engagementId: rehearsal.engagementId },
             })
           }
         />

@@ -10,10 +10,14 @@ export type NotificationKind =
   | 'EngagementReopened'
   | 'EngagementDateChanged'
   | 'EngagementDetailsChanged'
+  | 'EngagementDayReminder'
   | 'ResponsibilityAssigned'
+  | 'ResponsibilityReminder'
   | 'DiscussionMessage'
   | 'MemberJoined'
-  | 'OrganiserAnnouncement';
+  | 'OrganiserAnnouncement'
+  | 'RehearsalScheduled'
+  | 'RehearsalReminder';
 
 /**
  * One thing the bell shows (D-049). `engagementId` is where tapping it goes;

@@ -18,6 +18,13 @@ public sealed class OrganisationStore(SahnoDbContext dbContext) : IOrganisationS
                 cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Organisation>> ListAllAsync(CancellationToken cancellationToken)
+    {
+        return await dbContext.Set<Organisation>()
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddWithOwnerAsync(
         Organisation organisation,
         Membership ownerMembership,

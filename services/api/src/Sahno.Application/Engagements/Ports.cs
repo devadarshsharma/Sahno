@@ -166,6 +166,15 @@ public interface IRehearsalStore
 
     Task RemoveAsync(Guid rehearsalId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Rehearsals of these engagements on or after a date (the Home list and
+    /// calendar), soonest first.
+    /// </summary>
+    Task<IReadOnlyList<Rehearsal>> ListFromDateAsync(
+        IReadOnlyCollection<Guid> engagementIds,
+        DateOnly fromDate,
+        CancellationToken cancellationToken);
+
     /// <summary>Which engagements of one organisation have a rehearsal booked.</summary>
     Task<IReadOnlySet<Guid>> EngagementIdsWithRehearsalsAsync(
         Guid organisationId,

@@ -49,6 +49,26 @@ public sealed class RehearsalStore(SahnoDbContext dbContext) : IRehearsalStore
             .ExecuteDeleteAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Rehearsal>> ListFromDateAsync(
+        IReadOnlyCollection<Guid> engagementIds,
+        DateOnly fromDate,
+        CancellationToken cancellationToken)
+    {
+        if (engagementIds.Count == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.Rehearsals
+            .AsNoTracking()
+            .Where(rehearsal =>
+                engagementIds.Contains(rehearsal.EngagementId)
+                && rehearsal.Date >= fromDate)
+            .OrderBy(rehearsal => rehearsal.Date)
+            .ThenBy(rehearsal => rehearsal.StartTime)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlySet<Guid>> EngagementIdsWithRehearsalsAsync(
         Guid organisationId,
         CancellationToken cancellationToken)

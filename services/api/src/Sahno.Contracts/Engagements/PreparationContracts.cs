@@ -60,3 +60,14 @@ public sealed record UpdateResourceRequest(
     string? Body,
     string? Url,
     string? Audience);
+
+/// <summary>A rehearsal and the event it is for, for the Home list and calendar (D-085).</summary>
+public sealed record UpcomingRehearsalResponse(
+    Guid Id,
+    Guid EngagementId,
+    string EngagementTitle,
+    string? Title,
+    DateOnly Date,
+    TimeOnly? StartTime,
+    TimeOnly? EndTime,
+    string? Venue);

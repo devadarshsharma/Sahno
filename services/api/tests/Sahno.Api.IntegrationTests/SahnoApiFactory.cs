@@ -69,12 +69,21 @@ public sealed class SahnoApiFactory
             services.AddSingleton<IPushSender>(provider =>
                 provider.GetRequiredService<RecordingPushSender>());
 
-            var worker = services.FirstOrDefault(descriptor =>
-                descriptor.ImplementationType == typeof(OutboxWorker));
-            if (worker is not null)
+            // The background workers are removed so tests drive the outbox
+            // and the reminder scheduler themselves.
+            foreach (var worker in services
+                         .Where(descriptor =>
+                             descriptor.ImplementationType == typeof(OutboxWorker)
+                             || descriptor.ImplementationType == typeof(ReminderWorker))
+                         .ToList())
             {
                 services.Remove(worker);
             }
+
+            // A clock the reminder tests can set (D-085).
+            services.RemoveAll<TimeProvider>();
+            services.AddSingleton<TestClock>();
+            services.AddSingleton<TimeProvider>(provider => provider.GetRequiredService<TestClock>());
         });
     }
 }

@@ -18,9 +18,11 @@ import { useEffect, useState } from 'react';
 import type { Engagement } from '@/api/engagements';
 import type { Member } from '@/api/members';
 import type { ReadinessItem } from '@/api/readiness';
+import type { UpcomingRehearsal } from '@/api/upcoming-rehearsals';
 import { dismissSetupChecklist } from '@/api/organisations';
 import { SahnoSymbol } from '@/components/brand';
 import { EngagementCard } from '@/components/engagement-card';
+import { RehearsalList } from '@/components/rehearsal-list';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { firstNameOf, useMe, useNeedsDisplayName } from '@/hooks/use-me';
 import {
@@ -31,6 +33,7 @@ import {
 import { useMembers } from '@/hooks/use-members';
 import { useUnreadCount } from '@/hooks/use-notifications';
 import { useActiveOrg } from '@/hooks/use-organisations';
+import { useUpcomingRehearsals } from '@/hooks/use-upcoming-rehearsals';
 import { useSession } from '@/providers/auth-provider';
 import { useSeenPeople } from '@/stores/seen-people';
 import { colors, fontFamilies, radii, shadows, spacing } from '@/theme';
@@ -59,6 +62,7 @@ export default function Index() {
   const membersQuery = useMembers();
   const engagementsQuery = useEngagements();
   const unreadQuery = useUnreadCount();
+  const rehearsalsQuery = useUpcomingRehearsals();
 
   const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
 
@@ -113,7 +117,16 @@ export default function Index() {
     membersQuery.refetch();
     engagementsQuery.refetch();
     unreadQuery.refetch();
+    rehearsalsQuery.refetch();
   }
+
+  const upcomingRehearsals = rehearsalsQuery.data ?? [];
+  // A rehearsal lives on its event's "Set list & rehearsals" page.
+  const openRehearsal = (rehearsal: UpcomingRehearsal) =>
+    router.push({
+      pathname: '/engagement/[engagementId]/files',
+      params: { engagementId: rehearsal.engagementId },
+    });
 
   const openEngagement = (engagementId: string) =>
     router.push({
@@ -380,6 +393,8 @@ export default function Index() {
                 onOpen={openEngagement}
               />
 
+              <RehearsalList rehearsals={upcomingRehearsals} onOpen={openRehearsal} />
+
               <EngagementList
                 title="Tentative bookings"
                 engagements={tentative}
@@ -421,6 +436,7 @@ export default function Index() {
                 isOrganiser={isOrganiser}
                 onOpen={openEngagement}
               />
+              <RehearsalList rehearsals={upcomingRehearsals} onOpen={openRehearsal} />
               <EngagementList
                 title="Tentative events"
                 engagements={yourTentative}

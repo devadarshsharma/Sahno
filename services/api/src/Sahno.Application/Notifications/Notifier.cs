@@ -232,6 +232,114 @@ public sealed class Notifier(
             cancellationToken);
     }
 
+    /// <summary>
+    /// A rehearsal was booked, or its date, time or place changed (D-085).
+    /// Told to the lineup that is expected at it; never to the organiser who
+    /// just made the change.
+    /// </summary>
+    public async Task RehearsalScheduledAsync(
+        Engagement engagement,
+        Rehearsal rehearsal,
+        IReadOnlyList<Guid> lineup,
+        Guid changedByUserId,
+        bool isChange,
+        CancellationToken cancellationToken)
+    {
+        var recipients = lineup.Where(userId => userId != changedByUserId).ToList();
+        if (recipients.Count == 0)
+        {
+            return;
+        }
+
+        var people = await DirectoryAsync(engagement.OrganisationId, cancellationToken);
+        var what = RehearsalName(rehearsal, engagement);
+
+        await TellAsync(
+            engagement,
+            recipients,
+            people,
+            NotificationKind.RehearsalScheduled,
+            isChange ? $"{what} has changed" : $"{what} booked",
+            DescribeRehearsal(rehearsal),
+            email: false,
+            cancellationToken);
+    }
+
+    /// <summary>The morning of a rehearsal (D-085).</summary>
+    public async Task RehearsalReminderAsync(
+        Engagement engagement,
+        Rehearsal rehearsal,
+        IReadOnlyList<Guid> lineup,
+        CancellationToken cancellationToken)
+    {
+        if (lineup.Count == 0)
+        {
+            return;
+        }
+
+        var people = await DirectoryAsync(engagement.OrganisationId, cancellationToken);
+
+        await TellAsync(
+            engagement,
+            lineup,
+            people,
+            NotificationKind.RehearsalReminder,
+            $"Today: {RehearsalName(rehearsal, engagement)}",
+            DescribeRehearsal(rehearsal),
+            email: false,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// The morning of a confirmed event (D-085). Somebody with jobs still open
+    /// gets them in the same message, which opens on the Jobs page; everybody
+    /// else gets the plain reminder, which opens the event.
+    /// </summary>
+    public async Task EngagementDayReminderAsync(
+        Engagement engagement,
+        IReadOnlyList<Guid> lineup,
+        IReadOnlyDictionary<Guid, IReadOnlyList<string>> openJobsByUser,
+        CancellationToken cancellationToken)
+    {
+        if (lineup.Count == 0)
+        {
+            return;
+        }
+
+        var people = await DirectoryAsync(engagement.OrganisationId, cancellationToken);
+        var title = $"Today: {engagement.Title}";
+        var day = DescribeDay(engagement);
+
+        var plain = lineup.Where(userId => !openJobsByUser.ContainsKey(userId)).ToList();
+        if (plain.Count > 0)
+        {
+            await TellAsync(
+                engagement,
+                plain,
+                people,
+                NotificationKind.EngagementDayReminder,
+                title,
+                day,
+                email: false,
+                cancellationToken);
+        }
+
+        // Each person's own list, so each is told only about their own jobs.
+        foreach (var userId in lineup.Where(openJobsByUser.ContainsKey))
+        {
+            var jobs = openJobsByUser[userId];
+            await TellAsync(
+                engagement,
+                [userId],
+                people,
+                NotificationKind.ResponsibilityReminder,
+                title,
+                $"{day} Still to do: {string.Join(", ", jobs)}.",
+                email: false,
+                cancellationToken);
+        }
+    }
+
     public async Task DiscussionMessageAsync(
         Engagement engagement,
         IReadOnlyList<Guid> participantUserIds,
@@ -447,6 +555,49 @@ public sealed class Notifier(
         lines.Add("— Sahno");
 
         return string.Join("\n", lines);
+    }
+
+    /// <summary>"Rehearsal for Saturday gig", or its own name when it has one.</summary>
+    private static string RehearsalName(Rehearsal rehearsal, Engagement engagement) =>
+        string.IsNullOrWhiteSpace(rehearsal.Title)
+            ? $"Rehearsal for {engagement.Title}"
+            : $"{rehearsal.Title} ({engagement.Title})";
+
+    /// <summary>"Thu 2 Oct, 7:00 PM–9:00 PM at Community Hall."</summary>
+    private static string DescribeRehearsal(Rehearsal rehearsal)
+    {
+        var when = rehearsal.Date.ToString("ddd d MMM");
+        if (rehearsal.StartTime is { } start)
+        {
+            when += rehearsal.EndTime is { } end
+                ? $", {start:h:mm tt}–{end:h:mm tt}"
+                : $", {start:h:mm tt}";
+        }
+
+        return string.IsNullOrWhiteSpace(rehearsal.Venue)
+            ? $"{when}."
+            : $"{when} at {rehearsal.Venue}.";
+    }
+
+    /// <summary>"Arrive by 6:30 PM at Dural Hall." — only what is known.</summary>
+    private static string DescribeDay(Engagement engagement)
+    {
+        var parts = new List<string>();
+        if (engagement.CallTime is { } call)
+        {
+            parts.Add($"Arrive by {call:h:mm tt}");
+        }
+        else if (engagement.StartTime is { } start)
+        {
+            parts.Add($"Starts {start:h:mm tt}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(engagement.Venue))
+        {
+            parts.Add(parts.Count == 0 ? $"At {engagement.Venue}" : $"at {engagement.Venue}");
+        }
+
+        return parts.Count == 0 ? "It is today." : $"{string.Join(" ", parts)}.";
     }
 
     private static string When(Engagement engagement)

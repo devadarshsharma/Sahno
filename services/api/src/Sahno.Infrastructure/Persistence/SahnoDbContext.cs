@@ -58,6 +58,8 @@ public sealed class SahnoDbContext(DbContextOptions<SahnoDbContext> options)
 
     public DbSet<PushDevice> PushDevices => Set<PushDevice>();
 
+    public DbSet<ReminderLog> ReminderLogs => Set<ReminderLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(

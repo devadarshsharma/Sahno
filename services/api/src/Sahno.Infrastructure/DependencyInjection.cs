@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Sahno.Application.Engagements;
 using Sahno.Application.Notifications;
@@ -47,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationStore, NotificationStore>();
         services.AddScoped<IOutboxStore, OutboxStore>();
         services.AddScoped<IPushDeviceStore, PushDeviceStore>();
+        services.AddScoped<IReminderLogStore, ReminderLogStore>();
 
         // Email goes through Resend when a key is configured and to the log
         // otherwise, so the whole outbox path runs on every developer machine
@@ -94,6 +96,8 @@ public static class DependencyInjection
         services.AddScoped<LoggingPushSender>();
         services.AddScoped<OutboxDispatcher>();
         services.AddHostedService<OutboxWorker>();
+        services.AddHostedService<ReminderWorker>();
+        services.TryAddSingleton(TimeProvider.System);
 
         return services;
     }
