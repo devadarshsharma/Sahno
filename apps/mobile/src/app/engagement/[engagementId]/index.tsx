@@ -173,12 +173,22 @@ export default function EngagementOverview() {
         </Card>
       ) : null}
 
-      {/* The day-of strip: what a performer opens the booking to find out. */}
-      <View style={styles.strip}>
-        <Fact icon="mic-outline" label="Be there" value={engagement.callTime ? formatClock(engagement.callTime) : '—'} />
-        <Fact icon="time-outline" label="Starts" value={engagement.startTime ? formatClock(engagement.startTime) : '—'} />
-        <Fact icon="shirt-outline" label="Wear" value={engagement.dressNotes ?? '—'} />
-      </View>
+      {/* The day-of strip: what a performer opens the booking to find out.
+          Only what has been entered — a row of dashes says nothing, and the
+          strip goes altogether until there is something to put in it. */}
+      {engagement.callTime || engagement.startTime || engagement.dressNotes ? (
+        <View style={styles.strip}>
+          {engagement.callTime ? (
+            <Fact icon="mic-outline" label="Arrive by" value={formatClock(engagement.callTime)} />
+          ) : null}
+          {engagement.startTime ? (
+            <Fact icon="time-outline" label="Starts" value={formatClock(engagement.startTime)} />
+          ) : null}
+          {engagement.dressNotes ? (
+            <Fact icon="shirt-outline" label="Wear" value={engagement.dressNotes} />
+          ) : null}
+        </View>
+      ) : null}
 
       <Card style={styles.menu}>
         <Row icon="information-circle-outline" title="Details" summary="Date, venue, times, dress" onPress={() => go('details')} />
@@ -253,7 +263,7 @@ function shareDayOf(engagement: Engagement, organisationName: string) {
     `${engagement.title} — ${organisationName}`,
     formatEngagementDate(engagement),
     engagement.venue ? `Where: ${engagement.venue}` : null,
-    engagement.callTime ? `Be there: ${formatClock(engagement.callTime)}` : null,
+    engagement.callTime ? `Arrive by: ${formatClock(engagement.callTime)}` : null,
     engagement.startTime ? `Starts: ${formatClock(engagement.startTime)}` : null,
     engagement.dressNotes ? `Wear: ${engagement.dressNotes}` : null,
   ].filter((line): line is string => line !== null);

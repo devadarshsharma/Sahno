@@ -33,7 +33,7 @@ export function DayOfCard({ engagement }: { engagement: Engagement }) {
   const rows: { label: string; value: string | null }[] = [
     { label: 'Where', value: engagement.venue },
     {
-      label: 'Be there',
+      label: 'Arrive by',
       value: engagement.callTime ? formatTime(engagement.callTime) : null,
     },
     {

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import type { ComponentProps } from 'react';
+import type { ComponentProps, ReactElement } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Engagement, EngagementStatus } from '@/api/engagements';
@@ -17,7 +17,7 @@ function answerable(engagement: Engagement): boolean {
 }
 
 /**
- * One booking as a card: what it is, when, where, and three numbers that say
+ * One booking as a card: what it is, when, where, and the few figures that say
  * how ready it is. Built from what the list already carries, so it costs no
  * extra request per row.
  *
@@ -42,6 +42,9 @@ export function EngagementCard({
 }) {
   const when = formatWhen(engagement);
   const answerHere = !isOrganiser && answerable(engagement);
+  const stats = isOrganiser
+    ? organiserStats(engagement)
+    : memberStats(engagement, !answerHere);
 
   return (
     <Pressable
@@ -64,13 +67,7 @@ export function EngagementCard({
         ) : null}
       </View>
 
-      <View style={styles.stats}>
-        {isOrganiser ? (
-          <OrganiserStats engagement={engagement} />
-        ) : (
-          <MemberStats engagement={engagement} showAnswer={!answerHere} />
-        )}
-      </View>
+      {stats.length > 0 ? <View style={styles.stats}>{stats}</View> : null}
 
       {answerHere ? (
         <View style={styles.answer}>
@@ -89,77 +86,92 @@ export function EngagementCard({
   );
 }
 
-function OrganiserStats({ engagement }: { engagement: Engagement }) {
+// The figures on a card are only ever things that are known. A dash for a
+// time nobody has entered reads as a fact ("no arrival time") or as a fault,
+// and either way it is something to puzzle over; an absent figure is not. The
+// start time is never a figure — it is already on the date line.
+
+function organiserStats(engagement: Engagement): ReactElement[] {
   const selected = engagement.selectedCount ?? 0;
   const outstanding = engagement.outstandingCount ?? 0;
   const answered = selected - outstanding;
   const toSort = engagement.readinessOutstanding ?? 0;
   const owed = engagement.financeOutstanding ?? 0;
 
-  return (
-    <>
+  const stats = [
+    <Stat
+      key="answered"
+      icon="people-outline"
+      value={selected === 0 ? 'Nobody' : `${answered}/${selected}`}
+      label={selected === 0 ? 'asked yet' : 'answered'}
+      tone={selected > 0 && outstanding > 0 ? 'attention' : 'default'}
+    />,
+  ];
+
+  if (engagement.callTime) {
+    stats.push(
       <Stat
-        icon="people-outline"
-        value={selected === 0 ? 'Nobody' : `${answered}/${selected}`}
-        label={selected === 0 ? 'asked yet' : 'answered'}
-        tone={selected > 0 && outstanding > 0 ? 'attention' : 'default'}
-      />
-      <Stat
+        key="call"
         icon="mic-outline"
-        value={engagement.callTime ? formatClock(engagement.callTime) : '—'}
+        value={formatClock(engagement.callTime)}
         label="Call time"
+      />,
+    );
+  }
+
+  stats.push(
+    engagement.status === 'Completed' && owed > 0 ? (
+      <Stat key="owed" icon="cash-outline" value={String(owed)} label="still owed" tone="attention" />
+    ) : (
+      <Stat
+        key="ready"
+        icon="checkmark-circle-outline"
+        value={toSort === 0 ? 'Ready' : String(toSort)}
+        label={toSort === 0 ? 'to go' : 'to sort out'}
+        tone={toSort > 0 ? 'attention' : 'default'}
       />
-      {engagement.status === 'Completed' && owed > 0 ? (
-        <Stat icon="cash-outline" value={String(owed)} label="still owed" tone="attention" />
-      ) : (
-        <Stat
-          icon="checkmark-circle-outline"
-          value={toSort === 0 ? 'Ready' : String(toSort)}
-          label={toSort === 0 ? 'to go' : 'to sort out'}
-          tone={toSort > 0 ? 'attention' : 'default'}
-        />
-      )}
-    </>
+    ),
   );
+
+  return stats;
 }
 
-function MemberStats({
-  engagement,
-  showAnswer,
-}: {
-  engagement: Engagement;
-  showAnswer: boolean;
-}) {
-  return (
-    <>
-      {showAnswer ? (
-        <Stat
-          icon="hand-left-outline"
-          value={
-            engagement.yourResponse === null
-              ? 'Not yet'
-              : engagement.yourResponse === 'Available'
-                ? 'Available'
-                : engagement.yourResponse === 'Maybe'
-                  ? 'Maybe'
-                  : 'Not available'
-          }
-          label="your answer"
-          tone={engagement.yourResponse === null ? 'attention' : 'default'}
-        />
-      ) : null}
+function memberStats(engagement: Engagement, showAnswer: boolean): ReactElement[] {
+  const stats: ReactElement[] = [];
+
+  // Hidden while the answer buttons are on the card: they already show it.
+  if (showAnswer) {
+    stats.push(
       <Stat
+        key="answer"
+        icon="hand-left-outline"
+        value={
+          engagement.yourResponse === null
+            ? 'Not yet'
+            : engagement.yourResponse === 'Available'
+              ? 'Available'
+              : engagement.yourResponse === 'Maybe'
+                ? 'Maybe'
+                : 'Not available'
+        }
+        label="your answer"
+        tone={engagement.yourResponse === null ? 'attention' : 'default'}
+      />,
+    );
+  }
+
+  if (engagement.callTime) {
+    stats.push(
+      <Stat
+        key="arrive"
         icon="mic-outline"
-        value={engagement.callTime ? formatClock(engagement.callTime) : '—'}
-        label="Be there"
-      />
-      <Stat
-        icon="time-outline"
-        value={engagement.startTime ? formatClock(engagement.startTime) : '—'}
-        label="Starts"
-      />
-    </>
-  );
+        value={formatClock(engagement.callTime)}
+        label="Arrive by"
+      />,
+    );
+  }
+
+  return stats;
 }
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
