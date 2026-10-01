@@ -410,13 +410,15 @@ public sealed class Notifier(
     }
 
     /// <summary>
-    /// Which kinds are worth buzzing a pocket for. Organiser bookkeeping —
-    /// somebody answered, somebody joined — shows on the bell, which updates
-    /// live, and stays out of the tray (D-049: non-critical kinds are the ones
-    /// a preference will one day switch off).
+    /// Which kinds are worth buzzing a pocket for. Somebody joining is
+    /// bookkeeping: it shows on the bell, which updates live, and stays out of
+    /// the tray. An availability answer is not — it is what the organiser is
+    /// waiting on to settle the lineup, so it reaches their phone (D-080, as
+    /// amended). D-049: non-critical kinds are the ones a preference will one
+    /// day switch off.
     /// </summary>
     private static bool PushFor(NotificationKind kind) =>
-        kind is not (NotificationKind.AvailabilityAnswered or NotificationKind.MemberJoined);
+        kind is not NotificationKind.MemberJoined;
 
     private static string EmailBody(
         string? displayName,

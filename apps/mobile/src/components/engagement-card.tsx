@@ -71,11 +71,20 @@ export function EngagementCard({
 
       {answerHere ? (
         <View style={styles.answer}>
-          <Text variant="caption" color="secondary">
-            {engagement.yourResponse === null
-              ? 'Are you available? Only the organisers see your answer.'
-              : 'Your answer — tap another to change it.'}
-          </Text>
+          {engagement.yourResponse === null ? (
+            <Text variant="caption" color="secondary">
+              Are you available? Only the organisers see your answer.
+            </Text>
+          ) : (
+            // The proof the tap did something: the answer is with the
+            // organisers, and it can still change.
+            <View style={styles.sent}>
+              <Ionicons name="checkmark-circle" size={15} color={colors.text.accent} />
+              <Text variant="caption" color="accent" style={styles.sentText}>
+                Sent to your organisers. Tap another answer to change it.
+              </Text>
+            </View>
+          )}
           <AvailabilityAnswerButtons
             engagementId={engagement.id}
             current={engagement.yourResponse}
@@ -323,6 +332,14 @@ const styles = StyleSheet.create({
   },
   answer: {
     gap: spacing.sm,
+  },
+  sent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  sentText: {
+    flexShrink: 1,
   },
   stat: {
     flex: 1,

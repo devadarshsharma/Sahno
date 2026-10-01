@@ -148,24 +148,30 @@ public sealed class PushNotificationTests(SahnoApiFactory factory)
     }
 
     [Fact]
-    public async Task OrganiserBookkeepingStaysOffThePhone()
+    public async Task AnAnswerReachesTheOrganisersPhone()
     {
-        var org = await NewOrganisationAsync("push-quiet", members: 1);
-        var engagement = await NewDraftAsync(org, "Quiet");
-        await RegisterAsync(org.Owner, Token("quiet-owner"), "android", null);
+        var org = await NewOrganisationAsync("push-answer", members: 1);
+        var engagement = await NewDraftAsync(org, "Answered");
+        await RegisterAsync(org.Owner, Token("answer-owner"), "android", null);
+        await RegisterAsync(org.Members[0], Token("answer-member"), "android", null);
         await RequestAvailabilityAsync(org, engagement.Id, org.MemberIds);
         await DispatchPushAsync();
 
-        // The member answers: the organiser's bell rings, the phone does not.
+        // The member answers: it is what the organiser is waiting on, so it
+        // buzzes the organiser's phone — and only theirs, not the answerer's.
         var answered = await org.Members[0].PutAsJsonAsync(
             $"{Engagements(org)}/{engagement.Id}/availability/me",
             new RespondAvailabilityRequest("Available"));
         answered.EnsureSuccessStatusCode();
 
         var pushed = await DispatchPushAsync();
-        Assert.Empty(pushed);
+        var push = Assert.Single(pushed);
+        Assert.Equal(Token("answer-owner"), push.Token);
+        Assert.EndsWith("answered for Answered", push.Title);
+
         var bell = await org.Owner.GetFromJsonAsync<List<NotificationResponse>>(Notifications(org));
-        Assert.Contains(bell!, row => row.Kind == "AvailabilityAnswered");
+        var row = Assert.Single(bell!, item => item.Kind == "AvailabilityAnswered");
+        Assert.Equal($"/engagement/{engagement.Id}/people", row.Route);
     }
 
     private static string Token(string suffix) => $"ExponentPushToken[{suffix}]";

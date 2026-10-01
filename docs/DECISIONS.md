@@ -1482,6 +1482,8 @@ D-049 deferred native push until the mobile delivery approach was decided. It is
 - **Foreground vs background.** While the app is open, the live connection delivers the recipient's own new notification (payload and all, to a per-user group) and Sahno shows its own banner; a push arriving for the same id is dropped. In the background or closed, the live connection is down and the OS tray shows the push. A tap — banner, tray, lock screen, or cold start — opens the route, switching organisation if it must.
 - Denied permission changes nothing else: the bell, the banner over the live connection, and email all continue.
 
+**Amended 1 October 2026.** An availability answer now pushes to the organisers (tapping it opens the event's lineup). Testing on real phones showed it is not bookkeeping: it is exactly what an organiser is waiting on, and on the bell alone it went unnoticed. Somebody joining still stays on the bell. The member who answered is not pushed about their own answer.
+
 **Rationale:** The outbox already gave email the guarantees push needs (same-transaction staging, retry, a row that explains a silence); a second queue would have duplicated them. Expo's service keeps FCM and APNs credentials out of the API and lets one code path serve both platforms. Sending the notification itself over SignalR, to the recipient alone, is the one departure from the bare "changed" signal, and it is safe for the same reason the bell is: it is that person's own row.
 
 ---

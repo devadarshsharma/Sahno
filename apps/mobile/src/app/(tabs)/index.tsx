@@ -162,11 +162,12 @@ export default function Index() {
     tentative.length === 0 &&
     enquiries.length === 0;
 
-  // A member's own list: the ones nobody has heard back from them about.
-  const needsYourAnswer = engagements.filter(
-    (engagement) =>
-      engagement.yourResponse === null &&
-      engagement.status === 'CheckingAvailability',
+  // Everything the organiser is still asking about, answered or not, in one
+  // list. An answer is given on the card, so the card must stay where it is:
+  // moving an answered event to another section — or off Home — reads as the
+  // answer having vanished. The card itself says whether it has been sent.
+  const yourAvailability = engagements.filter(
+    (engagement) => engagement.status === 'CheckingAvailability',
   );
 
   // What a member has already replied to and is still on.
@@ -189,16 +190,10 @@ export default function Index() {
   const yourTentative = yourEvents.filter(
     (engagement) => engagement.status === 'Tentative',
   );
-  // Answered, and the organiser has not decided yet. Without this list an
-  // answer made on Home would take its card off Home altogether — and with it
-  // the only easy way to change that answer.
-  const awaitingOrganiser = yourEvents.filter(
-    (engagement) => engagement.status === 'CheckingAvailability',
-  );
 
   const memberHasNothing =
     !loadingBookings &&
-    needsYourAnswer.length === 0 && yourEvents.length === 0;
+    yourAvailability.length === 0 && yourEvents.length === 0;
 
   return (
     <View style={styles.screen}>
@@ -407,8 +402,8 @@ export default function Index() {
 
               {/* D-040 order: what must I do, then where do I need to be. */}
               <EngagementList
-                title="Needs your response"
-                engagements={needsYourAnswer}
+                title="Your availability"
+                engagements={yourAvailability}
                 isOrganiser={isOrganiser}
                 onOpen={openEngagement}
               />
@@ -421,12 +416,6 @@ export default function Index() {
               <EngagementList
                 title="Tentative events"
                 engagements={yourTentative}
-                isOrganiser={isOrganiser}
-                onOpen={openEngagement}
-              />
-              <EngagementList
-                title="Waiting on the organiser"
-                engagements={awaitingOrganiser}
                 isOrganiser={isOrganiser}
                 onOpen={openEngagement}
               />
