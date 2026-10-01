@@ -215,6 +215,15 @@ public interface IDiscussionStore
         Guid messageId,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// The newest message of each of these engagements, keyed by engagement;
+    /// an engagement with no messages is simply absent. Tombstones count — a
+    /// removal is still the latest thing that happened in a thread.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, DiscussionMessage>> LatestForEngagementsAsync(
+        IReadOnlyCollection<Guid> engagementIds,
+        CancellationToken cancellationToken);
+
     Task AddAsync(DiscussionMessage message, CancellationToken cancellationToken);
 
     Task SaveAsync(CancellationToken cancellationToken);

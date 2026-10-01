@@ -61,6 +61,41 @@ public sealed class DiscussionEndpointTests(SahnoApiFactory factory)
         Assert.Equal(1, await UnreadAsync(org.Owner, org, engagement.Id));
     }
 
+    /// <summary>
+    /// The Chat tab (D-084): conversations the caller can open, newest first,
+    /// only where something has been said, each with its own unread count.
+    /// </summary>
+    [Fact]
+    public async Task TheInboxListsStartedConversationsNewestFirst()
+    {
+        var org = await NewOrganisationAsync("chat-inbox", members: 1);
+        var onLineup = await NewDraftAsync(org, "Saturday gig");
+        var organisersOnly = await NewDraftAsync(org, "Private enquiry");
+        await NewDraftAsync(org, "Nobody has written here");
+        await RequestAvailabilityAsync(org, onLineup.Id, org.MemberIds);
+
+        await PostAsync(org.Members[0], org, onLineup.Id, "Who is bringing the PA?");
+        await PostAsync(org.Owner, org, organisersOnly.Id, "Quote sent.");
+
+        var ownerInbox = await InboxAsync(org.Owner, org);
+        Assert.Equal(["Private enquiry", "Saturday gig"], ownerInbox.Select(row => row.Title));
+        Assert.Equal(0, ownerInbox[0].UnreadMessages);
+        Assert.True(ownerInbox[0].LastIsYours);
+        Assert.Equal(1, ownerInbox[1].UnreadMessages);
+        Assert.Equal("Who is bringing the PA?", ownerInbox[1].LastMessagePreview);
+
+        // A member sees only the events they are on.
+        var memberInbox = await InboxAsync(org.Members[0], org);
+        Assert.Equal("Saturday gig", Assert.Single(memberInbox).Title);
+    }
+
+    private static async Task<List<ChatInboxEntryResponse>> InboxAsync(HttpClient client, TestOrganisation org)
+    {
+        var inbox = await client.GetFromJsonAsync<List<ChatInboxEntryResponse>>(
+            $"/api/organisations/{org.Id}/chats");
+        return inbox!;
+    }
+
     private static async Task<int> UnreadAsync(HttpClient client, TestOrganisation org, Guid engagementId)
     {
         var list = await client.GetFromJsonAsync<List<EngagementResponse>>(Engagements(org));

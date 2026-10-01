@@ -80,11 +80,14 @@ export function useMarkDiscussionRead(engagementId: string) {
         if (cancelled) {
           return;
         }
-        // The list (not the thread under it) and the bell.
+        // The list (not the thread under it), the Chat inbox, and the bell.
         await Promise.all([
           queryClient.invalidateQueries({
             queryKey: ['org', organisationId, 'engagements'],
             exact: true,
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ['org', organisationId, 'chats'],
           }),
           queryClient.invalidateQueries({
             queryKey: ['org', organisationId, 'notifications'],

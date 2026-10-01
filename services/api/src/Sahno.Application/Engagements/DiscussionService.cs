@@ -1,6 +1,7 @@
 using Sahno.Application.Notifications;
 using Sahno.Application.Organisations;
 using Sahno.Domain.Engagements;
+using Sahno.Domain.Notifications;
 using Sahno.Domain.Organisations;
 
 namespace Sahno.Application.Engagements;
@@ -10,6 +11,12 @@ public sealed record DiscussionRow(
     DiscussionMessage Message,
     string? AuthorDisplayName,
     bool IsYours);
+
+/// <summary>One conversation in the Chat inbox: its event, latest message, and unread count.</summary>
+public sealed record ChatInboxRow(
+    Engagement Engagement,
+    DiscussionRow Latest,
+    int UnreadMessages);
 
 /// <summary>
 /// Discussion inside an engagement (Slice 9, D-024, D-047 §6).
@@ -25,8 +32,94 @@ public sealed class DiscussionService(
     IEngagementParticipantStore participants,
     IDiscussionStore messages,
     IMembershipStore memberships,
+    INotificationStore notifications,
     Notifier notifier)
 {
+    /// <summary>
+    /// How long a finished (completed or cancelled) event's chat stays in the
+    /// inbox after its last message: people talk after a gig, and once the
+    /// thread has been quiet this long it drops out (D-084).
+    /// </summary>
+    public static readonly TimeSpan FinishedChatQuietPeriod = TimeSpan.FromDays(7);
+
+    /// <summary>
+    /// The Chat tab (D-084): every active conversation the caller can open,
+    /// newest activity first. Only threads with at least one message — an
+    /// event nobody has written in is not a conversation. Access is exactly
+    /// the thread's own rule: organisers see every event, a member the ones
+    /// they are on.
+    /// </summary>
+    public async Task<IReadOnlyList<ChatInboxRow>> InboxAsync(
+        Membership actor,
+        CancellationToken cancellationToken)
+    {
+        var all = await engagements.ListForOrganisationAsync(
+            actor.OrganisationId,
+            cancellationToken);
+
+        IReadOnlyList<Engagement> visible = all;
+        if (!OrganisationAuthorizationService.IsOrganiser(actor))
+        {
+            var mine = (await participants.ListEngagementIdsForUserAsync(
+                actor.OrganisationId,
+                actor.UserId,
+                cancellationToken)).ToHashSet();
+            visible = all.Where(engagement => mine.Contains(engagement.Id)).ToList();
+        }
+
+        var latest = await messages.LatestForEngagementsAsync(
+            visible.Select(engagement => engagement.Id).ToList(),
+            cancellationToken);
+        if (latest.Count == 0)
+        {
+            return [];
+        }
+
+        var unread = await notifications.CountUnreadByEngagementAsync(
+            actor.OrganisationId,
+            actor.UserId,
+            NotificationKind.DiscussionMessage,
+            cancellationToken);
+
+        var names = (await memberships.ListForOrganisationAsync(
+                actor.OrganisationId,
+                cancellationToken))
+            .ToDictionary(row => row.Membership.UserId, row => row.DisplayName);
+
+        var quietSince = DateTimeOffset.UtcNow - FinishedChatQuietPeriod;
+
+        return visible
+            .Where(engagement => latest.ContainsKey(engagement.Id))
+            .Where(engagement => IsActive(engagement, latest[engagement.Id], quietSince))
+            .Select(engagement =>
+            {
+                var message = latest[engagement.Id];
+                return new ChatInboxRow(
+                    engagement,
+                    new DiscussionRow(
+                        message,
+                        names.GetValueOrDefault(message.AuthorUserId),
+                        message.AuthorUserId == actor.UserId),
+                    unread.GetValueOrDefault(engagement.Id));
+            })
+            .OrderByDescending(row => row.Latest.Message.PostedAtUtc)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Active: the event is not finished, or it finished but its chat is still
+    /// going. A finished event drops out once its thread has been quiet for
+    /// <see cref="FinishedChatQuietPeriod"/>; its chat stays on the event.
+    /// </summary>
+    private static bool IsActive(
+        Engagement engagement,
+        DiscussionMessage latest,
+        DateTimeOffset quietSince)
+    {
+        var finished = engagement.Status is EngagementStatus.Completed or EngagementStatus.Cancelled;
+        return !finished || latest.PostedAtUtc >= quietSince;
+    }
+
     /// <summary>
     /// The thread, oldest first. Removed messages come back as tombstones with
     /// no text: the fact that something was taken down stays visible, and the

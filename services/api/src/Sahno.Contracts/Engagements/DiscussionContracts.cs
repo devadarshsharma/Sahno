@@ -24,3 +24,21 @@ public sealed record PostDiscussionMessageRequest(string Body);
 
 /// <summary>The author's own rewrite. Nobody else can reach it.</summary>
 public sealed record EditDiscussionMessageRequest(string Body);
+
+/// <summary>
+/// One conversation in the Chat inbox (D-084): which event, what was said
+/// last and by whom, and how much the caller has not read. The preview is
+/// clipped; a removed latest message has no preview and
+/// <see cref="LastMessageRemoved"/> set.
+/// </summary>
+public sealed record ChatInboxEntryResponse(
+    Guid EngagementId,
+    string Title,
+    string Status,
+    DateOnly? StartDate,
+    string? LastAuthorDisplayName,
+    bool LastIsYours,
+    string? LastMessagePreview,
+    bool LastMessageRemoved,
+    DateTimeOffset LastMessageAtUtc,
+    int UnreadMessages);

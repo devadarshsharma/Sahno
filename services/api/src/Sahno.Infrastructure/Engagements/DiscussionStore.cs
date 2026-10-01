@@ -18,6 +18,29 @@ public sealed class DiscussionStore(SahnoDbContext dbContext) : IDiscussionStore
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyDictionary<Guid, DiscussionMessage>> LatestForEngagementsAsync(
+        IReadOnlyCollection<Guid> engagementIds,
+        CancellationToken cancellationToken)
+    {
+        if (engagementIds.Count == 0)
+        {
+            return new Dictionary<Guid, DiscussionMessage>();
+        }
+
+        // One query: the newest row per engagement (PostgreSQL does this with
+        // a window function), not one round trip per conversation.
+        var latest = await dbContext.DiscussionMessages
+            .AsNoTracking()
+            .Where(message => engagementIds.Contains(message.EngagementId))
+            .GroupBy(message => message.EngagementId)
+            .Select(thread => thread
+                .OrderByDescending(message => message.PostedAtUtc)
+                .First())
+            .ToListAsync(cancellationToken);
+
+        return latest.ToDictionary(message => message.EngagementId);
+    }
+
     public Task<DiscussionMessage?> FindAsync(
         Guid engagementId,
         Guid messageId,

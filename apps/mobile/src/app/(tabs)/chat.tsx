@@ -1,25 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
+import type { ChatInboxEntry } from '@/api/chats';
 import { Button, Card, CountBadge, Screen, Text } from '@/components/ui';
-import { formatEngagementDate, useEngagements } from '@/hooks/use-engagements';
+import { useChatInbox } from '@/hooks/use-chats';
 import { colors, fontFamilies, spacing } from '@/theme';
 
 /**
- * Discussion lives inside each event rather than in an inbox (D-024, D-047
- * §6), so this tab is mostly a signpost. What it adds is the one thing a
- * signpost cannot: which events have messages you have not read, with the
- * count, each a tap away from its conversation. A full cross-event inbox is
- * still a later question, if a real group ever asks for one.
+ * The Chat inbox (D-084). Conversations still belong to their events
+ * (D-024): this is the index across them, newest activity first, so catching
+ * up does not mean opening events one at a time. Only threads where something
+ * has been said, and only active ones — a finished event's chat drops out a
+ * week after it goes quiet, and stays on the event itself.
  */
 export default function Chat() {
   const router = useRouter();
-  const engagementsQuery = useEngagements();
-
-  const withUnread = (engagementsQuery.data ?? []).filter(
-    (engagement) => (engagement.unreadMessages ?? 0) > 0,
-  );
+  const inbox = useChatInbox();
 
   const openChat = (engagementId: string) =>
     router.push({
@@ -27,81 +24,179 @@ export default function Chat() {
       params: { engagementId },
     });
 
+  const entries = inbox.data ?? [];
+
   return (
     <Screen
-      onRefresh={() => engagementsQuery.refetch()}
-      refreshing={engagementsQuery.isRefetching}
+      onRefresh={() => inbox.refetch()}
+      refreshing={inbox.isRefetching}
       hero={{
         title: 'Chat',
-        subtitle: 'Conversations live with their events.',
+        subtitle: 'Every conversation, newest first.',
       }}
     >
-      {withUnread.length > 0 ? (
-        <View style={styles.list}>
-          <Text variant="subheading">New messages</Text>
-          {withUnread.map((engagement) => {
-            const unread = engagement.unreadMessages ?? 0;
-            return (
-              <Pressable
-                key={engagement.id}
-                accessibilityRole="button"
-                accessibilityLabel={`${engagement.title}. ${unread} unread.`}
-                onPress={() => openChat(engagement.id)}
-                style={({ pressed }) => (pressed ? styles.pressed : null)}
-              >
-                <Card style={styles.row}>
-                  <View style={styles.rowIcon}>
-                    <Ionicons name="chatbubble-outline" size={18} color={colors.tealText} />
-                  </View>
-                  <View style={styles.rowText}>
-                    <Text style={styles.rowTitle} numberOfLines={1}>
-                      {engagement.title}
-                    </Text>
-                    <Text variant="caption" color="secondary" numberOfLines={1}>
-                      {unread === 1 ? '1 new message' : `${unread} new messages`} ·{' '}
-                      {formatEngagementDate(engagement)}
-                    </Text>
-                  </View>
-                  <CountBadge count={unread} />
-                  <Ionicons name="chevron-forward" size={18} color={colors.text.muted} />
-                </Card>
-              </Pressable>
-            );
-          })}
+      {inbox.isPending ? (
+        <View style={styles.container}>
+          <ActivityIndicator color={colors.tealText} />
         </View>
-      ) : (
+      ) : inbox.isError ? (
+        <View style={styles.container}>
+          <Text color="error" style={styles.centered}>
+            Could not load your conversations.
+          </Text>
+          <Button label="Try again" variant="secondary" onPress={() => inbox.refetch()} />
+        </View>
+      ) : entries.length === 0 ? (
         <View style={styles.container}>
           <View style={styles.illustration}>
             <Ionicons name="chatbubbles-outline" size={40} color={colors.tealText} />
           </View>
           <Text variant="heading" style={styles.centered}>
-            You are all caught up
+            No conversations yet
           </Text>
           <Text color="secondary" variant="bodySmall" style={styles.centered}>
-            Every booking has its own discussion, so what was said about
-            Saturday stays next to Saturday. New messages show up here.
+            Every event has its own chat. Once somebody writes in one, it shows
+            up here.
           </Text>
           <Button label="Go to events" onPress={() => router.push('/(tabs)/events')} />
         </View>
+      ) : (
+        <Card style={styles.list}>
+          {entries.map((entry, index) => (
+            <InboxRow
+              key={entry.engagementId}
+              entry={entry}
+              last={index === entries.length - 1}
+              onPress={() => openChat(entry.engagementId)}
+            />
+          ))}
+        </Card>
       )}
     </Screen>
   );
 }
 
+function InboxRow({
+  entry,
+  last,
+  onPress,
+}: {
+  entry: ChatInboxEntry;
+  last: boolean;
+  onPress: () => void;
+}) {
+  const unread = entry.unreadMessages > 0;
+  const preview = previewOf(entry);
+  const when = formatInboxTime(entry.lastMessageAtUtc);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={[
+        entry.title,
+        preview,
+        when,
+        unread ? `${entry.unreadMessages} unread` : null,
+      ]
+        .filter(Boolean)
+        .join('. ')}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.row,
+        last ? styles.rowLast : null,
+        pressed ? styles.rowPressed : null,
+      ]}
+    >
+      <View style={styles.avatar}>
+        <Ionicons name="chatbubble-outline" size={18} color={colors.tealText} />
+      </View>
+      <View style={styles.rowText}>
+        <View style={styles.rowTop}>
+          <Text
+            style={[styles.title, unread ? styles.titleUnread : null]}
+            numberOfLines={1}
+          >
+            {entry.title}
+          </Text>
+          <Text
+            variant="caption"
+            color={unread ? 'accent' : 'muted'}
+            style={unread ? styles.timeUnread : null}
+          >
+            {when}
+          </Text>
+        </View>
+        <View style={styles.rowBottom}>
+          <Text
+            variant="bodySmall"
+            color={unread ? 'primary' : 'secondary'}
+            numberOfLines={1}
+            style={styles.preview}
+          >
+            {preview}
+          </Text>
+          <CountBadge count={entry.unreadMessages} />
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+/** "Priya: running late", "You: on my way", or a removal said plainly. */
+function previewOf(entry: ChatInboxEntry): string {
+  const who = entry.lastIsYours
+    ? 'You'
+    : (entry.lastAuthorDisplayName ?? 'Someone');
+  const what = entry.lastMessageRemoved
+    ? 'Message removed'
+    : (entry.lastMessagePreview ?? '');
+  return `${who}: ${what}`;
+}
+
+/**
+ * The time a chat list shows: the clock today, "Yesterday", the weekday this
+ * week, and the date before that.
+ */
+function formatInboxTime(isoUtc: string): string {
+  const at = new Date(isoUtc);
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  if (at >= startOfToday) {
+    return at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+  if (at >= new Date(startOfToday.getTime() - dayMs)) {
+    return 'Yesterday';
+  }
+  if (at >= new Date(startOfToday.getTime() - 6 * dayMs)) {
+    return at.toLocaleDateString(undefined, { weekday: 'short' });
+  }
+  return at.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+
 const styles = StyleSheet.create({
   list: {
-    gap: spacing.md,
+    paddingVertical: 0,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border.default,
   },
-  rowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  rowLast: {
+    borderBottomWidth: 0,
+  },
+  rowPressed: {
+    opacity: 0.7,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.tealSoft,
     alignItems: 'center',
     justifyContent: 'center',
@@ -110,13 +205,30 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
-  rowTitle: {
+  rowTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  rowBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  title: {
+    flex: 1,
     fontFamily: fontFamilies.uiMedium,
     fontSize: 16,
     color: colors.text.primary,
   },
-  pressed: {
-    opacity: 0.85,
+  titleUnread: {
+    fontFamily: fontFamilies.bold,
+  },
+  timeUnread: {
+    fontFamily: fontFamilies.uiMedium,
+  },
+  preview: {
+    flex: 1,
   },
   container: {
     flex: 1,

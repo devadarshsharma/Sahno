@@ -1530,3 +1530,22 @@ Who outside the group hears about an engagement, and when, is the organisers' de
 An event's unread chat count is the caller's unread `DiscussionMessage` notifications for that event — no separate read-receipt table. Every message already leaves one such row for each person who should read it (everyone on the event and the organisers, never the author, D-080). Opening the event's chat marks them read (`POST …/discussion/read`), which clears the bubble and the matching bell rows together. The count is returned on every engagement as `unreadMessages`, and shown on the Chat tab (the total), in the Chat tab's "New messages" list, and on the event page's Chat row.
 
 **Rationale:** One source of truth for "you have not seen this" means the bell and the chat can never disagree, and it needed no new table or migration. If chat ever needs per-message read receipts ("seen by"), that is a new decision with its own storage.
+
+---
+
+## D-084 — The Chat tab is an inbox of active event chats
+
+**Date:** 1 October 2026
+**Status:** Accepted
+
+Conversations still belong to their events (D-024). What changes is the Chat tab: it was a signpost ("open an event to talk about it"), and testing showed a permanent tab that is empty most of the time does not earn its place. It is now an **inbox** — an index across the event chats the caller can open, like a phone's chat list:
+
+- one row per event chat: event name, the latest message as "Name: text" (or "You: …", or "Message removed"), its time, and the unread bubble (D-083);
+- **newest activity first**;
+- **only conversations where something has been said** — an event nobody has written in is not listed;
+- **only active ones**: the event is not finished (enquiry, checking, tentative, confirmed, postponed), or it is completed or cancelled and its chat had a message in the last **7 days**, so post-event chatter stays and a quiet thread drops out. A dropped chat is still on its event;
+- access is the thread's own: organisers see every event's chat, a member only the events they are on.
+
+Served by `GET /api/organisations/{id}/chats`; the Chat tab badge totals the inbox's unread, so the tab counts what it shows.
+
+**Rationale:** People coming from group messaging look for a chat list; making them open events one by one to catch up is the friction testers felt. An index keeps chat attached to its event while giving it a home. It is also where a group-wide channel would go, if one is ever decided.
