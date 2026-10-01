@@ -37,7 +37,9 @@ public sealed record EngagementResponse(
     IReadOnlyList<string>? ReadinessMissing,
     /// <summary>Money still owed either way. Null without financial access (D-016).</summary>
     int? FinanceOutstanding,
-    DateTimeOffset CreatedAtUtc);
+    DateTimeOffset CreatedAtUtc,
+    /// <summary>Chat messages in this event the caller has not read.</summary>
+    int UnreadMessages);
 
 /// <summary>Only a title is required (D-025).</summary>
 public sealed record CreateEngagementRequest(

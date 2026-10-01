@@ -52,7 +52,8 @@ public sealed class EngagementsController(
                 row.YourResponse,
                 row.ReadinessOutstanding,
                 row.ReadinessMissing,
-                row.FinanceOutstanding))
+                row.FinanceOutstanding,
+                row.UnreadMessages))
             .ToList());
     }
 
@@ -84,7 +85,8 @@ public sealed class EngagementsController(
                 view.YourResponse,
                 view.ReadinessOutstanding,
                 view.ReadinessMissing,
-                view.FinanceOutstanding));
+                view.FinanceOutstanding,
+                view.UnreadMessages));
     }
 
     /// <summary>The engagement's history, newest first.</summary>
@@ -422,7 +424,8 @@ public sealed class EngagementsController(
         AvailabilityResponse? ownResponse = null,
         int? readinessOutstanding = null,
         IReadOnlyList<ReadinessItem>? readinessMissing = null,
-        int? financeOutstanding = null)
+        int? financeOutstanding = null,
+        int unreadMessages = 0)
     {
         var allowed = Enum.GetValues<EngagementStatus>()
             .Where(status =>
@@ -450,7 +453,8 @@ public sealed class EngagementsController(
             readinessOutstanding,
             readinessMissing?.Select(item => item.ToString()).ToList(),
             financeOutstanding,
-            engagement.CreatedAtUtc);
+            engagement.CreatedAtUtc,
+            unreadMessages);
     }
 
     private static EngagementActivityResponse ToResponse(EngagementActivity activity)

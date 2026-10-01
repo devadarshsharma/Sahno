@@ -35,6 +35,39 @@ public sealed class DiscussionEndpointTests(SahnoApiFactory factory)
     }
 
     /// <summary>
+    /// The unread bubble: a message is unread for everyone on the event but
+    /// its author, and opening the chat clears it for that person alone.
+    /// </summary>
+    [Fact]
+    public async Task UnreadMessagesCountUntilTheChatIsOpened()
+    {
+        var org = await NewOrganisationAsync("chat-unread", members: 1);
+        var engagement = await NewDraftAsync(org, "Unread");
+        await RequestAvailabilityAsync(org, engagement.Id, org.MemberIds);
+
+        await PostAsync(org.Members[0], org, engagement.Id, "Running late.");
+        await PostAsync(org.Members[0], org, engagement.Id, "Ten minutes.");
+
+        Assert.Equal(2, await UnreadAsync(org.Owner, org, engagement.Id));
+        Assert.Equal(0, await UnreadAsync(org.Members[0], org, engagement.Id));
+
+        var read = await org.Owner.PostAsync($"{Discussion(org, engagement.Id)}/read", content: null);
+        Assert.Equal(HttpStatusCode.NoContent, read.StatusCode);
+
+        Assert.Equal(0, await UnreadAsync(org.Owner, org, engagement.Id));
+
+        // A new message after reading counts again.
+        await PostAsync(org.Members[0], org, engagement.Id, "Here now.");
+        Assert.Equal(1, await UnreadAsync(org.Owner, org, engagement.Id));
+    }
+
+    private static async Task<int> UnreadAsync(HttpClient client, TestOrganisation org, Guid engagementId)
+    {
+        var list = await client.GetFromJsonAsync<List<EngagementResponse>>(Engagements(org));
+        return Assert.Single(list!, item => item.Id == engagementId).UnreadMessages;
+    }
+
+    /// <summary>
     /// There is no separate permission for a thread. Somebody who cannot open
     /// the event gets the same nothing here that they get there.
     /// </summary>

@@ -34,6 +34,25 @@ public interface INotificationStore
         Guid userId,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Unread notifications of one kind, counted per engagement. With
+    /// DiscussionMessage this is each event's unread chat: every message
+    /// already leaves an unread row for everyone who should read it.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, int>> CountUnreadByEngagementAsync(
+        Guid organisationId,
+        Guid userId,
+        NotificationKind kind,
+        CancellationToken cancellationToken);
+
+    /// <summary>Marks one person's unread notifications of one kind, for one engagement, read.</summary>
+    Task MarkReadForEngagementAsync(
+        Guid organisationId,
+        Guid userId,
+        Guid engagementId,
+        NotificationKind kind,
+        CancellationToken cancellationToken);
+
     Task SaveAsync(CancellationToken cancellationToken);
 }
 

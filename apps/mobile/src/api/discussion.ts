@@ -101,3 +101,19 @@ export function removeDiscussionMessage(
     'DELETE',
   );
 }
+
+/**
+ * The caller has the chat open: everything in it is read. Clears the event's
+ * unread bubble and the matching bell rows; safe to call as often as needed.
+ */
+export function markDiscussionRead(
+  accessToken: string,
+  organisationId: string,
+  engagementId: string,
+): Promise<void> {
+  return sendAuthorized(
+    `${base(organisationId, engagementId)}/read`,
+    accessToken,
+    'POST',
+  );
+}

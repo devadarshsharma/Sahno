@@ -62,6 +62,24 @@ public sealed class NotificationService(
         return true;
     }
 
+    /// <summary>
+    /// The caller has the event's chat open: every message in it is read. The
+    /// same rows are the bell's, so the bell and the chat bubble always agree.
+    /// Scoped to the caller's own rows, so an id they cannot see marks nothing.
+    /// </summary>
+    public Task MarkDiscussionReadAsync(
+        Membership actor,
+        Guid engagementId,
+        CancellationToken cancellationToken)
+    {
+        return notifications.MarkReadForEngagementAsync(
+            actor.OrganisationId,
+            actor.UserId,
+            engagementId,
+            NotificationKind.DiscussionMessage,
+            cancellationToken);
+    }
+
     public Task MarkAllReadAsync(
         Membership actor,
         CancellationToken cancellationToken)

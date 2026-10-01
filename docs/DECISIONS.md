@@ -1519,3 +1519,14 @@ The event page's **Share** action (the booking's essentials as text, for the pho
 Who outside the group hears about an engagement, and when, is the organisers' decision — a booking can be provisional, private to the lineup, or commercially sensitive. This is an app affordance, not a secret: nothing stops a member retyping or screenshotting what they can see, and nothing needs to, because D-022 already decides what that is.
 
 **Rationale:** A one-tap share in every member's hands makes passing a booking on the default; it should be a deliberate act by the people responsible for it.
+
+---
+
+## D-083 — Unread chat is the chat notifications not yet read
+
+**Date:** 1 October 2026
+**Status:** Accepted
+
+An event's unread chat count is the caller's unread `DiscussionMessage` notifications for that event — no separate read-receipt table. Every message already leaves one such row for each person who should read it (everyone on the event and the organisers, never the author, D-080). Opening the event's chat marks them read (`POST …/discussion/read`), which clears the bubble and the matching bell rows together. The count is returned on every engagement as `unreadMessages`, and shown on the Chat tab (the total), in the Chat tab's "New messages" list, and on the event page's Chat row.
+
+**Rationale:** One source of truth for "you have not seen this" means the bell and the chat can never disagree, and it needed no new table or migration. If chat ever needs per-message read receipts ("seen by"), that is a new decision with its own storage.

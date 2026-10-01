@@ -7,7 +7,7 @@ import type { Engagement } from '@/api/engagements';
 import { MyAvailabilityCard } from '@/components/availability-cards';
 import { AddToCalendarCard } from '@/components/calendar-card';
 import { formatClock, StatusChip } from '@/components/engagement-card';
-import { Button, Card, Screen, Text } from '@/components/ui';
+import { Button, Card, CountBadge, Screen, Text } from '@/components/ui';
 import { useAvailability } from '@/hooks/use-availability';
 import { useEngagementCustomer, useFinancialAccess } from '@/hooks/use-commercial';
 import { useDiscussion } from '@/hooks/use-discussion';
@@ -199,7 +199,13 @@ export default function EngagementOverview() {
         ) : null}
         <Row icon="clipboard-outline" title="Jobs" summary={jobsSummary} onPress={() => go('jobs')} />
         <Row icon="folder-open-outline" title="Set list & rehearsals" summary={filesSummary} onPress={() => go('files')} />
-        <Row icon="chatbubble-outline" title="Chat" summary={chatSummary} onPress={() => go('chat')} />
+        <Row
+          icon="chatbubble-outline"
+          title="Chat"
+          summary={chatSummary}
+          badge={engagement.unreadMessages ?? 0}
+          onPress={() => go('chat')}
+        />
         {isOrganiser ? (
           <Row
             icon="checkmark-circle-outline"
@@ -301,6 +307,7 @@ function Row({
   tone = 'default',
   onPress,
   last = false,
+  badge = 0,
 }: {
   icon: IconName;
   title: string;
@@ -308,11 +315,13 @@ function Row({
   tone?: 'default' | 'attention';
   onPress: () => void;
   last?: boolean;
+  /** An unread count shown as a bubble before the chevron; nothing at zero. */
+  badge?: number;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={summary ? `${title}. ${summary}.` : title}
+      accessibilityLabel={[title, summary, badge > 0 ? `${badge} unread` : null].filter(Boolean).join('. ')}
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
@@ -333,6 +342,7 @@ function Row({
           {summary ?? ' '}
         </Text>
       </View>
+      <CountBadge count={badge} />
       <Ionicons name="chevron-forward" size={18} color={colors.text.muted} />
     </Pressable>
   );

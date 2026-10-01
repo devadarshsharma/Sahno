@@ -52,6 +52,8 @@ export type Engagement = {
   /** Money still owed either way. Null without financial access (D-016). */
   financeOutstanding: number | null;
   createdAtUtc: string;
+  /** Chat messages in this event the caller has not read. Absent from older APIs. */
+  unreadMessages?: number;
 };
 
 export type EngagementActivity = {

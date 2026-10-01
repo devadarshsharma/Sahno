@@ -2,6 +2,7 @@ using Sahno.Application.Notifications;
 using Sahno.Application.Organisations;
 using Sahno.Application.Repertoire;
 using Sahno.Domain.Engagements;
+using Sahno.Domain.Notifications;
 using Sahno.Domain.Organisations;
 
 namespace Sahno.Application.Engagements;
@@ -22,7 +23,9 @@ public sealed record EngagementView(
     /// Money still owed either way: unpaid performers, or a customer balance
     /// not yet received. Null without financial access (D-016).
     /// </summary>
-    int? FinanceOutstanding);
+    int? FinanceOutstanding,
+    /// <summary>Chat messages in this event the caller has not read.</summary>
+    int UnreadMessages);
 
 public enum EngagementResult
 {
@@ -63,6 +66,7 @@ public sealed class EngagementService(
     ICommercialStore commercial,
     ICustomerStore customers,
     ISetListStore setLists,
+    INotificationStore notifications,
     Notifier notifier)
 {
     /// <summary>
@@ -134,6 +138,14 @@ public sealed class EngagementService(
                 cancellationToken)
             : null;
 
+        // Unread chat, per event: every message leaves an unread notification
+        // for each person who should read it, so these are those, counted.
+        var unreadMessages = await notifications.CountUnreadByEngagementAsync(
+            actor.OrganisationId,
+            actor.UserId,
+            NotificationKind.DiscussionMessage,
+            cancellationToken);
+
         var ownResponses = await participants.OwnResponsesAsync(
             actor.OrganisationId,
             actor.UserId,
@@ -204,7 +216,8 @@ public sealed class EngagementService(
                         : null,
                     outstanding,
                     missing,
-                    owed?.GetValueOrDefault(engagement.Id));
+                    owed?.GetValueOrDefault(engagement.Id),
+                    unreadMessages.GetValueOrDefault(engagement.Id));
             })
             .ToList();
     }

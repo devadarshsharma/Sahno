@@ -14,3 +14,4 @@ export { TimeField, formatTime, parseTime, toTimeString } from './time-field';
 export type { TimeFieldProps } from './time-field';
 export { Hero } from './hero';
 export type { HeroProps } from './hero';
+export { CountBadge, BADGE_COLOR } from './count-badge';

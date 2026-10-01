@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sahno.Api.Authentication;
 using Sahno.Application.Engagements;
+using Sahno.Application.Notifications;
 using Sahno.Application.Organisations;
 using Sahno.Application.Users;
 using Sahno.Contracts.Engagements;
@@ -23,6 +24,7 @@ namespace Sahno.Api.Controllers;
 public sealed class DiscussionController(
     EnsureUserService ensureUserService,
     DiscussionService discussionService,
+    NotificationService notificationService,
     OrganisationAuthorizationService authorization)
     : ControllerBase
 {
@@ -48,6 +50,33 @@ public sealed class DiscussionController(
         return thread is null
             ? NotFound()
             : Ok(thread.Select(ToResponse).ToList());
+    }
+
+    /// <summary>
+    /// The caller has read this event's chat: its unread bubble clears, and
+    /// the matching rows on the bell with it. Idempotent; only ever touches
+    /// the caller's own notifications.
+    /// </summary>
+    [HttpPost("read")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> MarkRead(
+        Guid organisationId,
+        Guid engagementId,
+        CancellationToken cancellationToken)
+    {
+        var caller = await CallerAsync(organisationId, cancellationToken);
+        if (caller is null)
+        {
+            return NotFound();
+        }
+
+        await notificationService.MarkDiscussionReadAsync(
+            caller,
+            engagementId,
+            cancellationToken);
+
+        return NoContent();
     }
 
     [HttpPost]

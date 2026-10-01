@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 
-import { listDiscussion } from '@/api/discussion';
+import { listDiscussion, markDiscussionRead } from '@/api/discussion';
 import { useActiveOrg } from '@/hooks/use-organisations';
 import { useSession } from '@/providers/auth-provider';
 
@@ -49,4 +50,53 @@ export function useDiscussionMutation<TArgs>(
         queryKey: ['org', active?.id, 'engagements', engagementId, 'discussion'],
       }),
   });
+}
+
+/**
+ * While a chat is on screen, what is in it has been read. Marks it so on
+ * opening, and again whenever a newer message arrives while it is open, then
+ * refreshes the event list (the unread bubbles) and the bell (the same rows).
+ */
+export function useMarkDiscussionRead(engagementId: string) {
+  const session = useSession();
+  const queryClient = useQueryClient();
+  const { active } = useActiveOrg();
+  const thread = useDiscussion(engagementId);
+
+  const organisationId = active?.id ?? null;
+  const latestMessageId = thread.data?.at(-1)?.id ?? null;
+  const getAccessToken = session.getAccessToken;
+
+  useEffect(() => {
+    if (organisationId === null || !thread.isSuccess) {
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const accessToken = await getAccessToken();
+        await markDiscussionRead(accessToken, organisationId, engagementId);
+        if (cancelled) {
+          return;
+        }
+        // The list (not the thread under it) and the bell.
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: ['org', organisationId, 'engagements'],
+            exact: true,
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ['org', organisationId, 'notifications'],
+          }),
+        ]);
+      } catch {
+        // A bubble left on is the worst outcome; the next open clears it.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [organisationId, engagementId, latestMessageId, thread.isSuccess, getAccessToken, queryClient]);
 }

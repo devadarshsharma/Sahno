@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
+import { BADGE_COLOR } from '@/components/ui';
+import { useEngagements } from '@/hooks/use-engagements';
 import { useActiveOrg } from '@/hooks/use-organisations';
 import { colors, fontFamilies } from '@/theme';
 
@@ -13,6 +15,14 @@ import { colors, fontFamilies } from '@/theme';
 export default function TabsLayout() {
   const { active } = useActiveOrg();
   const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
+
+  // Every unread chat message across the organisation's events, on the Chat
+  // tab, so a new message is noticed from anywhere in the app.
+  const engagements = useEngagements();
+  const unreadChat = (engagements.data ?? []).reduce(
+    (total, engagement) => total + (engagement.unreadMessages ?? 0),
+    0,
+  );
 
   return (
     <Tabs
@@ -61,6 +71,13 @@ export default function TabsLayout() {
         name="chat"
         options={{
           title: 'Chat',
+          tabBarBadge: unreadChat > 0 ? (unreadChat > 99 ? '99+' : unreadChat) : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: BADGE_COLOR,
+            color: colors.offWhite,
+            fontFamily: fontFamilies.bold,
+            fontSize: 11,
+          },
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="chatbubble-outline" size={size} color={color} />
           ),
