@@ -1504,3 +1504,16 @@ This departs from D-072's "automatic Staging deployment from `main`": a separate
 **Rationale:** The cheapest way to put the real system on real phones, without anything that would have to be unpicked when production arrives. See docs/TEST_DEPLOYMENT.md.
 
 **Amended 30 September 2026.** Render felt slow from Australia: its nearest region is Singapore, and the free instance sleeps and gets a tenth of a CPU. The test API moved to a Docker host in Sydney (the Farnese sandbox server), against a Sydney Supabase project. That server's ports 80/443 belong to another project, so Sahno runs its own Caddy on **8443**, certified through Cloudflare's DNS challenge. A Cloudflare Tunnel was tried first and dropped: the free plan routed Australian networks via Singapore (~0.35 s a request, against ~0.03 s direct). Images are built and tested on GitHub and only pulled by the server. Render remains, suspended, as a fallback.
+
+---
+
+## D-082 — Only organisers share a booking
+
+**Date:** 1 October 2026
+**Status:** Accepted
+
+The event page's **Share** action (the booking's essentials as text, for the phone's share sheet) is for the Owner and Admins only. Members see everything D-022 lets them see, and can add the event to their own calendar, but the app offers them no way to send it on.
+
+Who outside the group hears about an engagement, and when, is the organisers' decision — a booking can be provisional, private to the lineup, or commercially sensitive. This is an app affordance, not a secret: nothing stops a member retyping or screenshotting what they can see, and nothing needs to, because D-022 already decides what that is.
+
+**Rationale:** A one-tap share in every member's hands makes passing a booking on the default; it should be a deliberate act by the people responsible for it.

@@ -238,23 +238,28 @@ export default function EngagementOverview() {
         organisationName={active?.name ?? 'your organisation'}
       />
 
-      <View style={styles.actions}>
-        <Button
-          label="Share"
-          variant="secondary"
-          style={styles.action}
-          onPress={() => shareDayOf(engagement, active?.name ?? 'Sahno')}
-        />
-        {isOrganiser ? (
+      {/* Sharing a booking outside the group is the organisers' call, not
+          every member's: they decide who hears about an engagement and when.
+          Members keep everything they need for themselves, including adding
+          it to their own calendar above. */}
+      {isOrganiser ? (
+        <View style={styles.actions}>
+          <Button
+            label="Share"
+            variant="secondary"
+            style={styles.action}
+            onPress={() => shareDayOf(engagement, active?.name ?? 'Sahno')}
+          />
           <Button label="Edit details" style={styles.action} onPress={() => go('details')} />
-        ) : null}
-      </View>
+        </View>
+      ) : null}
     </Screen>
   );
 }
 
 /**
- * The participant-facing essentials as plain text, for the share sheet. Only
+ * The participant-facing essentials as plain text, for the share sheet —
+ * organisers only (the button is theirs). Only
  * what a member is allowed to see (D-022) — nothing here that the day-of card
  * would not show them.
  */
