@@ -16,6 +16,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Appearance, StyleSheet, View } from 'react-native';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { SahnoSymbol } from '@/components/brand';
 import { AuthProvider, useSession } from '@/providers/auth-provider';
@@ -58,15 +59,19 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <QueryProvider>
-        <NotificationsProvider>
-          <LiveUpdatesProvider>
-            <RootNavigator />
-          </LiveUpdatesProvider>
-        </NotificationsProvider>
-      </QueryProvider>
-    </AuthProvider>
+    // Tracks the keyboard for every screen, so Screen can keep the focused
+    // field above it (see components/ui/screen.tsx).
+    <KeyboardProvider>
+      <AuthProvider>
+        <QueryProvider>
+          <NotificationsProvider>
+            <LiveUpdatesProvider>
+              <RootNavigator />
+            </LiveUpdatesProvider>
+          </NotificationsProvider>
+        </QueryProvider>
+      </AuthProvider>
+    </KeyboardProvider>
   );
 }
 

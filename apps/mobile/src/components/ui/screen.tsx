@@ -1,13 +1,24 @@
 import { StatusBar } from 'expo-status-bar';
 import type { PropsWithChildren } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, StyleSheet, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  KeyboardAwareScrollView,
+} from 'react-native-keyboard-controller';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Hero, type HeroProps } from '@/components/ui/hero';
 import { colors, spacing } from '@/theme';
 
+/** Space kept between the focused field and the top of the keyboard. */
+const KEYBOARD_GAP = spacing.xl;
+
 export type ScreenProps = PropsWithChildren<{
-  /** Wrap content in a ScrollView. Use for content that may overflow. */
+  /**
+   * Wrap content in a ScrollView. Use for content that may overflow — and for
+   * every screen with text fields: the scrolling container is what moves a
+   * focused field above the keyboard, so a form must be able to scroll.
+   */
   scroll?: boolean;
   /**
    * Pull-to-refresh handler. Anything showing data other people can change
@@ -60,8 +71,15 @@ export function Screen({
           style={[styles.statusStrip, { height: insets.top }]}
         />
       ) : null}
+      {/* The keyboard never covers a field. Android draws edge to edge, and
+          then it no longer shrinks the window for the keyboard — the keyboard
+          is simply drawn over the bottom of the page. These containers do the
+          work instead: the scrolling one moves the focused field up into
+          view, the fixed one gives up the keyboard's height. Every screen
+          built on Screen gets this, so a new form needs nothing extra. */}
       {scrollable ? (
-        <ScrollView
+        <KeyboardAwareScrollView
+          bottomOffset={KEYBOARD_GAP}
           contentContainerStyle={[
             styles.content,
             scroll ? null : styles.fillContent,
@@ -80,9 +98,11 @@ export function Screen({
           }
         >
           {body}
-        </ScrollView>
+        </KeyboardAwareScrollView>
       ) : (
-        <View style={[styles.content, styles.fill]}>{body}</View>
+        <KeyboardAvoidingView behavior="padding" style={styles.fill}>
+          <View style={[styles.content, styles.fill]}>{body}</View>
+        </KeyboardAvoidingView>
       )}
     </SafeAreaView>
   );
