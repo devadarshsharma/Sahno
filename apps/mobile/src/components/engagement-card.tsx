@@ -61,7 +61,11 @@ export function EngagementCard({
       </View>
 
       <View style={styles.lines}>
-        <Line icon="calendar-outline" text={when} />
+        <Line
+          icon="calendar-outline"
+          text={when}
+          tone={engagement.status === 'Postponed' ? 'attention' : 'default'}
+        />
         {engagement.venue ? (
           <Line icon="location-outline" text={engagement.venue} />
         ) : null}
@@ -275,6 +279,14 @@ const CHIP_LABEL: Record<EngagementStatus, string> = {
 
 /** Date and time on one line: "Sat, 30 Aug 2026 · 7:00 PM". */
 function formatWhen(engagement: Engagement): string {
+  // A postponed booking still carries the date it was meant to be. Shown bare,
+  // that date reads as when it is happening, so it is named for what it is.
+  if (engagement.status === 'Postponed') {
+    return engagement.startDate === null
+      ? 'Postponed — new date to come'
+      : `Postponed from ${formatEngagementDate(engagement)}`;
+  }
+
   const date = formatEngagementDate(engagement);
   return engagement.startTime ? `${date} · ${formatClock(engagement.startTime)}` : date;
 }

@@ -190,10 +190,18 @@ export default function Index() {
   const yourTentative = yourEvents.filter(
     (engagement) => engagement.status === 'Tentative',
   );
+  // On hold, not over: the member was told (bell, push, email), but an event
+  // they were on should not simply vanish from Home while its new date is
+  // worked out. It leaves when it is rescheduled or cancelled.
+  const yourPostponed = engagements.filter(
+    (engagement) => engagement.status === 'Postponed',
+  );
 
   const memberHasNothing =
     !loadingBookings &&
-    yourAvailability.length === 0 && yourEvents.length === 0;
+    yourAvailability.length === 0 &&
+    yourEvents.length === 0 &&
+    yourPostponed.length === 0;
 
   return (
     <View style={styles.screen}>
@@ -422,6 +430,12 @@ export default function Index() {
               <EngagementList
                 title="Later events"
                 engagements={laterEvents}
+                isOrganiser={isOrganiser}
+                onOpen={openEngagement}
+              />
+              <EngagementList
+                title="Postponed"
+                engagements={yourPostponed}
                 isOrganiser={isOrganiser}
                 onOpen={openEngagement}
               />
