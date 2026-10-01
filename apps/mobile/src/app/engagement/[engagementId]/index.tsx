@@ -4,10 +4,11 @@ import type { ComponentProps } from 'react';
 import { ActivityIndicator, Pressable, Share, StyleSheet, View } from 'react-native';
 
 import type { Engagement } from '@/api/engagements';
+import { MyAvailabilityCard } from '@/components/availability-cards';
 import { AddToCalendarCard } from '@/components/calendar-card';
 import { formatClock, StatusChip } from '@/components/engagement-card';
 import { Button, Card, Screen, Text } from '@/components/ui';
-import { useAvailability, useOwnAvailability } from '@/hooks/use-availability';
+import { useAvailability } from '@/hooks/use-availability';
 import { useEngagementCustomer, useFinancialAccess } from '@/hooks/use-commercial';
 import { useDiscussion } from '@/hooks/use-discussion';
 import { formatEngagementDate, useEngagements } from '@/hooks/use-engagements';
@@ -47,7 +48,6 @@ export default function EngagementOverview() {
   // Summaries for the rows. Every one of these is cached and shared with the
   // section screen it summarises, so opening a section costs nothing extra.
   const lineup = useAvailability(engagementId);
-  const own = useOwnAvailability(engagementId);
   const jobs = useResponsibilities(engagementId);
   const rehearsals = useRehearsals(engagementId);
   const resources = useResources(engagementId);
@@ -88,17 +88,11 @@ export default function EngagementOverview() {
     : formatEngagementDate(engagement);
 
   // Row summaries, each in the words a person would use.
-  const peopleSummary = isOrganiser
-    ? lineup.data
-      ? lineup.data.summary.selected === 0
-        ? 'Nobody asked yet'
-        : `${lineup.data.summary.selected - lineup.data.summary.outstanding} of ${lineup.data.summary.selected} answered`
-      : undefined
-    : own.data
-      ? own.data.response === null
-        ? 'You have not answered'
-        : `You said ${own.data.response.toLowerCase()}`
-      : undefined;
+  const peopleSummary = lineup.data
+    ? lineup.data.summary.selected === 0
+      ? 'Nobody asked yet'
+      : `${lineup.data.summary.selected - lineup.data.summary.outstanding} of ${lineup.data.summary.selected} answered`
+    : undefined;
 
   const jobsSummary = jobs.data
     ? jobs.data.length === 0
@@ -190,9 +184,19 @@ export default function EngagementOverview() {
         </View>
       ) : null}
 
+      {/* A member's answer, right here: for them the header and strip above
+          are the whole of Details, and their answer was all People held. */}
+      {isOrganiser ? null : <MyAvailabilityCard engagementId={engagement.id} />}
+
       <Card style={styles.menu}>
-        <Row icon="information-circle-outline" title="Details" summary="Date, venue, times, dress" onPress={() => go('details')} />
-        <Row icon="people-outline" title="People" summary={peopleSummary} onPress={() => go('people')} />
+        {/* Organisers keep Details and People: dates and details to edit,
+            and the whole lineup to manage. */}
+        {isOrganiser ? (
+          <Row icon="information-circle-outline" title="Details" summary="Date, venue, times, dress" onPress={() => go('details')} />
+        ) : null}
+        {isOrganiser ? (
+          <Row icon="people-outline" title="People" summary={peopleSummary} onPress={() => go('people')} />
+        ) : null}
         <Row icon="clipboard-outline" title="Jobs" summary={jobsSummary} onPress={() => go('jobs')} />
         <Row icon="folder-open-outline" title="Set list & rehearsals" summary={filesSummary} onPress={() => go('files')} />
         <Row icon="chatbubble-outline" title="Chat" summary={chatSummary} onPress={() => go('chat')} />

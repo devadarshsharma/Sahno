@@ -26,12 +26,14 @@ public static class NotificationRoutes
         var engagement = $"/engagement/{id}";
         return kind switch
         {
-            NotificationKind.AvailabilityRequested
-                or NotificationKind.AvailabilityReminder
-                or NotificationKind.AvailabilityAnswered => $"{engagement}/people",
-            NotificationKind.EngagementDetailsChanged => $"{engagement}/details",
+            // Organisers are told about answers: the lineup is where they act.
+            NotificationKind.AvailabilityAnswered => $"{engagement}/people",
             NotificationKind.ResponsibilityAssigned => $"{engagement}/jobs",
             NotificationKind.DiscussionMessage => $"{engagement}/chat",
+            // A request, a reminder, or changed details lands on the event
+            // itself: its header carries the date, times, venue and dress,
+            // and a member answers there — they have no separate People or
+            // Details page any more.
             _ => engagement,
         };
     }

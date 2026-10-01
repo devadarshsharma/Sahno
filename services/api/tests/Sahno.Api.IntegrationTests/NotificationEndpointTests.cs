@@ -34,6 +34,8 @@ public sealed class NotificationEndpointTests(SahnoApiFactory factory)
         Assert.Equal("AvailabilityRequested", told.Kind);
         Assert.Contains("Wedding in Dural", told.Title);
         Assert.Equal(engagement.Id, told.EngagementId);
+        // Opens the event itself, where a member answers.
+        Assert.Equal($"/engagement/{engagement.Id}", told.Route);
         Assert.False(told.IsRead);
 
         var sent = await DispatchOutboxAsync();
