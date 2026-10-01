@@ -202,6 +202,9 @@ export function NotificationsProvider({ children }: PropsWithChildren) {
       markShown(payload.notificationId);
       void refreshBell(payload.organisationId);
       open(payload);
+      // Handled. Left in place, this tap would be "the last response" the
+      // next time the app starts, and it would open this screen again.
+      Notifications.clearLastNotificationResponse();
     });
 
     return () => {
@@ -212,29 +215,31 @@ export function NotificationsProvider({ children }: PropsWithChildren) {
 
   // The tap that launched the app from cold. Asked once the session is
   // ready, and remembered so a re-render does not open it twice.
+  //
+  // "The last response" is the most recent tap EVER, kept by the OS across
+  // launches until it is cleared — not the tap that started this launch. So
+  // it is cleared the moment it is read: otherwise every later launch, and
+  // every sign-in, replays an old tap and opens its screen again.
   useEffect(() => {
     if (!ready) {
       return;
     }
-    let cancelled = false;
-    void Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (cancelled || !response) {
-        return;
-      }
-      const identifier = response.notification.request.identifier;
-      if (handledResponse.current === identifier) {
-        return;
-      }
-      const payload = payloadOf(response.notification);
-      if (!payload) {
-        return;
-      }
-      handledResponse.current = identifier;
-      open(payload);
-    });
-    return () => {
-      cancelled = true;
-    };
+    const response = Notifications.getLastNotificationResponse();
+    if (!response) {
+      return;
+    }
+    Notifications.clearLastNotificationResponse();
+
+    const identifier = response.notification.request.identifier;
+    if (handledResponse.current === identifier) {
+      return;
+    }
+    const payload = payloadOf(response.notification);
+    if (!payload) {
+      return;
+    }
+    handledResponse.current = identifier;
+    open(payload);
   }, [ready, open]);
 
   const value = useMemo<NotificationsContextValue>(() => ({ announce, open }), [announce, open]);
