@@ -37,7 +37,9 @@ public sealed class ReminderService(
     /// <summary>Sends every reminder now due. Returns how many reminders went out.</summary>
     public async Task<int> SendDueAsync(CancellationToken cancellationToken)
     {
-        var utcNow = time.GetUtcNow();
+        // UTC whatever the clock hands back: it is stored, and PostgreSQL keeps
+        // timestamps only as UTC.
+        var utcNow = time.GetUtcNow().ToUniversalTime();
         var sent = 0;
 
         foreach (var organisation in await organisations.ListAllAsync(cancellationToken))
