@@ -24,7 +24,29 @@ export type DiscussionMessage = {
   wasModerated: boolean;
   postedAtUtc: string;
   editedAtUtc: string | null;
+  /** What this replies to, as the original stands now (D-086). Absent from older APIs. */
+  replyTo?: DiscussionQuote | null;
+  /** One entry per emoji, in the picker's order. Absent from older APIs. */
+  reactions?: DiscussionReaction[];
 };
+
+/** A reply's quote. `body` is null once the original was removed. */
+export type DiscussionQuote = {
+  id: string;
+  authorDisplayName: string | null;
+  isYours: boolean;
+  body: string | null;
+  isDeleted: boolean;
+};
+
+export type DiscussionReaction = {
+  emoji: string;
+  count: number;
+  includesYou: boolean;
+};
+
+/** The reactions on offer, in the server's order (DiscussionReaction.Allowed). */
+export const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'] as const;
 
 function isMessage(value: unknown): value is DiscussionMessage {
   return (
@@ -63,11 +85,12 @@ export function postDiscussionMessage(
   organisationId: string,
   engagementId: string,
   body: string,
+  replyToMessageId?: string | null,
 ): Promise<DiscussionMessage> {
   return postAuthorizedJson(
     base(organisationId, engagementId),
     accessToken,
-    { body },
+    replyToMessageId ? { body, replyToMessageId } : { body },
     isMessage,
   );
 }
@@ -113,6 +136,39 @@ export function markDiscussionRead(
 ): Promise<void> {
   return sendAuthorized(
     `${base(organisationId, engagementId)}/read`,
+    accessToken,
+    'POST',
+  );
+}
+
+/**
+ * Reacts to a message. The same emoji you already gave takes it back; a
+ * different one replaces it — one reaction each (D-086).
+ */
+export function reactToMessage(
+  accessToken: string,
+  organisationId: string,
+  engagementId: string,
+  messageId: string,
+  emoji: string,
+): Promise<void> {
+  return sendAuthorizedJson(
+    `${base(organisationId, engagementId)}/${messageId}/reaction`,
+    accessToken,
+    'PUT',
+    { emoji },
+  );
+}
+
+/** "Delete for me": the caller stops seeing this message; nobody else is affected. */
+export function hideMessage(
+  accessToken: string,
+  organisationId: string,
+  engagementId: string,
+  messageId: string,
+): Promise<void> {
+  return sendAuthorized(
+    `${base(organisationId, engagementId)}/${messageId}/hide`,
     accessToken,
     'POST',
   );

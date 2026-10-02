@@ -6,11 +6,25 @@ using Sahno.Domain.Organisations;
 
 namespace Sahno.Application.Engagements;
 
-/// <summary>One message with its author's name resolved, and whose it is.</summary>
+/// <summary>
+/// One message with its author's name resolved, and whose it is — plus, in a
+/// thread, what it replies to and how people reacted (D-086).
+/// </summary>
 public sealed record DiscussionRow(
     DiscussionMessage Message,
     string? AuthorDisplayName,
+    bool IsYours,
+    DiscussionQuote? ReplyTo = null,
+    IReadOnlyList<ReactionSummary>? Reactions = null);
+
+/// <summary>The message a reply quotes, as it stands now.</summary>
+public sealed record DiscussionQuote(
+    DiscussionMessage Message,
+    string? AuthorDisplayName,
     bool IsYours);
+
+/// <summary>One emoji on one message: how many, and whether the caller is one of them.</summary>
+public sealed record ReactionSummary(string Emoji, int Count, bool IncludesYou);
 
 /// <summary>One conversation in the Chat inbox: its event, latest message, and unread count.</summary>
 public sealed record ChatInboxRow(
@@ -138,6 +152,10 @@ public sealed class DiscussionService(
         var thread = await messages.ListForEngagementAsync(
             engagementId,
             cancellationToken);
+        var hidden = await messages.HiddenMessageIdsAsync(engagementId, actor.UserId, cancellationToken);
+        var reactions = (await messages.ListReactionsAsync(engagementId, cancellationToken))
+            .ToLookup(reaction => reaction.MessageId);
+        var byId = thread.ToDictionary(message => message.Id);
 
         var directory = await memberships.ListForOrganisationAsync(
             actor.OrganisationId,
@@ -146,11 +164,28 @@ public sealed class DiscussionService(
             row => row.Membership.UserId,
             row => row.DisplayName);
 
+        // "Delete for me" leaves the message out of this reader's thread only.
+        // A reply to it still shows its quote: the reply is someone else's.
         return thread
+            .Where(message => !hidden.Contains(message.Id))
             .Select(message => new DiscussionRow(
                 message,
                 names.GetValueOrDefault(message.AuthorUserId),
-                message.AuthorUserId == actor.UserId))
+                message.AuthorUserId == actor.UserId,
+                message.ReplyToMessageId is { } quotedId && byId.TryGetValue(quotedId, out var quoted)
+                    ? new DiscussionQuote(
+                        quoted,
+                        names.GetValueOrDefault(quoted.AuthorUserId),
+                        quoted.AuthorUserId == actor.UserId)
+                    : null,
+                reactions[message.Id]
+                    .GroupBy(reaction => reaction.Emoji)
+                    .OrderBy(group => IndexOfReaction(group.Key))
+                    .Select(group => new ReactionSummary(
+                        group.Key,
+                        group.Count(),
+                        group.Any(reaction => reaction.UserId == actor.UserId)))
+                    .ToList()))
             .ToList();
     }
 
@@ -158,14 +193,25 @@ public sealed class DiscussionService(
         Membership actor,
         Guid engagementId,
         string body,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? replyToMessageId = null)
     {
         if (!await CanAccessAsync(actor, engagementId, cancellationToken))
         {
             return (EngagementResult.NotFound, null);
         }
 
-        var message = DiscussionMessage.Post(engagementId, actor.UserId, body);
+        // A reply answers a message in this same thread that still has words.
+        if (replyToMessageId is { } quotedId)
+        {
+            var quoted = await messages.FindAsync(engagementId, quotedId, cancellationToken);
+            if (quoted is null || quoted.IsDeleted)
+            {
+                return (EngagementResult.Invalid, null);
+            }
+        }
+
+        var message = DiscussionMessage.Post(engagementId, actor.UserId, body, replyToMessageId);
 
         var engagement = await engagements.FindByIdAsync(
             actor.OrganisationId,
@@ -270,6 +316,95 @@ public sealed class DiscussionService(
     /// and post; if you cannot, the discussion does not exist as far as you are
     /// concerned.
     /// </summary>
+    /// <summary>
+    /// Reacts to a message (D-086): one reaction each, so a new one replaces
+    /// the old and the same one again takes it back. Null takes it back too.
+    /// Anyone who can read the thread can react; a removed message cannot be
+    /// reacted to. Nobody is notified — a reaction is not news.
+    /// </summary>
+    public async Task<EngagementResult> ReactAsync(
+        Membership actor,
+        Guid engagementId,
+        Guid messageId,
+        string? emoji,
+        CancellationToken cancellationToken)
+    {
+        if (!await CanAccessAsync(actor, engagementId, cancellationToken))
+        {
+            return EngagementResult.NotFound;
+        }
+
+        var message = await messages.FindAsync(engagementId, messageId, cancellationToken);
+        if (message is null)
+        {
+            return EngagementResult.NotFound;
+        }
+
+        if (message.IsDeleted || (emoji is not null && !DiscussionReaction.IsAllowed(emoji)))
+        {
+            return EngagementResult.Invalid;
+        }
+
+        var existing = await messages.FindReactionAsync(messageId, actor.UserId, cancellationToken);
+        if (emoji is null || existing?.Emoji == emoji)
+        {
+            if (existing is not null)
+            {
+                messages.RemoveReaction(existing);
+            }
+        }
+        else if (existing is not null)
+        {
+            existing.Change(emoji);
+        }
+        else
+        {
+            messages.AddReaction(DiscussionReaction.React(message, actor.UserId, emoji));
+        }
+
+        await messages.SaveAsync(cancellationToken);
+        return EngagementResult.Success;
+    }
+
+    /// <summary>
+    /// "Delete for me" (D-086): the caller stops seeing one message. Any
+    /// message they can read, theirs or not; nobody else is affected.
+    /// </summary>
+    public async Task<EngagementResult> HideAsync(
+        Membership actor,
+        Guid engagementId,
+        Guid messageId,
+        CancellationToken cancellationToken)
+    {
+        if (!await CanAccessAsync(actor, engagementId, cancellationToken))
+        {
+            return EngagementResult.NotFound;
+        }
+
+        var message = await messages.FindAsync(engagementId, messageId, cancellationToken);
+        if (message is null)
+        {
+            return EngagementResult.NotFound;
+        }
+
+        await messages.HideAsync(messageId, actor.UserId, cancellationToken);
+        return EngagementResult.Success;
+    }
+
+    /// <summary>Reactions are listed in the picker's order, whatever order they arrived in.</summary>
+    private static int IndexOfReaction(string emoji)
+    {
+        for (var index = 0; index < DiscussionReaction.Allowed.Count; index++)
+        {
+            if (DiscussionReaction.Allowed[index] == emoji)
+            {
+                return index;
+            }
+        }
+
+        return int.MaxValue;
+    }
+
     private async Task<bool> CanAccessAsync(
         Membership actor,
         Guid engagementId,

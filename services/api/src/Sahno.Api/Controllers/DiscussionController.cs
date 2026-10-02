@@ -107,7 +107,16 @@ public sealed class DiscussionController(
             caller,
             engagementId,
             request.Body,
-            cancellationToken);
+            cancellationToken,
+            request.ReplyToMessageId);
+
+        if (result == EngagementResult.Invalid)
+        {
+            ModelState.AddModelError(
+                nameof(request.ReplyToMessageId),
+                "That message cannot be replied to.");
+            return ValidationProblem(ModelState);
+        }
 
         if (result != EngagementResult.Success || posted is null)
         {
@@ -202,6 +211,88 @@ public sealed class DiscussionController(
         };
     }
 
+    /// <summary>
+    /// Reacts to a message (D-086). The same reaction again takes it back;
+    /// anything else replaces it.
+    /// </summary>
+    [HttpPut("{messageId:guid}/reaction")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> React(
+        Guid organisationId,
+        Guid engagementId,
+        Guid messageId,
+        SetReactionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var caller = await CallerAsync(organisationId, cancellationToken);
+        if (caller is null)
+        {
+            return NotFound();
+        }
+
+        var result = await discussionService.ReactAsync(
+            caller,
+            engagementId,
+            messageId,
+            request.Emoji,
+            cancellationToken);
+
+        return result switch
+        {
+            EngagementResult.Success => NoContent(),
+            EngagementResult.Invalid => ValidationProblem("That reaction cannot be added."),
+            _ => NotFound(),
+        };
+    }
+
+    /// <summary>Takes the caller's reaction back, whatever it was.</summary>
+    [HttpDelete("{messageId:guid}/reaction")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Unreact(
+        Guid organisationId,
+        Guid engagementId,
+        Guid messageId,
+        CancellationToken cancellationToken)
+    {
+        var caller = await CallerAsync(organisationId, cancellationToken);
+        if (caller is null)
+        {
+            return NotFound();
+        }
+
+        var result = await discussionService.ReactAsync(
+            caller,
+            engagementId,
+            messageId,
+            emoji: null,
+            cancellationToken);
+
+        return result == EngagementResult.NotFound ? NotFound() : NoContent();
+    }
+
+    /// <summary>"Delete for me" (D-086): the caller stops seeing this message; nobody else is affected.</summary>
+    [HttpPost("{messageId:guid}/hide")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Hide(
+        Guid organisationId,
+        Guid engagementId,
+        Guid messageId,
+        CancellationToken cancellationToken)
+    {
+        var caller = await CallerAsync(organisationId, cancellationToken);
+        if (caller is null)
+        {
+            return NotFound();
+        }
+
+        var result = await discussionService.HideAsync(caller, engagementId, messageId, cancellationToken);
+        return result == EngagementResult.Success ? NoContent() : NotFound();
+    }
+
     private static DiscussionMessageResponse ToResponse(DiscussionRow row)
     {
         return new DiscussionMessageResponse(
@@ -214,7 +305,21 @@ public sealed class DiscussionController(
             row.Message.IsDeleted,
             row.Message.WasModerated,
             row.Message.PostedAtUtc,
-            row.Message.EditedAtUtc);
+            row.Message.EditedAtUtc,
+            row.ReplyTo is { } quote
+                ? new DiscussionQuoteResponse(
+                    quote.Message.Id,
+                    quote.AuthorDisplayName,
+                    quote.IsYours,
+                    quote.Message.Body,
+                    quote.Message.IsDeleted)
+                : null,
+            (row.Reactions ?? [])
+                .Select(reaction => new DiscussionReactionResponse(
+                    reaction.Emoji,
+                    reaction.Count,
+                    reaction.IncludesYou))
+                .ToList());
     }
 
     private async Task<Membership?> CallerAsync(

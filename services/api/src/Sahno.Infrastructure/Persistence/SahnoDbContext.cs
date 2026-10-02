@@ -60,6 +60,10 @@ public sealed class SahnoDbContext(DbContextOptions<SahnoDbContext> options)
 
     public DbSet<ReminderLog> ReminderLogs => Set<ReminderLog>();
 
+    public DbSet<DiscussionReaction> DiscussionReactions => Set<DiscussionReaction>();
+
+    public DbSet<DiscussionMessageHide> DiscussionMessageHides => Set<DiscussionMessageHide>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(

@@ -64,4 +64,67 @@ public sealed class DiscussionStore(SahnoDbContext dbContext) : IDiscussionStore
     {
         return dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<DiscussionReaction>> ListReactionsAsync(
+        Guid engagementId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.DiscussionReactions
+            .AsNoTracking()
+            .Where(reaction => reaction.EngagementId == engagementId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<DiscussionReaction?> FindReactionAsync(
+        Guid messageId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        return dbContext.DiscussionReactions.SingleOrDefaultAsync(
+            reaction => reaction.MessageId == messageId && reaction.UserId == userId,
+            cancellationToken);
+    }
+
+    public void AddReaction(DiscussionReaction reaction)
+    {
+        dbContext.DiscussionReactions.Add(reaction);
+    }
+
+    public void RemoveReaction(DiscussionReaction reaction)
+    {
+        dbContext.DiscussionReactions.Remove(reaction);
+    }
+
+    public async Task<IReadOnlySet<Guid>> HiddenMessageIdsAsync(
+        Guid engagementId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var ids = await dbContext.DiscussionMessageHides
+            .AsNoTracking()
+            .Where(hide => hide.UserId == userId)
+            .Join(
+                dbContext.DiscussionMessages.AsNoTracking()
+                    .Where(message => message.EngagementId == engagementId),
+                hide => hide.MessageId,
+                message => message.Id,
+                (hide, message) => hide.MessageId)
+            .ToListAsync(cancellationToken);
+
+        return ids.ToHashSet();
+    }
+
+    public async Task HideAsync(Guid messageId, Guid userId, CancellationToken cancellationToken)
+    {
+        var already = await dbContext.DiscussionMessageHides.AnyAsync(
+            hide => hide.MessageId == messageId && hide.UserId == userId,
+            cancellationToken);
+        if (already)
+        {
+            return;
+        }
+
+        dbContext.DiscussionMessageHides.Add(DiscussionMessageHide.For(messageId, userId));
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

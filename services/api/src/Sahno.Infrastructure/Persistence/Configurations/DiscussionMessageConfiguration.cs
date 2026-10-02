@@ -44,6 +44,11 @@ public sealed class DiscussionMessageConfiguration
         builder.Property(message => message.DeletedByUserId)
             .HasColumnName("deleted_by_user_id");
 
+        // Not a foreign key: a quote reads whatever the original is now, and
+        // the original is never hard-deleted, only emptied.
+        builder.Property(message => message.ReplyToMessageId)
+            .HasColumnName("reply_to_message_id");
+
         builder.HasIndex(message =>
             new { message.EngagementId, message.PostedAtUtc });
     }

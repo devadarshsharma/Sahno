@@ -236,6 +236,31 @@ public interface IDiscussionStore
     Task AddAsync(DiscussionMessage message, CancellationToken cancellationToken);
 
     Task SaveAsync(CancellationToken cancellationToken);
+
+    /// <summary>Every reaction in one thread (D-086).</summary>
+    Task<IReadOnlyList<DiscussionReaction>> ListReactionsAsync(
+        Guid engagementId,
+        CancellationToken cancellationToken);
+
+    Task<DiscussionReaction?> FindReactionAsync(
+        Guid messageId,
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    /// <summary>Stages a new reaction; <see cref="SaveAsync"/> commits it.</summary>
+    void AddReaction(DiscussionReaction reaction);
+
+    /// <summary>Stages a reaction's removal; <see cref="SaveAsync"/> commits it.</summary>
+    void RemoveReaction(DiscussionReaction reaction);
+
+    /// <summary>The messages of one thread this person has deleted for themselves.</summary>
+    Task<IReadOnlySet<Guid>> HiddenMessageIdsAsync(
+        Guid engagementId,
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    /// <summary>Hides one message from one person, and saves. Hiding twice is the same fact.</summary>
+    Task HideAsync(Guid messageId, Guid userId, CancellationToken cancellationToken);
 }
 
 /// <summary>

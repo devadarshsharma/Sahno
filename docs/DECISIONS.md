@@ -1568,3 +1568,21 @@ Rehearsals were only visible on their event's own page, and nothing told anyone 
 - A background scheduler checks every five minutes. Each reminder is logged (`reminder_log`, unique per subject per local day) **in the same save as its notifications**, so it is sent exactly once across restarts and redeploys. An unknown time zone falls back to UTC rather than stopping reminders.
 
 **Rationale:** A rehearsal nobody hears about is a meeting nobody attends, and the morning of an event is when people actually check what they need to bring. Folding open jobs into the day reminder keeps it to one notification.
+
+---
+
+## D-086 — Event chat behaves like a messaging app
+
+**Date:** 2 October 2026
+**Status:** Accepted
+
+Testers expected the event chat to work like the messaging apps they use daily. It still belongs to its event (D-024); what changes is how it behaves:
+
+- **Layout:** full screen, newest at the bottom, the typing bar fixed above the keyboard. Your messages on the right in soft teal, others' on the left with their name — in a colour fixed to the person — at the start of each run. Time inside the bubble; "edited" beside it. Day separators ("Today", "Yesterday", weekday, date).
+- **Long-press** a message for its actions, offering only what this person may do: react, **Reply**, **Copy**, **Edit** (author only), **Delete for me** (anyone), **Delete for everyone** (author, or an organiser — moderation stays as D-024).
+- **Reply** quotes the original as it stands *now*: if the original is later deleted, the quote says so and loses its words. Tapping a quote jumps to the original. A deleted message cannot be replied to.
+- **Reactions:** one per person per message, from 👍 ❤️ 😂 😮 😢 🙏. The same one again takes it back; another replaces it. Shown as counts under the bubble; tapping one adds or removes yours. Reactions notify nobody.
+- **Delete for me** hides a message from your own view only; the thread is unchanged for everyone else. (The Chat inbox preview may still show a message you hid, if it is the latest.)
+- **No read receipts ("seen by") for now.** Testers were split; in a group they are noisy and some people feel watched. If wanted later, it is a per-organisation setting, off by default — a separate decision.
+
+Storage: `reply_to_message_id` on messages; `engagement_discussion_reactions` (one row per person per message); `engagement_discussion_hides` (one row per person per hidden message). Migration `AddChatRepliesReactionsAndHides`, additive only.

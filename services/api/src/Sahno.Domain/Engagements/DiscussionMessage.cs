@@ -21,7 +21,8 @@ public sealed class DiscussionMessage
         DateTimeOffset postedAtUtc,
         DateTimeOffset? editedAtUtc,
         DateTimeOffset? deletedAtUtc,
-        Guid? deletedByUserId)
+        Guid? deletedByUserId,
+        Guid? replyToMessageId)
     {
         Id = id;
         EngagementId = engagementId;
@@ -31,6 +32,7 @@ public sealed class DiscussionMessage
         EditedAtUtc = editedAtUtc;
         DeletedAtUtc = deletedAtUtc;
         DeletedByUserId = deletedByUserId;
+        ReplyToMessageId = replyToMessageId;
     }
 
     public Guid Id { get; }
@@ -63,6 +65,13 @@ public sealed class DiscussionMessage
     /// </summary>
     public Guid? DeletedByUserId { get; private set; }
 
+    /// <summary>
+    /// The message this one answers, in the same thread (D-086). The quote is
+    /// read from that message as it stands now, so editing or deleting it
+    /// shows through — a reply never keeps words their author took back.
+    /// </summary>
+    public Guid? ReplyToMessageId { get; }
+
     public bool IsDeleted => DeletedAtUtc is not null;
 
     public bool IsEdited => EditedAtUtc is not null;
@@ -77,7 +86,8 @@ public sealed class DiscussionMessage
     public static DiscussionMessage Post(
         Guid engagementId,
         Guid authorUserId,
-        string body)
+        string body,
+        Guid? replyToMessageId = null)
     {
         if (engagementId == Guid.Empty)
         {
@@ -94,7 +104,8 @@ public sealed class DiscussionMessage
             DateTimeOffset.UtcNow,
             editedAtUtc: null,
             deletedAtUtc: null,
-            deletedByUserId: null);
+            deletedByUserId: null,
+            replyToMessageId);
     }
 
     /// <summary>

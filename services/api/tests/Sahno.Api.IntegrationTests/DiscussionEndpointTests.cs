@@ -89,6 +89,84 @@ public sealed class DiscussionEndpointTests(SahnoApiFactory factory)
         Assert.Equal("Saturday gig", Assert.Single(memberInbox).Title);
     }
 
+    /// <summary>
+    /// A reply quotes its original as the original stands now (D-086): when
+    /// the original is taken back, the quote loses its words too.
+    /// </summary>
+    [Fact]
+    public async Task ARepliesQuoteFollowsTheOriginal()
+    {
+        var org = await NewOrganisationAsync("chat-reply", members: 1);
+        var engagement = await NewDraftAsync(org, "Replies");
+        await RequestAvailabilityAsync(org, engagement.Id, org.MemberIds);
+
+        var original = await PostAsync(org.Members[0], org, engagement.Id, "Who has the PA?");
+        var reply = await org.Owner.PostAsJsonAsync(
+            Discussion(org, engagement.Id),
+            new PostDiscussionMessageRequest("I do.", original.Id));
+        reply.EnsureSuccessStatusCode();
+
+        var quoted = (await ThreadAsync(org.Members[0], org, engagement.Id))[1].ReplyTo;
+        Assert.NotNull(quoted);
+        Assert.Equal("Who has the PA?", quoted.Body);
+        Assert.True(quoted.IsYours);
+
+        (await org.Members[0].DeleteAsync($"{Discussion(org, engagement.Id)}/{original.Id}")).EnsureSuccessStatusCode();
+
+        var afterRemoval = (await ThreadAsync(org.Owner, org, engagement.Id))[1].ReplyTo;
+        Assert.NotNull(afterRemoval);
+        Assert.True(afterRemoval.IsDeleted);
+        Assert.Null(afterRemoval.Body);
+
+        var toRemoved = await org.Owner.PostAsJsonAsync(
+            Discussion(org, engagement.Id),
+            new PostDiscussionMessageRequest("Replying to nothing", original.Id));
+        Assert.Equal(HttpStatusCode.BadRequest, toRemoved.StatusCode);
+    }
+
+    /// <summary>One reaction each: again takes it back, another replaces it (D-086).</summary>
+    [Fact]
+    public async Task ReactionsAreOneEachAndCounted()
+    {
+        var org = await NewOrganisationAsync("chat-react", members: 1);
+        var engagement = await NewDraftAsync(org, "Reactions");
+        await RequestAvailabilityAsync(org, engagement.Id, org.MemberIds);
+        var message = await PostAsync(org.Owner, org, engagement.Id, "Great show tonight.");
+        var reaction = $"{Discussion(org, engagement.Id)}/{message.Id}/reaction";
+
+        (await org.Members[0].PutAsJsonAsync(reaction, new SetReactionRequest("👍"))).EnsureSuccessStatusCode();
+        (await org.Owner.PutAsJsonAsync(reaction, new SetReactionRequest("👍"))).EnsureSuccessStatusCode();
+
+        var both = Assert.Single(Assert.Single(await ThreadAsync(org.Members[0], org, engagement.Id)).Reactions!);
+        Assert.Equal(("👍", 2, true), (both.Emoji, both.Count, both.IncludesYou));
+
+        // Again takes it back; another replaces it.
+        (await org.Members[0].PutAsJsonAsync(reaction, new SetReactionRequest("👍"))).EnsureSuccessStatusCode();
+        (await org.Owner.PutAsJsonAsync(reaction, new SetReactionRequest("❤️"))).EnsureSuccessStatusCode();
+
+        var after = Assert.Single(Assert.Single(await ThreadAsync(org.Members[0], org, engagement.Id)).Reactions!);
+        Assert.Equal(("❤️", 1, false), (after.Emoji, after.Count, after.IncludesYou));
+
+        var notOffered = await org.Members[0].PutAsJsonAsync(reaction, new SetReactionRequest("🍕"));
+        Assert.Equal(HttpStatusCode.BadRequest, notOffered.StatusCode);
+    }
+
+    /// <summary>"Delete for me" hides a message from one reader only (D-086).</summary>
+    [Fact]
+    public async Task DeleteForMeHidesOnlyFromMe()
+    {
+        var org = await NewOrganisationAsync("chat-hide", members: 1);
+        var engagement = await NewDraftAsync(org, "Hidden");
+        await RequestAvailabilityAsync(org, engagement.Id, org.MemberIds);
+        var message = await PostAsync(org.Owner, org, engagement.Id, "Not for everyone's eyes.");
+
+        var hide = await org.Members[0].PostAsync($"{Discussion(org, engagement.Id)}/{message.Id}/hide", content: null);
+        Assert.Equal(HttpStatusCode.NoContent, hide.StatusCode);
+
+        Assert.Empty(await ThreadAsync(org.Members[0], org, engagement.Id));
+        Assert.Single(await ThreadAsync(org.Owner, org, engagement.Id));
+    }
+
     private static async Task<List<ChatInboxEntryResponse>> InboxAsync(HttpClient client, TestOrganisation org)
     {
         var inbox = await client.GetFromJsonAsync<List<ChatInboxEntryResponse>>(
