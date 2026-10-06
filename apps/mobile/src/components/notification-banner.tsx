@@ -90,11 +90,15 @@ function iconFor(kind: NotificationKind): React.ComponentProps<typeof Ionicons>[
       return 'clipboard-outline';
     case 'EngagementDayReminder':
       return 'today-outline';
+    case 'DetailsRequested':
+      return 'help-circle-outline';
     case 'RehearsalScheduled':
     case 'RehearsalReminder':
       return 'musical-notes-outline';
     case 'DiscussionMessage':
       return 'chatbubble-outline';
+    case 'DiscussionReaction':
+      return 'heart-outline';
     case 'AvailabilityRequested':
     case 'AvailabilityReminder':
     case 'AvailabilityAnswered':

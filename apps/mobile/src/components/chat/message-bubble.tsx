@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { DiscussionMessage } from '@/api/discussion';
 import { Text } from '@/components/ui';
-import { authorName, messageTime, nameColour, removedText } from '@/lib/chat';
+import { authorName, messageTime, nameColour, removedText, type ChatMessage } from '@/lib/chat';
 import { colors, fontFamilies, radii, spacing } from '@/theme';
 
 /**
@@ -11,6 +11,8 @@ import { colors, fontFamilies, radii, spacing } from '@/theme';
  * everyone else's on the left in white with their name in their colour at
  * the start of a run. A reply carries its quote; reactions sit under it.
  * Long-press opens the actions; a tap on the quote jumps to the original.
+ * Your own messages carry where they are (D-087): a clock while sending, a
+ * tick once the server has them, and "Not sent" — tap to retry — if not.
  */
 export function MessageBubble({
   message,
@@ -19,16 +21,19 @@ export function MessageBubble({
   onLongPress,
   onQuotePress,
   onReactionPress,
+  onRetry,
 }: {
-  message: DiscussionMessage;
+  message: ChatMessage;
   startsRun: boolean;
   highlighted: boolean;
   onLongPress: () => void;
   onQuotePress: (messageId: string) => void;
   onReactionPress: (emoji: string) => void;
+  onRetry: () => void;
 }) {
   const yours = message.isYours;
   const reactions = message.reactions ?? [];
+  const failed = message.delivery === 'failed';
 
   return (
     <View
@@ -39,15 +44,21 @@ export function MessageBubble({
       ]}
     >
       <Pressable
+        onPress={failed ? onRetry : undefined}
         onLongPress={onLongPress}
         delayLongPress={300}
         accessibilityRole="button"
-        accessibilityHint="Long press for reply, react, copy, edit and delete"
+        accessibilityHint={
+          failed
+            ? 'Not sent. Tap to try again, long press to delete'
+            : 'Long press for reply, react, copy, edit and delete'
+        }
         style={({ pressed }) => [
           styles.bubble,
           yours ? styles.bubbleYours : styles.bubbleTheirs,
           startsRun ? (yours ? styles.tailYours : styles.tailTheirs) : null,
           highlighted ? styles.highlighted : null,
+          failed ? styles.failed : null,
           pressed ? styles.pressed : null,
         ]}
       >
@@ -87,11 +98,20 @@ export function MessageBubble({
           <Text style={styles.body}>{message.body}</Text>
         )}
 
-        <Text style={styles.meta}>
-          {message.isEdited && !message.isDeleted ? 'edited · ' : ''}
-          {messageTime(message.postedAtUtc)}
-        </Text>
+        <View style={styles.metaRow}>
+          <Text style={styles.meta}>
+            {message.isEdited && !message.isDeleted ? 'edited · ' : ''}
+            {messageTime(message.postedAtUtc)}
+          </Text>
+          {yours && !message.isDeleted ? <DeliveryMark delivery={message.delivery} /> : null}
+        </View>
       </Pressable>
+
+      {failed ? (
+        <Pressable accessibilityRole="button" onPress={onRetry} hitSlop={8} style={styles.notSent}>
+          <Text style={styles.notSentText}>Not sent · Tap to retry</Text>
+        </Pressable>
+      ) : null}
 
       {reactions.length > 0 ? (
         <View style={[styles.reactions, yours ? styles.reactionsYours : styles.reactionsTheirs]}>
@@ -111,6 +131,17 @@ export function MessageBubble({
       ) : null}
     </View>
   );
+}
+
+function DeliveryMark({ delivery }: { delivery: ChatMessage['delivery'] }) {
+  switch (delivery) {
+    case 'sending':
+      return <Ionicons name="time-outline" size={13} color={colors.text.muted} accessibilityLabel="Sending" />;
+    case 'failed':
+      return <Ionicons name="alert-circle" size={14} color={colors.text.error} accessibilityLabel="Not sent" />;
+    default:
+      return <Ionicons name="checkmark" size={14} color={colors.tealText} accessibilityLabel="Sent" />;
+  }
 }
 
 function quoteColour(message: DiscussionMessage): string {
@@ -199,10 +230,27 @@ const styles = StyleSheet.create({
   italic: {
     fontStyle: 'italic',
   },
-  meta: {
+  metaRow: {
     alignSelf: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  meta: {
     fontSize: 11,
     color: colors.text.muted,
+  },
+  failed: {
+    opacity: 0.75,
+  },
+  notSent: {
+    marginTop: 2,
+    marginRight: spacing.xs,
+  },
+  notSentText: {
+    fontSize: 12,
+    fontFamily: fontFamilies.uiMedium,
+    color: colors.text.error,
   },
   reactions: {
     flexDirection: 'row',

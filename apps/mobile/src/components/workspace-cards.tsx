@@ -17,6 +17,7 @@ import {
   TimeField,
   formatTime,
 } from '@/components/ui';
+import { VenueLink } from '@/components/venue-link';
 import {
   formatEngagementDate,
   useEngagementMutation,
@@ -63,13 +64,17 @@ export function DayOfCard({ engagement }: { engagement: Engagement }) {
               <Text variant="caption" color="muted" style={styles.rowLabel}>
                 {row.label}
               </Text>
-              <Text
-                variant="bodySmall"
-                color={row.value ? 'primary' : 'muted'}
-                style={styles.rowValue}
-              >
-                {row.value ?? 'To be confirmed'}
-              </Text>
+              {row.label === 'Where' && row.value ? (
+                <VenueLink venue={row.value} size="small" showIcon={false} style={styles.rowValue} />
+              ) : (
+                <Text
+                  variant="bodySmall"
+                  color={row.value ? 'primary' : 'muted'}
+                  style={styles.rowValue}
+                >
+                  {row.value ?? 'To be confirmed'}
+                </Text>
+              )}
             </View>
           ))}
         </View>

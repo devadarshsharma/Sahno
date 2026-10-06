@@ -29,6 +29,7 @@ import {
   formatIsoDate,
   formatTime,
 } from '@/components/ui';
+import { VenueLink } from '@/components/venue-link';
 import type { Participant } from '@/api/availability';
 import { useAvailability } from '@/hooks/use-availability';
 import {
@@ -452,6 +453,7 @@ export function RehearsalsCard({
                 <Text variant="caption" color="secondary">
                   {describeRehearsal(rehearsal)}
                 </Text>
+                {rehearsal.venue ? <VenueLink venue={rehearsal.venue} size="caption" /> : null}
                 {rehearsal.notes ? (
                   <Text variant="caption" color="muted">
                     {rehearsal.notes}
@@ -513,10 +515,6 @@ function describeRehearsal(rehearsal: Rehearsal): string {
     parts.push(
       rehearsal.endTime ? `${start} – ${formatTime(rehearsal.endTime)}` : start,
     );
-  }
-
-  if (rehearsal.venue) {
-    parts.push(rehearsal.venue);
   }
 
   return parts.join(' · ');

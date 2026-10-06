@@ -1,12 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { z } from 'zod';
 import { Ionicons } from '@expo/vector-icons';
 
 import { createEngagement } from '@/api/engagements';
+import { BookingClashNotice } from '@/components/clash-notice';
 import { CustomerPicker } from '@/components/customer-picker';
 import { Button, Card, DateField, Screen, Text, TextInput } from '@/components/ui';
 import { useEngagementMutation } from '@/hooks/use-engagements';
@@ -56,6 +57,7 @@ export default function CreateEngagement() {
     resolver: zodResolver(schema),
     defaultValues: { title: '', startDate: null, venue: '' },
   });
+  const startDate = useWatch({ control, name: 'startDate' });
 
   const onSubmit = handleSubmit((values) => {
     setSubmitError(null);
@@ -116,6 +118,9 @@ export default function CreateEngagement() {
             />
           )}
         />
+
+        {/* Two bookings on one day may be fine; the organiser decides (D-091). */}
+        <BookingClashNotice day={{ startDate }} />
 
         <Controller
           control={control}

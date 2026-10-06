@@ -94,6 +94,48 @@ public sealed class ReminderTests(SahnoApiFactory factory)
         Assert.Equal(0, await SendDueAtAsync(day, new TimeOnly(8, 10)));
     }
 
+    /// <summary>
+    /// Marking an event done takes its rehearsals off Home's "coming up" list
+    /// but not off the calendar (D-090): the calendar is also a record of what
+    /// happened. A cancelled event's rehearsals go from both.
+    /// </summary>
+    [Fact]
+    public async Task ADoneEventKeepsItsRehearsalsOnTheCalendar()
+    {
+        var org = await NewOrganisationAsync("calendar-done", members: 1);
+        var done = await NewDraftAsync(org, "Done gig", LocalToday().AddDays(5), startTime: null);
+        var cancelled = await NewDraftAsync(org, "Called off", LocalToday().AddDays(6), startTime: null);
+        foreach (var engagement in new[] { done, cancelled })
+        {
+            await RequestAvailabilityAsync(org, engagement.Id, org.MemberIds);
+            await RespondAsync(org, org.Members[0], engagement.Id, "Available");
+            (await org.Owner.PostAsJsonAsync(
+                $"{Engagements(org)}/{engagement.Id}/rehearsals",
+                new SaveRehearsalRequest(null, LocalToday().AddDays(1), new TimeOnly(19, 0), null, "Hall", null))).EnsureSuccessStatusCode();
+        }
+
+        foreach (var status in new[] { "Tentative", "Confirmed", "Completed" })
+        {
+            (await org.Owner.PostAsJsonAsync(
+                $"{Engagements(org)}/{done.Id}/transition",
+                new TransitionEngagementRequest(status, null))).EnsureSuccessStatusCode();
+        }
+        (await org.Owner.PostAsJsonAsync(
+            $"{Engagements(org)}/{cancelled.Id}/transition",
+            new TransitionEngagementRequest("Cancelled", "Venue fell through"))).EnsureSuccessStatusCode();
+
+        Assert.Empty(await UpcomingAsync(org.Owner, org));
+
+        var from = LocalToday().AddMonths(-12).ToString("yyyy-MM-dd");
+        foreach (var client in new[] { org.Owner, org.Members[0] })
+        {
+            var calendar = await client.GetFromJsonAsync<MyCalendarResponse>($"/api/me/calendar?from={from}");
+            Assert.Equal(done.Id, Assert.Single(calendar!.Rehearsals).EngagementId);
+            Assert.Contains(calendar.Events, row => row.Id == done.Id && row.Status == "Completed");
+            Assert.DoesNotContain(calendar.Events, row => row.Id == cancelled.Id);
+        }
+    }
+
     // ---- Helpers -----------------------------------------------------------
 
     private static DateOnly LocalToday() =>

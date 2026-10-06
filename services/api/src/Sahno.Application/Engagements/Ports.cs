@@ -98,6 +98,20 @@ public interface IEngagementParticipantStore
 /// </summary>
 public sealed record EngagementLineup(int Selected, int Outstanding);
 
+/// <summary>Open requests for event details (D-089). Tracked: the service removes them once answered.</summary>
+public interface IDetailRequestStore
+{
+    Task<IReadOnlyList<DetailRequest>> ListForEngagementAsync(
+        Guid engagementId,
+        CancellationToken cancellationToken);
+
+    void Add(IEnumerable<DetailRequest> requests);
+
+    void Remove(IEnumerable<DetailRequest> requests);
+
+    Task SaveAsync(CancellationToken cancellationToken);
+}
+
 public interface IReadinessStore
 {
     /// <summary>
@@ -234,6 +248,12 @@ public interface IDiscussionStore
         CancellationToken cancellationToken);
 
     Task AddAsync(DiscussionMessage message, CancellationToken cancellationToken);
+
+    /// <summary>The thread from a moment on, oldest first — what a bundled push quotes (D-088).</summary>
+    Task<IReadOnlyList<DiscussionMessage>> ListSinceAsync(
+        Guid engagementId,
+        DateTimeOffset sinceUtc,
+        CancellationToken cancellationToken);
 
     Task SaveAsync(CancellationToken cancellationToken);
 

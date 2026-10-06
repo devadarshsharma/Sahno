@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import type { UpcomingRehearsal } from '@/api/upcoming-rehearsals';
 import { formatClock } from '@/components/engagement-card';
 import { Text } from '@/components/ui';
+import { VenueLink } from '@/components/venue-link';
 import { colors, fontFamilies, radii, shadows, spacing } from '@/theme';
 
 /** How many Home shows; the rest are on the events and the calendar. */
@@ -85,14 +86,11 @@ function RehearsalCard({
           {name}
         </Text>
         <Text variant="caption" color="secondary" numberOfLines={1}>
-          {[
-            date.toLocaleDateString(undefined, { weekday: 'short' }),
-            when,
-            rehearsal.venue,
-          ]
+          {[date.toLocaleDateString(undefined, { weekday: 'short' }), when]
             .filter(Boolean)
             .join(' · ')}
         </Text>
+        {rehearsal.venue ? <VenueLink venue={rehearsal.venue} size="caption" /> : null}
         <Text variant="caption" color="muted" numberOfLines={1}>
           For {rehearsal.engagementTitle}
         </Text>

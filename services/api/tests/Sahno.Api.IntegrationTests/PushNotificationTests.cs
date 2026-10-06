@@ -81,6 +81,70 @@ public sealed class PushNotificationTests(SahnoApiFactory factory)
         Assert.Equal(job.Id, root.GetProperty("notificationId").GetGuid());
     }
 
+    /// <summary>
+    /// A chat is one notification on Android (D-088): every message in it
+    /// shares the chat's tag, so each push replaces the last, and carries
+    /// everything still unread. iOS stacks them by thread instead, one message
+    /// each. Opening the chat starts the count again.
+    /// </summary>
+    [Fact]
+    public async Task ChatPushesBundleByChat()
+    {
+        var org = await NewOrganisationAsync("push-chat", members: 1);
+        var engagement = await NewDraftAsync(org, "Saturday gig");
+        var other = await NewDraftAsync(org, "Sunday gig");
+        await RequestAvailabilityAsync(org, engagement.Id, org.MemberIds);
+        await RequestAvailabilityAsync(org, other.Id, org.MemberIds);
+        await RegisterAsync(org.Members[0], Token("chat-android"), "android", null);
+        await RegisterAsync(org.Members[0], Token("chat-ios"), "ios", null);
+        await DispatchPushAsync();
+
+        var discussion = $"{Engagements(org)}/{engagement.Id}/discussion";
+        foreach (var body in new[] { "Soundcheck at five.", "Bring the stands.", "Parking is out back." })
+        {
+            (await org.Owner.PostAsJsonAsync(discussion, new PostDiscussionMessageRequest(body))).EnsureSuccessStatusCode();
+        }
+        (await org.Owner.PostAsJsonAsync(
+            $"{Engagements(org)}/{other.Id}/discussion",
+            new PostDiscussionMessageRequest("Different chat."))).EnsureSuccessStatusCode();
+
+        var sent = await DispatchPushAsync();
+        var android = sent.Where(push => push.Token == Token("chat-android")).ToList();
+        var ios = sent.Where(push => push.Token == Token("chat-ios")).ToList();
+        Assert.Equal(4, android.Count);
+        Assert.Equal(4, ios.Count);
+
+        var latest = android.Last(push => push.Body.Contains("Parking"));
+        Assert.Equal("Saturday gig · 3 new messages", latest.Title);
+        Assert.Equal(3, latest.Body.Split('\n').Length);
+        Assert.EndsWith(": Soundcheck at five.", latest.Body.Split('\n')[0]);
+        Assert.EndsWith("Parking is out back.", latest.Body);
+
+        Assert.Contains(ios, push => push.Body == "Parking is out back." && push.Title.EndsWith("in Saturday gig"));
+
+        var saturday = PresentationOf(latest);
+        var sunday = PresentationOf(android.Single(push => push.Body.Contains("Different chat.")));
+        Assert.Equal($"chat-{engagement.Id}", saturday.Tag);
+        Assert.Equal(saturday.Tag, saturday.ThreadId);
+        Assert.Equal(PushPresentation.ChatMessageCategory, saturday.CategoryId);
+        Assert.NotEqual(saturday.Tag, sunday.Tag);
+
+        // Read, then one more: the bundle starts again from that one.
+        (await org.Members[0].PostAsync($"{discussion}/read", content: null)).EnsureSuccessStatusCode();
+        (await org.Owner.PostAsJsonAsync(discussion, new PostDiscussionMessageRequest("See you there."))).EnsureSuccessStatusCode();
+        var fresh = Assert.Single(await DispatchPushAsync(), push => push.Token == Token("chat-android"));
+        Assert.EndsWith("in Saturday gig", fresh.Title);
+        Assert.Equal("See you there.", fresh.Body);
+    }
+
+    private static PushPresentation PresentationOf((string Token, string Title, string Body, string? Data) push)
+    {
+        using var data = JsonDocument.Parse(push.Data!);
+        return PushPresentation.For(
+            data.RootElement.GetProperty("notificationType").GetString(),
+            data.RootElement.GetProperty("engagementId").GetGuid());
+    }
+
     [Fact]
     public async Task ADeadPhoneIsDisabledAndNotRetried()
     {

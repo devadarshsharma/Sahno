@@ -32,6 +32,9 @@ public enum NotificationKind
     /// <summary>It is the day of a confirmed event you are on (D-085).</summary>
     EngagementDayReminder = 16,
 
+    /// <summary>Somebody on an event asked for a detail that is not set yet (D-089). Organisers only.</summary>
+    DetailsRequested = 17,
+
     /// <summary>A job on an event has been given to you.</summary>
     ResponsibilityAssigned = 20,
 
@@ -43,6 +46,9 @@ public enum NotificationKind
 
     /// <summary>Somebody said something in an event's discussion.</summary>
     DiscussionMessage = 30,
+
+    /// <summary>Somebody reacted to your message in an event's discussion (D-087).</summary>
+    DiscussionReaction = 31,
 
     /// <summary>Somebody accepted an invitation. Organisers only.</summary>
     MemberJoined = 40,

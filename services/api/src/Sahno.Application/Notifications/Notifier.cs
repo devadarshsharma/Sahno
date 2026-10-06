@@ -1,3 +1,4 @@
+using Sahno.Application.Engagements;
 using Sahno.Application.Organisations;
 using Sahno.Domain.Engagements;
 using Sahno.Domain.Notifications;
@@ -23,7 +24,8 @@ public sealed class Notifier(
     IMembershipStore memberships,
     INotificationStore notifications,
     IOutboxStore outbox,
-    IPushDeviceStore pushDevices)
+    IPushDeviceStore pushDevices,
+    IDiscussionStore discussion)
 {
     public async Task AvailabilityRequestedAsync(
         Engagement engagement,
@@ -213,6 +215,61 @@ public sealed class Notifier(
             cancellationToken);
     }
 
+    /// <summary>
+    /// Somebody on the event asked for details that are not set yet (D-089).
+    /// Organisers only — they are the ones who can fill them in.
+    /// </summary>
+    public async Task DetailsRequestedAsync(
+        Engagement engagement,
+        Guid askedByUserId,
+        IReadOnlyList<ReadinessItem> items,
+        CancellationToken cancellationToken)
+    {
+        var people = await DirectoryAsync(engagement.OrganisationId, cancellationToken);
+        var what = JoinNaturally(items.Select(DetailRequest.Describe).ToList());
+
+        await TellAsync(
+            engagement,
+            Organisers(people).Where(userId => userId != askedByUserId),
+            people,
+            NotificationKind.DetailsRequested,
+            $"{NameOf(people, askedByUserId)} asked about {engagement.Title}",
+            $"What is the {what}?",
+            email: false,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// The outfit somebody asked for has been set (D-089). Venue and times
+    /// already reach everyone on the event as a details change; what to wear
+    /// does not, so the people who asked are told here.
+    /// </summary>
+    public async Task OutfitAnsweredAsync(
+        Engagement engagement,
+        IReadOnlyList<Guid> askedByUserIds,
+        CancellationToken cancellationToken)
+    {
+        var people = await DirectoryAsync(engagement.OrganisationId, cancellationToken);
+
+        await TellAsync(
+            engagement,
+            askedByUserIds,
+            people,
+            NotificationKind.EngagementDetailsChanged,
+            $"{engagement.Title}: what to wear",
+            engagement.DressNotes,
+            email: false,
+            cancellationToken);
+    }
+
+    /// <summary>"venue", "venue and outfit", "venue, start time and outfit".</summary>
+    private static string JoinNaturally(IReadOnlyList<string> parts) => parts.Count switch
+    {
+        0 => string.Empty,
+        1 => parts[0],
+        _ => $"{string.Join(", ", parts.Take(parts.Count - 1))} and {parts[^1]}",
+    };
+
     public async Task ResponsibilityAssignedAsync(
         Engagement engagement,
         Guid assigneeUserId,
@@ -358,13 +415,96 @@ public sealed class Notifier(
             .Distinct()
             .ToList();
 
+        var title = $"{name} in {engagement.Title}";
+        var body = Clip(preview, 140);
+
+        // On Android each chat is one notification that the next message
+        // replaces (D-088), so the push carries everything still unread there:
+        // "Saturday gig · 3 new messages" over the latest lines. The bell row
+        // stays one message, as before. iOS groups by thread and keeps each
+        // message, so it is sent as it is.
+        var unread = (await notifications.ListUnreadForEngagementAsync(
+                engagement.OrganisationId,
+                engagement.Id,
+                NotificationKind.DiscussionMessage,
+                audience,
+                cancellationToken))
+            .GroupBy(row => row.RecipientUserId)
+            .ToDictionary(
+                group => group.Key,
+                // A message is stamped a moment before its notification is,
+                // so the window opens a little earlier; how many lines to
+                // quote comes from the unread count, not from the window.
+                group => (Count: group.Count(), Since: group.Min(row => row.CreatedAtUtc) - TimeSpan.FromMinutes(1)));
+
+        IReadOnlyList<DiscussionMessage> earlier = unread.Count == 0
+            ? []
+            : await discussion.ListSinceAsync(
+                engagement.Id,
+                unread.Values.Min(row => row.Since),
+                cancellationToken);
+
+        (string Title, string? Body)? Bundled(Guid userId, PushDevice phone)
+        {
+            if (phone.Platform != "android" || !unread.TryGetValue(userId, out var waiting))
+            {
+                return null;
+            }
+
+            var lines = earlier
+                .Where(message => message.PostedAtUtc >= waiting.Since
+                    && message.AuthorUserId != userId
+                    && !message.IsDeleted)
+                .TakeLast(waiting.Count)
+                .Select(message => $"{NameOf(people, message.AuthorUserId)}: {Clip(message.Body!, 80)}")
+                .Append($"{name}: {Clip(preview, 80)}")
+                .TakeLast(5);
+
+            return ($"{engagement.Title} · {waiting.Count + 1} new messages", string.Join("\n", lines));
+        }
+
+        await StageAsync(
+            engagement.OrganisationId,
+            engagement.Id,
+            audience,
+            NotificationKind.DiscussionMessage,
+            title,
+            body,
+            emailBody: null,
+            cancellationToken,
+            Bundled);
+    }
+
+    private static string Clip(string text, int length) =>
+        text.Length > length ? text[..length] + "…" : text;
+
+    /// <summary>
+    /// Somebody reacted to a message (D-087). Only its author is told — the
+    /// rest of the chat sees the count change, which is enough for them.
+    /// </summary>
+    public async Task DiscussionReactionAsync(
+        Engagement engagement,
+        Guid messageAuthorUserId,
+        Guid reactorUserId,
+        string emoji,
+        string preview,
+        CancellationToken cancellationToken)
+    {
+        if (messageAuthorUserId == reactorUserId)
+        {
+            return;
+        }
+
+        var people = await DirectoryAsync(engagement.OrganisationId, cancellationToken);
+        var quote = preview.Length > 100 ? preview[..100] + "…" : preview;
+
         await TellAsync(
             engagement,
-            audience,
+            [messageAuthorUserId],
             people,
-            NotificationKind.DiscussionMessage,
-            $"{name} in {engagement.Title}",
-            preview.Length > 140 ? preview[..140] + "…" : preview,
+            NotificationKind.DiscussionReaction,
+            $"{NameOf(people, reactorUserId)} in {engagement.Title}",
+            $"Reacted {emoji} to \"{quote}\"",
             email: false,
             cancellationToken);
     }
@@ -472,7 +612,8 @@ public sealed class Notifier(
         string title,
         string? body,
         Func<Guid, OutboxMessage?>? emailBody,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<Guid, PushDevice, (string Title, string? Body)?>? pushText = null)
     {
         var userIds = recipients.Distinct().ToList();
         if (userIds.Count == 0)
@@ -509,7 +650,9 @@ public sealed class Notifier(
             {
                 var data = NotificationPayload.From(notification).ToJson();
                 messages.AddRange(phones.Select(phone =>
-                    OutboxMessage.Push(phone.Token, notification.Title, notification.Body, data)));
+                    pushText?.Invoke(userId, phone) is { } text
+                        ? OutboxMessage.Push(phone.Token, text.Title, text.Body, data)
+                        : OutboxMessage.Push(phone.Token, notification.Title, notification.Body, data)));
             }
         }
 

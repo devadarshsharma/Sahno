@@ -80,18 +80,29 @@ export function listDiscussion(
   );
 }
 
+/**
+ * Posts a message. `clientMessageId` names it before it is sent (D-087), so
+ * sending the same one again after a dropped connection never posts twice.
+ */
 export function postDiscussionMessage(
   accessToken: string,
   organisationId: string,
   engagementId: string,
   body: string,
   replyToMessageId?: string | null,
+  clientMessageId?: string,
+  signal?: AbortSignal,
 ): Promise<DiscussionMessage> {
   return postAuthorizedJson(
     base(organisationId, engagementId),
     accessToken,
-    replyToMessageId ? { body, replyToMessageId } : { body },
+    {
+      body,
+      ...(replyToMessageId ? { replyToMessageId } : {}),
+      ...(clientMessageId ? { clientMessageId } : {}),
+    },
     isMessage,
+    signal,
   );
 }
 

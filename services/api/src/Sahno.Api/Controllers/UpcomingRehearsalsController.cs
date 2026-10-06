@@ -9,7 +9,8 @@ using Sahno.Contracts.Engagements;
 namespace Sahno.Api.Controllers;
 
 /// <summary>
-/// Rehearsals across events, from today on (D-085), for Home and the calendar.
+/// Rehearsals across events, from today on (D-085), for Home. The calendar
+/// has its own, across organisations (MyCalendarController, D-091).
 /// Each event's own rehearsals stay under that event (RehearsalsController).
 /// </summary>
 [ApiController]
@@ -42,8 +43,13 @@ public sealed class UpcomingRehearsalsController(
         }
 
         var upcoming = await preparationService.UpcomingRehearsalsAsync(caller, cancellationToken);
+        return Ok(ToResponse(upcoming));
+    }
 
-        return Ok(upcoming.Select(row => new UpcomingRehearsalResponse(
+
+    private static List<UpcomingRehearsalResponse> ToResponse(IEnumerable<UpcomingRehearsal> rows)
+    {
+        return rows.Select(row => new UpcomingRehearsalResponse(
             row.Rehearsal.Id,
             row.Engagement.Id,
             row.Engagement.Title,
@@ -51,6 +57,6 @@ public sealed class UpcomingRehearsalsController(
             row.Rehearsal.Date,
             row.Rehearsal.StartTime,
             row.Rehearsal.EndTime,
-            row.Rehearsal.Venue)).ToList());
+            row.Rehearsal.Venue)).ToList();
     }
 }

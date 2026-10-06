@@ -108,7 +108,8 @@ public sealed class DiscussionController(
             engagementId,
             request.Body,
             cancellationToken,
-            request.ReplyToMessageId);
+            request.ReplyToMessageId,
+            request.ClientMessageId);
 
         if (result == EngagementResult.Invalid)
         {

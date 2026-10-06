@@ -72,19 +72,27 @@ public sealed class ExpoPushSender(
         string? dataJson,
         CancellationToken cancellationToken)
     {
+        JsonElement? data = dataJson is null ? null : JsonSerializer.Deserialize<JsonElement>(dataJson);
+        var presentation = PresentationOf(data);
+
         using var request = new HttpRequestMessage(HttpMethod.Post, "push/send")
         {
             // Sent as a batch of one: Expo answers a single message with a bare
             // ticket object and a batch with an array, and one shape to parse is
             // better than two.
-            Content = JsonContent.Create(new[] { new ExpoPushMessage(
-                pushToken,
-                title,
-                body,
-                dataJson is null ? null : JsonSerializer.Deserialize<JsonElement>(dataJson),
-                "default",
-                "high",
-                "default") }),
+            Content = JsonContent.Create(
+                new[] { new ExpoPushMessage(
+                    pushToken,
+                    title,
+                    body,
+                    data,
+                    "default",
+                    "high",
+                    "default",
+                    presentation.Tag,
+                    presentation.ThreadId,
+                    presentation.CategoryId) },
+                options: Json),
         };
 
         if (!string.IsNullOrWhiteSpace(options.Value.ExpoAccessToken))
@@ -136,6 +144,23 @@ public sealed class ExpoPushSender(
 
     private static string Clip(string text) => text.Length > 300 ? text[..300] : text;
 
+    /// <summary>Grouping and buttons follow the payload's kind and event (D-088).</summary>
+    private static PushPresentation PresentationOf(JsonElement? data)
+    {
+        if (data is not { ValueKind: JsonValueKind.Object } payload)
+        {
+            return PushPresentation.For(null, null);
+        }
+
+        var type = payload.TryGetProperty("notificationType", out var kind) && kind.ValueKind == JsonValueKind.String
+            ? kind.GetString()
+            : null;
+        Guid? engagementId = payload.TryGetProperty("engagementId", out var id) && id.TryGetGuid(out var guid)
+            ? guid
+            : null;
+        return PushPresentation.For(type, engagementId);
+    }
+
     private sealed record ExpoPushMessage(
         [property: JsonPropertyName("to")] string To,
         [property: JsonPropertyName("title")] string Title,
@@ -143,7 +168,10 @@ public sealed class ExpoPushSender(
         [property: JsonPropertyName("data")] JsonElement? Data,
         [property: JsonPropertyName("sound")] string Sound,
         [property: JsonPropertyName("priority")] string Priority,
-        [property: JsonPropertyName("channelId")] string ChannelId);
+        [property: JsonPropertyName("channelId")] string ChannelId,
+        [property: JsonPropertyName("tag"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Tag,
+        [property: JsonPropertyName("threadId"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ThreadId,
+        [property: JsonPropertyName("categoryId"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? CategoryId);
 
     private sealed record ExpoPushResponse(
         [property: JsonPropertyName("data")] List<ExpoTicket>? Data,

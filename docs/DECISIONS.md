@@ -1586,3 +1586,83 @@ Testers expected the event chat to work like the messaging apps they use daily. 
 - **No read receipts ("seen by") for now.** Testers were split; in a group they are noisy and some people feel watched. If wanted later, it is a per-organisation setting, off by default — a separate decision.
 
 Storage: `reply_to_message_id` on messages; `engagement_discussion_reactions` (one row per person per message); `engagement_discussion_hides` (one row per person per hidden message). Migration `AddChatRepliesReactionsAndHides`, additive only.
+
+---
+
+## D-087 — Chat messages show whether they were sent, and reactions reach the author
+
+**Date:** 6 October 2026
+**Status:** Accepted (amends D-086)
+
+Testers asked for two more things they are used to from messaging apps: knowing whether a message actually went, and hearing when somebody reacted to theirs.
+
+- **Reactions notify the message's author**, and nobody else: in-app and pushed, opening the chat. "Sam in Saturday gig — Reacted ❤️ to "Soundcheck at five."" Changing a reaction tells them again; taking one back or reacting to your own message tells nobody. Opening the chat marks these read with the messages. This replaces D-086's "reactions notify nobody".
+- **Delivery marks on your own messages:** a clock while sending, a tick once the server has it, and "Not sent · Tap to retry" if it failed. A tick means *sent* — saved and on its way to everyone — not *delivered to a phone* or *read*. D-086's "no read receipts" stands.
+- **A message is never lost to a bad connection.** It joins the thread the moment you send it and is posted in the background, in the order written. If it fails it stays in the thread, kept on the phone across restarts, until it is sent or you delete it. Failures for want of a connection go again by themselves when the chat next loads; a long-press offers Try again, Copy or Delete.
+- **Retrying never posts twice.** The app names each message (`clientMessageId`) before sending it, and that becomes its id; posting the same id again returns the message already there and notifies nobody a second time.
+
+No migration: the reaction notification is a new kind (`DiscussionReaction`) in the existing table.
+
+---
+
+## D-088 — Chat notifications bundle per chat, with Reply and Mark as read
+
+**Date:** 6 October 2026
+**Status:** Accepted
+
+A busy chat filled the tray with one notification per message. Testers expected what messaging apps do.
+
+- **One chat, one notification.** On Android every push for a chat carries the same `tag` (`chat-{engagementId}`), so each new message replaces the last. The push is written per phone: with more than one unread it reads "Saturday gig · 3 new messages" over the latest lines ("Sam: Bring the stands."), up to five. On iOS the same id is the `threadId`: messages stack into one group and each stays its own. Different chats never share a tag or a thread. The bell is unchanged — still one row per message.
+- **Reply and Mark as read** buttons on chat notifications (category `chat-message`), handled without opening the app. Reply posts the message (with a client id from the press, so a double delivery posts once — D-087) and marks the chat read; Mark as read clears it. A reply that cannot be sent waits in the chat as "Not sent" and says so with a notification.
+- **Reading a chat in the app clears its notifications** from the tray.
+- Reactions stack with their chat on iOS but never replace its unread messages.
+
+Android runs the buttons through a background task (`expo-task-manager`), registered from the app's entry (`apps/mobile/index.ts`) so it exists when the app is closed. Needs a new native build.
+
+---
+
+## D-089 — Performers can ask the organisers for missing event details
+
+**Date:** 6 October 2026
+**Status:** Accepted
+
+A detail that is not set simply does not appear on a member's event page, so a performer had no way to tell it was missing and no way to ask except the chat. Now:
+
+- **"Still to come"** on the event page (members, once the event is shared) lists the venue, sound-check time, start time and outfit when they are not set and not marked as not needed — each with **Ask**, plus "Ask for all of these".
+- **Asking notifies the organisers** (in-app and push; kind `DetailsRequested`): "Sam asked about Saturday gig — What is the sound-check time and outfit?", opening the event's Details. One open request per person per detail, so asking again is a quiet success, not another ping. Organisers cannot ask (they fill details in).
+- **Organisers see who is waiting** at the top of Details ("Outfit — Sam, Jo").
+- **Filling a detail in answers the request.** Venue and times already reach everyone on the event as a details change; the outfit does not, so the people who asked for it are told ("Saturday gig: what to wear — Black kurta").
+
+Storage: `engagement_detail_requests` (one row per person per detail, removed when answered). Migration `AddDetailRequests`, additive only.
+
+---
+
+## D-090 — Events marked done stay on the calendar, with their rehearsals
+
+**Date:** 6 October 2026
+**Status:** Accepted
+
+Marking an event Completed took it off the calendar, and its rehearsals with it — the calendar showed only events still going ahead, and rehearsals only from today on. Organisers use the calendar as a record of what the group did, not just a plan.
+
+- **Done events show on the calendar** with their own grey "Done" dot, ranked below every live state, and in the key.
+- **Their rehearsals stay too.** The calendar now loads rehearsals from twelve months back, for events going ahead *and* events marked done (`GET …/rehearsals/calendar?from=`). Home's "coming up" list (`…/rehearsals/upcoming`) is unchanged: from today, events still going ahead.
+- **Cancelled events and their rehearsals stay off.** They did not happen.
+
+The same applies to members, for the events they were on.
+
+---
+
+## D-091 — Date clashes are flagged, and the calendar spans all your organisations
+
+**Date:** 6 October 2026
+**Status:** Accepted
+
+Freelance musicians play with several groups, and a group can double-book itself. Neither showed anywhere.
+
+- **One calendar across organisations.** `GET /api/me/calendar?from=` returns the signed-in person's events and rehearsals from every organisation they belong to. Each organisation contributes exactly what that person already sees in it: every booking where they organise, only the events they are on where they are a member. The Events tab calendar shows the active organisation as before (its filter still applies) plus everything else, labelled with the organisation's name; tapping one from elsewhere offers to switch there (D-044). Home stays with the active organisation.
+- **Organisers are warned, never stopped.** Choosing a date for a new enquiry, or changing one, shows other bookings in the group that hold that day, and the organiser's own commitments with other groups. Two bookings on one day can be right (a ceremony and a reception); the organiser decides.
+- **Performers are warned when asked.** Where they answer for availability (the event page and the Home card) they see what else they have that day, in this group or any other: "Sharma wedding — with Group B · you said available". Anything they declined does not count.
+- **A day is held** by a draft, an availability check, a tentative or a confirmed booking. Cancelled, postponed (the old date no longer stands) and done do not.
+- **Private to the person.** The check runs on their own calendar, on their phone; no organiser is ever told what a member has on with another group.
+
+Replaces D-090's `…/rehearsals/calendar` endpoint, which this calendar absorbs (done events and their rehearsals still show).

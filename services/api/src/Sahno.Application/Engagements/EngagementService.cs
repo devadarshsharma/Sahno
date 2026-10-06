@@ -67,6 +67,7 @@ public sealed class EngagementService(
     ICustomerStore customers,
     ISetListStore setLists,
     INotificationStore notifications,
+    IDetailRequestStore detailRequests,
     Notifier notifier)
 {
     /// <summary>
@@ -364,8 +365,36 @@ public sealed class EngagementService(
                 cancellationToken);
         }
 
+        await CloseAnsweredRequestsAsync(engagement, cancellationToken);
         await engagements.SaveAsync(engagement, null, cancellationToken);
         return EngagementResult.Success;
+    }
+
+    /// <summary>
+    /// A detail somebody asked for is now set, so their request is answered
+    /// (D-089). Venue and times reached them above as a change; the outfit is
+    /// told to the people who asked for it.
+    /// </summary>
+    private async Task CloseAnsweredRequestsAsync(Engagement engagement, CancellationToken cancellationToken)
+    {
+        var answered = (await detailRequests.ListForEngagementAsync(engagement.Id, cancellationToken))
+            .Where(request => DetailRequestService.IsSet(engagement, request.Item))
+            .ToList();
+        if (answered.Count == 0)
+        {
+            return;
+        }
+
+        var outfitAskers = answered
+            .Where(request => request.Item == ReadinessItem.Dress)
+            .Select(request => request.UserId)
+            .ToList();
+        if (outfitAskers.Count > 0)
+        {
+            await notifier.OutfitAnsweredAsync(engagement, outfitAskers, cancellationToken);
+        }
+
+        detailRequests.Remove(answered);
     }
 
     /// <summary>

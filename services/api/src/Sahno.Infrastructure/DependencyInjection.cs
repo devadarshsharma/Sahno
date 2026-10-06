@@ -41,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<IRehearsalStore, RehearsalStore>();
         services.AddScoped<IEngagementResourceStore, EngagementResourceStore>();
         services.AddScoped<IDiscussionStore, DiscussionStore>();
+        services.AddScoped<IDetailRequestStore, DetailRequestStore>();
         services.AddScoped<ICommercialStore, CommercialStore>();
         services.AddScoped<ICustomerStore, CustomerStore>();
         services.AddScoped<IPieceStore, PieceStore>();

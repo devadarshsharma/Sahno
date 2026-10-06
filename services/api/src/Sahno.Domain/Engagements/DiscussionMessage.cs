@@ -87,7 +87,8 @@ public sealed class DiscussionMessage
         Guid engagementId,
         Guid authorUserId,
         string body,
-        Guid? replyToMessageId = null)
+        Guid? replyToMessageId = null,
+        Guid? id = null)
     {
         if (engagementId == Guid.Empty)
         {
@@ -96,8 +97,10 @@ public sealed class DiscussionMessage
                 nameof(engagementId));
         }
 
+        // The app may name the message itself, so that a retry is recognised
+        // as the same message (D-087). An empty id is no name at all.
         return new DiscussionMessage(
-            Guid.CreateVersion7(),
+            id is { } given && given != Guid.Empty ? given : Guid.CreateVersion7(),
             engagementId,
             authorUserId,
             NormalizeBody(body),

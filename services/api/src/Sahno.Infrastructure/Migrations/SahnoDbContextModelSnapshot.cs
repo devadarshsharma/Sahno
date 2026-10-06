@@ -22,6 +22,30 @@ namespace Sahno.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Sahno.Domain.Engagements.DetailRequest", b =>
+                {
+                    b.Property<Guid>("EngagementId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("engagement_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("Item")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("item");
+
+                    b.Property<DateTimeOffset>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at_utc");
+
+                    b.HasKey("EngagementId", "UserId", "Item");
+
+                    b.ToTable("engagement_detail_requests", (string)null);
+                });
+
             modelBuilder.Entity("Sahno.Domain.Engagements.DiscussionMessage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1183,6 +1207,15 @@ namespace Sahno.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("Sahno.Domain.Engagements.DetailRequest", b =>
+                {
+                    b.HasOne("Sahno.Domain.Engagements.Engagement", null)
+                        .WithMany()
+                        .HasForeignKey("EngagementId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Sahno.Domain.Engagements.DiscussionMessageHide", b =>

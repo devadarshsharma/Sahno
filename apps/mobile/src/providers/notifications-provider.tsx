@@ -16,6 +16,7 @@ import { AppState } from 'react-native';
 import { registerPushDevice, type NotificationPayload } from '@/api/notifications';
 import { NotificationBanner } from '@/components/notification-banner';
 import { useActiveOrg } from '@/hooks/use-organisations';
+import { isChatAction } from '@/notifications/chat-actions';
 import { markShown, wasShown } from '@/notifications/dedupe';
 import { installForegroundHandler, payloadOf, registerForPush } from '@/notifications/push';
 import { useSession } from '@/providers/auth-provider';
@@ -194,6 +195,12 @@ export function NotificationsProvider({ children }: PropsWithChildren) {
     // A tap, wherever it happened: tray, lock screen, or the banner the OS
     // showed while the app was in the background.
     const responded = Notifications.addNotificationResponseReceivedListener((response) => {
+      // Reply and Mark as read are answered where they were pressed, without
+      // opening anything (chat-actions, D-088).
+      if (isChatAction(response)) {
+        Notifications.clearLastNotificationResponse();
+        return;
+      }
       const payload = payloadOf(response.notification);
       if (!payload) {
         return;
@@ -231,7 +238,7 @@ export function NotificationsProvider({ children }: PropsWithChildren) {
     Notifications.clearLastNotificationResponse();
 
     const identifier = response.notification.request.identifier;
-    if (handledResponse.current === identifier) {
+    if (handledResponse.current === identifier || isChatAction(response)) {
       return;
     }
     const payload = payloadOf(response.notification);

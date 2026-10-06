@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import type { Engagement, EngagementStatus } from '@/api/engagements';
-import { EngagementCalendar } from '@/components/engagement-calendar';
+import { EngagementCalendar, type CalendarEvent, type CalendarRehearsal } from '@/components/engagement-calendar';
 import { Button, Screen, Text } from '@/components/ui';
 import {
   FILTER_LABELS,
@@ -17,7 +17,7 @@ import {
   type BookingsFilter,
 } from '@/hooks/use-engagements';
 import { useActiveOrg } from '@/hooks/use-organisations';
-import { useUpcomingRehearsals } from '@/hooks/use-upcoming-rehearsals';
+import { useMyCalendar } from '@/hooks/use-my-calendar';
 import { colors, fontFamilies, radii, shadows, spacing } from '@/theme';
 
 /**
@@ -27,7 +27,7 @@ import { colors, fontFamilies, radii, shadows, spacing } from '@/theme';
  */
 export default function Events() {
   const router = useRouter();
-  const { active } = useActiveOrg();
+  const { active, switchTo } = useActiveOrg();
   const engagementsQuery = useEngagements();
   const [view, setView] = useState<'list' | 'calendar'>('list');
 
@@ -38,7 +38,9 @@ export default function Events() {
   const clearFilter = () => router.setParams({ filter: undefined });
 
   const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
-  const rehearsalsQuery = useUpcomingRehearsals();
+  // The calendar is the person's whole diary, across every organisation
+  // they belong to (D-091); only fetched once it is on screen.
+  const myCalendar = useMyCalendar(view === 'calendar');
 
   if (engagementsQuery.isPending) {
     return (
@@ -70,6 +72,34 @@ export default function Events() {
     ? engagementsQuery.data.filter((engagement) => matchesFilter(engagement, filter))
     : engagementsQuery.data;
   const groups = groupByStatus(shown);
+
+  // This organisation's bookings as the list has them (the filter applies),
+  // then everything the person has with other organisations, named.
+  const calendarEvents: CalendarEvent[] = [
+    ...shown,
+    ...(myCalendar.data?.events ?? []).filter((event) => event.organisationId !== active?.id),
+  ];
+  const calendarRehearsals: CalendarRehearsal[] = (myCalendar.data?.rehearsals ?? []).map((rehearsal) =>
+    rehearsal.organisationId === active?.id ? { ...rehearsal, organisationName: null } : rehearsal,
+  );
+
+  // Another organisation's event opens there: say so, then switch (D-044).
+  const openIn = (organisationId: string | undefined, organisationName: string | null | undefined, open: () => void) => {
+    if (!organisationId || organisationId === active?.id) {
+      open();
+      return;
+    }
+    Alert.alert(`Open in ${organisationName}?`, `This is ${organisationName}'s. Sahno switches to ${organisationName} to open it.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: `Switch to ${organisationName}`,
+        onPress: () => {
+          switchTo(organisationId);
+          open();
+        },
+      },
+    ]);
+  };
 
   return (
     <Screen
@@ -135,19 +165,23 @@ export default function Events() {
 
       {view === 'calendar' ? (
         <EngagementCalendar
-          engagements={shown}
-          onOpen={(id) =>
-            router.push({
-              pathname: '/engagement/[engagementId]',
-              params: { engagementId: id },
-            })
+          engagements={calendarEvents}
+          onOpen={(event) =>
+            openIn(event.organisationId, event.organisationName, () =>
+              router.push({
+                pathname: '/engagement/[engagementId]',
+                params: { engagementId: event.id },
+              }),
+            )
           }
-          rehearsals={rehearsalsQuery.data ?? []}
+          rehearsals={calendarRehearsals}
           onOpenRehearsal={(rehearsal) =>
-            router.push({
-              pathname: '/engagement/[engagementId]/files',
-              params: { engagementId: rehearsal.engagementId },
-            })
+            openIn(rehearsal.organisationId, rehearsal.organisationName, () =>
+              router.push({
+                pathname: '/engagement/[engagementId]/files',
+                params: { engagementId: rehearsal.engagementId },
+              }),
+            )
           }
         />
       ) : groups.length === 0 ? (

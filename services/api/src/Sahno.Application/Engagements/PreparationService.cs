@@ -29,9 +29,9 @@ public sealed class PreparationService(
 {
     /// <summary>
     /// Rehearsals from today on, soonest first, across every event the caller
-    /// is expected at (D-085) — the Home list and the calendar. Organisers see
-    /// every event's; a member the events they are on and have not declined.
-    /// Only events still going ahead. "Today" is the organisation's today.
+    /// is expected at (D-085) — the Home list. Organisers see every event's; a
+    /// member the events they are on and have not declined. Only events still
+    /// going ahead. "Today" is the organisation's today.
     /// </summary>
     public async Task<IReadOnlyList<UpcomingRehearsal>> UpcomingRehearsalsAsync(
         Membership actor,
@@ -48,14 +48,41 @@ public sealed class PreparationService(
             : TimeZoneInfo.Utc;
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(time.GetUtcNow(), zone).DateTime);
 
-        var goingAhead = (await engagements.ListForOrganisationAsync(actor.OrganisationId, cancellationToken))
-            .Where(ExpectedLineup.IsGoingAhead)
+        return await RehearsalsForAsync(actor, ExpectedLineup.IsGoingAhead, today, cancellationToken);
+    }
+
+    /// <summary>
+    /// Rehearsals for the calendar (D-090), from a date on: as Home's list,
+    /// but an event marked done keeps its rehearsals there too — the calendar
+    /// is a record of what happened as well as a plan. Cancelled events' do not
+    /// show; they never happened.
+    /// </summary>
+    public Task<IReadOnlyList<UpcomingRehearsal>> CalendarRehearsalsAsync(
+        Membership actor,
+        DateOnly fromDate,
+        CancellationToken cancellationToken)
+    {
+        return RehearsalsForAsync(
+            actor,
+            engagement => ExpectedLineup.IsGoingAhead(engagement) || engagement.Status == EngagementStatus.Completed,
+            fromDate,
+            cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<UpcomingRehearsal>> RehearsalsForAsync(
+        Membership actor,
+        Func<Engagement, bool> shown,
+        DateOnly fromDate,
+        CancellationToken cancellationToken)
+    {
+        var events = (await engagements.ListForOrganisationAsync(actor.OrganisationId, cancellationToken))
+            .Where(shown)
             .ToList();
 
         if (!OrganisationAuthorizationService.IsOrganiser(actor))
         {
             var expectedAt = new HashSet<Guid>();
-            foreach (var engagement in goingAhead)
+            foreach (var engagement in events)
             {
                 var lineup = ExpectedLineup.Of(
                     await participants.ListForEngagementAsync(engagement.Id, cancellationToken));
@@ -65,11 +92,11 @@ public sealed class PreparationService(
                 }
             }
 
-            goingAhead = goingAhead.Where(engagement => expectedAt.Contains(engagement.Id)).ToList();
+            events = events.Where(engagement => expectedAt.Contains(engagement.Id)).ToList();
         }
 
-        var byId = goingAhead.ToDictionary(engagement => engagement.Id);
-        var upcoming = await rehearsals.ListFromDateAsync(byId.Keys, today, cancellationToken);
+        var byId = events.ToDictionary(engagement => engagement.Id);
+        var upcoming = await rehearsals.ListFromDateAsync(byId.Keys, fromDate, cancellationToken);
 
         return upcoming
             .Select(rehearsal => new UpcomingRehearsal(rehearsal, byId[rehearsal.EngagementId]))

@@ -1,6 +1,13 @@
 import type { DiscussionMessage } from '@/api/discussion';
 
 /**
+ * A message as the thread shows it. `delivery` is set only on your own
+ * messages the server has not confirmed yet (D-087): a clock while sending,
+ * "Not sent" once it failed. Everything the server returned has arrived.
+ */
+export type ChatMessage = DiscussionMessage & { delivery?: 'sending' | 'failed' };
+
+/**
  * Name colours, one per person, readable on white and on the soft teal of
  * your own bubbles. Picked from the author's id so a person keeps their
  * colour in every chat and on every phone.
@@ -29,7 +36,7 @@ export type ChatItem =
   | {
       kind: 'message';
       key: string;
-      message: DiscussionMessage;
+      message: ChatMessage;
       /** First of a run from the same person: their name is shown. */
       startsRun: boolean;
     }
@@ -43,7 +50,7 @@ const RUN_GAP_MS = 5 * 60 * 1000;
  * list that opens at the latest message. A day separator follows the oldest
  * message of its day in this order, which puts it above that day on screen.
  */
-export function chatItems(thread: DiscussionMessage[]): ChatItem[] {
+export function chatItems(thread: ChatMessage[]): ChatItem[] {
   const items: ChatItem[] = [];
 
   thread.forEach((message, index) => {

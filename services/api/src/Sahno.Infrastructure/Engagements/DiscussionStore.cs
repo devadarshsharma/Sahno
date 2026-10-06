@@ -60,6 +60,18 @@ public sealed class DiscussionStore(SahnoDbContext dbContext) : IDiscussionStore
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<DiscussionMessage>> ListSinceAsync(
+        Guid engagementId,
+        DateTimeOffset sinceUtc,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.DiscussionMessages
+            .AsNoTracking()
+            .Where(message => message.EngagementId == engagementId && message.PostedAtUtc >= sinceUtc)
+            .OrderBy(message => message.PostedAtUtc)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task SaveAsync(CancellationToken cancellationToken)
     {
         return dbContext.SaveChangesAsync(cancellationToken);

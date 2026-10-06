@@ -48,6 +48,8 @@ builder.Services.AddScoped<ReadinessService>();
 builder.Services.AddScoped<ResponsibilityService>();
 builder.Services.AddScoped<PreparationService>();
 builder.Services.AddScoped<DiscussionService>();
+builder.Services.AddScoped<DetailRequestService>();
+builder.Services.AddScoped<MyCalendarService>();
 builder.Services.AddScoped<CommercialService>();
 builder.Services.AddScoped<Notifier>();
 builder.Services.AddScoped<NotificationService>();

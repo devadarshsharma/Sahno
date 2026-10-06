@@ -194,11 +194,22 @@ public sealed class DiscussionService(
         Guid engagementId,
         string body,
         CancellationToken cancellationToken,
-        Guid? replyToMessageId = null)
+        Guid? replyToMessageId = null,
+        Guid? clientMessageId = null)
     {
         if (!await CanAccessAsync(actor, engagementId, cancellationToken))
         {
             return (EngagementResult.NotFound, null);
+        }
+
+        // A retry of a message that did get through the first time (D-087):
+        // hand back what is already there, and tell nobody a second time.
+        if (clientMessageId is { } clientId && clientId != Guid.Empty
+            && await messages.FindAsync(engagementId, clientId, cancellationToken) is { } already)
+        {
+            return already.AuthorUserId == actor.UserId
+                ? (EngagementResult.Success, already)
+                : (EngagementResult.Invalid, null);
         }
 
         // A reply answers a message in this same thread that still has words.
@@ -211,7 +222,7 @@ public sealed class DiscussionService(
             }
         }
 
-        var message = DiscussionMessage.Post(engagementId, actor.UserId, body, replyToMessageId);
+        var message = DiscussionMessage.Post(engagementId, actor.UserId, body, replyToMessageId, clientMessageId);
 
         var engagement = await engagements.FindByIdAsync(
             actor.OrganisationId,
@@ -320,7 +331,8 @@ public sealed class DiscussionService(
     /// Reacts to a message (D-086): one reaction each, so a new one replaces
     /// the old and the same one again takes it back. Null takes it back too.
     /// Anyone who can read the thread can react; a removed message cannot be
-    /// reacted to. Nobody is notified — a reaction is not news.
+    /// reacted to. The message's author is told when somebody reacts or
+    /// changes their reaction, never when one is taken back (D-087).
     /// </summary>
     public async Task<EngagementResult> ReactAsync(
         Membership actor,
@@ -353,13 +365,28 @@ public sealed class DiscussionService(
                 messages.RemoveReaction(existing);
             }
         }
-        else if (existing is not null)
-        {
-            existing.Change(emoji);
-        }
         else
         {
-            messages.AddReaction(DiscussionReaction.React(message, actor.UserId, emoji));
+            if (existing is not null)
+            {
+                existing.Change(emoji);
+            }
+            else
+            {
+                messages.AddReaction(DiscussionReaction.React(message, actor.UserId, emoji));
+            }
+
+            var engagement = await engagements.FindByIdAsync(
+                actor.OrganisationId,
+                engagementId,
+                cancellationToken);
+            await notifier.DiscussionReactionAsync(
+                engagement!,
+                message.AuthorUserId,
+                actor.UserId,
+                emoji,
+                message.Body!,
+                cancellationToken);
         }
 
         await messages.SaveAsync(cancellationToken);

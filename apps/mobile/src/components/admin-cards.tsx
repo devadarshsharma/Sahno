@@ -10,6 +10,7 @@ import {
   type EngagementStatus,
 } from '@/api/engagements';
 import { ApiError } from '@/api/client';
+import { BookingClashNotice } from '@/components/clash-notice';
 import { Button, Card, DateField, Text, TextInput } from '@/components/ui';
 import {
   formatEngagementDate,
@@ -73,6 +74,7 @@ export function DatesCard({ engagement }: { engagement: Engagement }) {
         }
         clearable
       />
+      <BookingClashNotice day={{ id: engagement.id, startDate, endDate: null }} />
       {save.isPending ? (
         <Text color="muted" variant="caption">
           Saving…

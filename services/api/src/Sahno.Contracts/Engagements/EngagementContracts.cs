@@ -86,3 +86,58 @@ public sealed record EngagementActivityResponse(
     string? Reason,
     Guid ActorUserId,
     DateTimeOffset OccurredAtUtc);
+
+/// <summary>
+/// Details of an event a performer can ask the organisers for (D-089). Item
+/// names are "Venue", "CallTime", "StartTime" and "Dress".
+/// </summary>
+public sealed record AskForDetailsRequest(IReadOnlyList<string> Items);
+
+/// <summary>
+/// What is still to come on an event, for the caller: the details not yet
+/// set that can be asked for, the ones they have asked for, and — organisers
+/// only, otherwise null — who is waiting on each.
+/// </summary>
+public sealed record DetailRequestsResponse(
+    IReadOnlyList<string> Missing,
+    IReadOnlyList<string> Asked,
+    IReadOnlyList<DetailAskersResponse>? Askers);
+
+public sealed record DetailAskersResponse(string Item, IReadOnlyList<string> Names);
+
+/// <summary>
+/// The caller's own calendar across every organisation they belong to
+/// (D-091): what they see in each, labelled with whose it is.
+/// </summary>
+public sealed record MyCalendarResponse(
+    IReadOnlyList<MyCalendarEventResponse> Events,
+    IReadOnlyList<MyCalendarRehearsalResponse> Rehearsals);
+
+public sealed record MyCalendarEventResponse(
+    Guid OrganisationId,
+    string OrganisationName,
+    /// <summary>Whether the caller organises in that organisation.</summary>
+    bool IsOrganiser,
+    Guid Id,
+    string Title,
+    string Status,
+    DateOnly? StartDate,
+    DateOnly? EndDate,
+    TimeOnly? StartTime,
+    string? Venue,
+    /// <summary>The caller's own answer, when they are on the lineup.</summary>
+    string? YourResponse,
+    /// <summary>How many have still to answer. Null where the caller is not an organiser.</summary>
+    int? OutstandingCount);
+
+public sealed record MyCalendarRehearsalResponse(
+    Guid OrganisationId,
+    string OrganisationName,
+    Guid Id,
+    Guid EngagementId,
+    string EngagementTitle,
+    string? Title,
+    DateOnly Date,
+    TimeOnly? StartTime,
+    TimeOnly? EndTime,
+    string? Venue);

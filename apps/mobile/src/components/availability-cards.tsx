@@ -9,12 +9,14 @@ import {
   type AvailabilityAnswer,
   type Participant,
 } from '@/api/availability';
+import { YourClashNotice } from '@/components/clash-notice';
 import { Button, Card, Text } from '@/components/ui';
 import {
   useAvailability,
   useAvailabilityMutation,
   useOwnAvailability,
 } from '@/hooks/use-availability';
+import { useEngagements } from '@/hooks/use-engagements';
 import { colors, radii, spacing } from '@/theme';
 
 const ANSWERS: AvailabilityAnswer[] = ['Available', 'Maybe', 'Unavailable'];
@@ -26,6 +28,7 @@ const ANSWERS: AvailabilityAnswer[] = ['Available', 'Maybe', 'Unavailable'];
  */
 export function MyAvailabilityCard({ engagementId }: { engagementId: string }) {
   const ownQuery = useOwnAvailability(engagementId);
+  const engagement = useEngagements().data?.find((row) => row.id === engagementId);
 
   if (!ownQuery.isSuccess || !ownQuery.data.isSelected) {
     return null;
@@ -43,6 +46,8 @@ export function MyAvailabilityCard({ engagementId }: { engagementId: string }) {
           ? 'You can change this while the organiser is still deciding.'
           : 'Only the organisers see your answer.'}
       </Text>
+
+      {engagement ? <YourClashNotice day={engagement} /> : null}
 
       <AvailabilityAnswerButtons engagementId={engagementId} current={current} />
     </Card>

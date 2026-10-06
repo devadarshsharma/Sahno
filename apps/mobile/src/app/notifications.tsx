@@ -138,6 +138,8 @@ function kindLabel(kind: NotificationKind): string {
       return 'Details changed';
     case 'EngagementDayReminder':
       return 'Today';
+    case 'DetailsRequested':
+      return 'Question';
     case 'ResponsibilityAssigned':
       return 'Your job';
     case 'ResponsibilityReminder':
@@ -148,6 +150,8 @@ function kindLabel(kind: NotificationKind): string {
       return 'Rehearsal today';
     case 'DiscussionMessage':
       return 'Discussion';
+    case 'DiscussionReaction':
+      return 'Reaction';
     case 'MemberJoined':
       return 'New member';
     case 'OrganiserAnnouncement':

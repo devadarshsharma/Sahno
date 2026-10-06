@@ -127,6 +127,9 @@ public sealed class LiveUpdateInterceptor(
                 case DiscussionReaction reaction:
                     _engagements.Add(reaction.EngagementId);
                     break;
+                case DetailRequest request:
+                    _engagements.Add(request.EngagementId);
+                    break;
                 case EngagementCustomer customer:
                     _engagements.Add(customer.EngagementId);
                     break;

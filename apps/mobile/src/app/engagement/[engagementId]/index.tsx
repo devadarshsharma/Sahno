@@ -6,7 +6,9 @@ import { ActivityIndicator, Pressable, Share, StyleSheet, View } from 'react-nat
 import type { Engagement } from '@/api/engagements';
 import { MyAvailabilityCard } from '@/components/availability-cards';
 import { AddToCalendarCard } from '@/components/calendar-card';
-import { formatClock, StatusChip } from '@/components/engagement-card';
+import { DetailRequestsCard } from '@/components/detail-requests-card';
+import { CHIP_LABEL, formatClock, StatusChip } from '@/components/engagement-card';
+import { VenueLink } from '@/components/venue-link';
 import { Button, Card, CountBadge, Screen, Text } from '@/components/ui';
 import { useAvailability } from '@/hooks/use-availability';
 import { useEngagementCustomer, useFinancialAccess } from '@/hooks/use-commercial';
@@ -140,13 +142,13 @@ export default function EngagementOverview() {
       refreshing={engagementsQuery.isRefetching}
       hero={{
         title: engagement.title,
-        subtitle: engagement.venue ? `${when} · ${engagement.venue}` : when,
+        subtitle: when,
         // Organisers tap the chip to move the booking on; for everyone else
         // it is just the fact.
         right: isOrganiser ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Status: . Change.`}
+            accessibilityLabel={`Status: ${CHIP_LABEL[engagement.status]}. Change.`}
             onPress={() => go('status')}
             hitSlop={8}
             style={({ pressed }) => [styles.statusButton, pressed ? styles.rowPressed : null]}
@@ -166,6 +168,9 @@ export default function EngagementOverview() {
           </Text>
         </Card>
       ) : null}
+
+      {/* Where, as a link: getting there is the next thing anybody does with it. */}
+      {engagement.venue ? <VenueLink venue={engagement.venue} style={styles.venue} /> : null}
 
       {/* The day-of strip: what a performer opens the booking to find out.
           Only what has been entered — a row of dashes says nothing, and the
@@ -187,6 +192,11 @@ export default function EngagementOverview() {
       {/* A member's answer, right here: for them the header and strip above
           are the whole of Details, and their answer was all People held. */}
       {isOrganiser ? null : <MyAvailabilityCard engagementId={engagement.id} />}
+
+      {/* What they are still waiting on, and a way to ask for it (D-089). */}
+      {isOrganiser || !engagement.isSharedWithMembers ? null : (
+        <DetailRequestsCard engagementId={engagement.id} />
+      )}
 
       <Card style={styles.menu}>
         {/* Organisers keep Details and People: dates and details to edit,
@@ -360,6 +370,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   notice: {
+    marginBottom: spacing.md,
+  },
+  venue: {
     marginBottom: spacing.md,
   },
   strip: {

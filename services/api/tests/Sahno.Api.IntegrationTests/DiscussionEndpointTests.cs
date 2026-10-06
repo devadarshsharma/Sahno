@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Sahno.Api.IntegrationTests.Authentication;
 using Sahno.Contracts.Engagements;
+using Sahno.Contracts.Notifications;
 using Sahno.Contracts.Organisations;
 
 namespace Sahno.Api.IntegrationTests;
@@ -151,6 +152,66 @@ public sealed class DiscussionEndpointTests(SahnoApiFactory factory)
         Assert.Equal(HttpStatusCode.BadRequest, notOffered.StatusCode);
     }
 
+    /// <summary>
+    /// A reaction tells the message's author and nobody else (D-087); taking
+    /// it back or reacting to your own message tells nobody, and opening the
+    /// chat clears it with the messages.
+    /// </summary>
+    [Fact]
+    public async Task AReactionTellsTheAuthorOnly()
+    {
+        var org = await NewOrganisationAsync("chat-react-notify", members: 2);
+        var engagement = await NewDraftAsync(org, "Reaction news");
+        await RequestAvailabilityAsync(org, engagement.Id, org.MemberIds);
+        var message = await PostAsync(org.Members[0], org, engagement.Id, "Soundcheck at five.");
+        var reaction = $"{Discussion(org, engagement.Id)}/{message.Id}/reaction";
+
+        (await org.Members[0].PutAsJsonAsync(reaction, new SetReactionRequest("👍"))).EnsureSuccessStatusCode();
+        Assert.Empty(await ReactionNewsAsync(org.Members[0], org));
+
+        (await org.Owner.PutAsJsonAsync(reaction, new SetReactionRequest("❤️"))).EnsureSuccessStatusCode();
+        (await org.Owner.PutAsJsonAsync(reaction, new SetReactionRequest("❤️"))).EnsureSuccessStatusCode();
+
+        var told = Assert.Single(await ReactionNewsAsync(org.Members[0], org));
+        Assert.Contains("❤️", told.Body);
+        Assert.Contains("Soundcheck at five.", told.Body);
+        Assert.Equal($"/engagement/{engagement.Id}/chat", told.Route);
+        Assert.Empty(await ReactionNewsAsync(org.Members[1], org));
+        Assert.Empty(await ReactionNewsAsync(org.Owner, org));
+
+        (await org.Members[0].PostAsync($"{Discussion(org, engagement.Id)}/read", content: null)).EnsureSuccessStatusCode();
+        Assert.True(Assert.Single(await ReactionNewsAsync(org.Members[0], org)).IsRead);
+    }
+
+    /// <summary>
+    /// Sending again with the same client id — a retry after the connection
+    /// dropped mid-send — posts once and tells people once (D-087).
+    /// </summary>
+    [Fact]
+    public async Task ARetriedMessageIsPostedOnce()
+    {
+        var org = await NewOrganisationAsync("chat-retry", members: 1);
+        var engagement = await NewDraftAsync(org, "Retry");
+        await RequestAvailabilityAsync(org, engagement.Id, org.MemberIds);
+        var clientId = Guid.CreateVersion7();
+        var request = new PostDiscussionMessageRequest("On my way.", null, clientId);
+
+        var first = await org.Members[0].PostAsJsonAsync(Discussion(org, engagement.Id), request);
+        var again = await org.Members[0].PostAsJsonAsync(Discussion(org, engagement.Id), request);
+        first.EnsureSuccessStatusCode();
+        again.EnsureSuccessStatusCode();
+
+        var posted = Assert.Single(await ThreadAsync(org.Members[0], org, engagement.Id));
+        Assert.Equal(clientId, posted.Id);
+        Assert.Equal(1, await UnreadAsync(org.Owner, org, engagement.Id));
+
+        // Somebody else's id is not theirs to reuse.
+        var hijack = await org.Owner.PostAsJsonAsync(
+            Discussion(org, engagement.Id),
+            new PostDiscussionMessageRequest("Not mine.", null, clientId));
+        Assert.Equal(HttpStatusCode.BadRequest, hijack.StatusCode);
+    }
+
     /// <summary>"Delete for me" hides a message from one reader only (D-086).</summary>
     [Fact]
     public async Task DeleteForMeHidesOnlyFromMe()
@@ -178,6 +239,13 @@ public sealed class DiscussionEndpointTests(SahnoApiFactory factory)
     {
         var list = await client.GetFromJsonAsync<List<EngagementResponse>>(Engagements(org));
         return Assert.Single(list!, item => item.Id == engagementId).UnreadMessages;
+    }
+
+    private static async Task<List<NotificationResponse>> ReactionNewsAsync(HttpClient client, TestOrganisation org)
+    {
+        var rows = await client.GetFromJsonAsync<List<NotificationResponse>>(
+            $"/api/organisations/{org.Id}/notifications");
+        return rows!.Where(row => row.Kind == "DiscussionReaction").ToList();
     }
 
     /// <summary>

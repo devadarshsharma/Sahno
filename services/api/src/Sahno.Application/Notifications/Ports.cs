@@ -45,6 +45,17 @@ public interface INotificationStore
         NotificationKind kind,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// These people's unread notifications of one kind for one engagement:
+    /// with DiscussionMessage, the messages each of them has not read yet.
+    /// </summary>
+    Task<IReadOnlyList<Notification>> ListUnreadForEngagementAsync(
+        Guid organisationId,
+        Guid engagementId,
+        NotificationKind kind,
+        IReadOnlyCollection<Guid> userIds,
+        CancellationToken cancellationToken);
+
     /// <summary>Marks one person's unread notifications of one kind, for one engagement, read.</summary>
     Task MarkReadForEngagementAsync(
         Guid organisationId,

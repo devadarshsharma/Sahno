@@ -40,8 +40,16 @@ public sealed record DiscussionReactionResponse(string Emoji, int Count, bool In
 /// <summary>One of the offered reactions; reacting with the one you already have takes it back.</summary>
 public sealed record SetReactionRequest(string Emoji);
 
-/// <summary><see cref="ReplyToMessageId"/> makes it a reply to a message in the same thread.</summary>
-public sealed record PostDiscussionMessageRequest(string Body, Guid? ReplyToMessageId = null);
+/// <summary>
+/// <see cref="ReplyToMessageId"/> makes it a reply to a message in the same thread.
+/// <see cref="ClientMessageId"/> is the id the app gave the message before sending
+/// it (D-087): sending the same one again — a retry after a dropped connection —
+/// returns the message already posted instead of posting it twice.
+/// </summary>
+public sealed record PostDiscussionMessageRequest(
+    string Body,
+    Guid? ReplyToMessageId = null,
+    Guid? ClientMessageId = null);
 
 /// <summary>The author's own rewrite. Nobody else can reach it.</summary>
 public sealed record EditDiscussionMessageRequest(string Body);

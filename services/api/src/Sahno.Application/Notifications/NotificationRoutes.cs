@@ -28,16 +28,51 @@ public static class NotificationRoutes
         {
             // Organisers are told about answers: the lineup is where they act.
             NotificationKind.AvailabilityAnswered => $"{engagement}/people",
+            // Asked for a detail: straight to where it is filled in.
+            NotificationKind.DetailsRequested => $"{engagement}/details",
             NotificationKind.ResponsibilityAssigned
                 or NotificationKind.ResponsibilityReminder => $"{engagement}/jobs",
             NotificationKind.RehearsalScheduled
                 or NotificationKind.RehearsalReminder => $"{engagement}/files",
-            NotificationKind.DiscussionMessage => $"{engagement}/chat",
+            NotificationKind.DiscussionMessage
+                or NotificationKind.DiscussionReaction => $"{engagement}/chat",
             // A request, a reminder, or changed details lands on the event
             // itself: its header carries the date, times, venue and dress,
             // and a member answers there — they have no separate People or
             // Details page any more.
             _ => engagement,
+        };
+    }
+}
+
+/// <summary>
+/// How the phone shows a push beyond its words (D-088). A chat's messages
+/// share a <see cref="Tag"/>, so on Android each new one replaces the last and
+/// the chat is one notification, the way messaging apps do it; on iOS they
+/// share a <see cref="ThreadId"/> and stack together. Different chats never
+/// share either. <see cref="CategoryId"/> puts Reply and Mark as read on a
+/// chat message — the app defines the buttons under that name.
+/// </summary>
+public sealed record PushPresentation(string? Tag, string? ThreadId, string? CategoryId)
+{
+    public const string ChatMessageCategory = "chat-message";
+
+    private static readonly PushPresentation Plain = new(null, null, null);
+
+    public static PushPresentation For(string? notificationType, Guid? engagementId)
+    {
+        if (engagementId is not { } id)
+        {
+            return Plain;
+        }
+
+        var chat = $"chat-{id}";
+        return notificationType switch
+        {
+            nameof(NotificationKind.DiscussionMessage) => new PushPresentation(chat, chat, ChatMessageCategory),
+            // Stacks with the chat, but must not replace its unread messages.
+            nameof(NotificationKind.DiscussionReaction) => new PushPresentation(null, chat, null),
+            _ => Plain,
         };
     }
 }

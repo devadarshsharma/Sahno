@@ -4,7 +4,9 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Engagement, EngagementStatus } from '@/api/engagements';
 import { AvailabilityAnswerButtons } from '@/components/availability-cards';
+import { YourClashNotice } from '@/components/clash-notice';
 import { Text } from '@/components/ui';
+import { VenueLink } from '@/components/venue-link';
 import { formatEngagementDate } from '@/hooks/use-engagements';
 import { colors, fontFamilies, radii, shadows, spacing } from '@/theme';
 
@@ -66,9 +68,8 @@ export function EngagementCard({
           text={when}
           tone={engagement.status === 'Postponed' ? 'attention' : 'default'}
         />
-        {engagement.venue ? (
-          <Line icon="location-outline" text={engagement.venue} />
-        ) : null}
+        {/* Its own tap target inside the card: maps, not the event. */}
+        {engagement.venue ? <VenueLink venue={engagement.venue} size="small" /> : null}
       </View>
 
       {stats.length > 0 ? <View style={styles.stats}>{stats}</View> : null}
@@ -89,6 +90,8 @@ export function EngagementCard({
               </Text>
             </View>
           )}
+          {/* Asked here while booked elsewhere: they see it before answering (D-091). */}
+          <YourClashNotice day={engagement} />
           <AvailabilityAnswerButtons
             engagementId={engagement.id}
             current={engagement.yourResponse}
@@ -267,7 +270,8 @@ export function StatusChip({ status }: { status: EngagementStatus }) {
 /** Deep orange for text on the soft-orange attention surfaces; the brand orange itself is too light to read. */
 const ATTENTION_INK = '#8A4A05';
 
-const CHIP_LABEL: Record<EngagementStatus, string> = {
+/** What the status chip says — also what a screen reader says for it. */
+export const CHIP_LABEL: Record<EngagementStatus, string> = {
   Draft: 'Enquiry',
   CheckingAvailability: 'Awaiting',
   Tentative: 'Tentative',

@@ -13,21 +13,40 @@ import { colors, radii, spacing } from '@/theme';
  * is merely provisional, which outranks one that is settled — because that is
  * the order in which they need the reader to do something.
  */
-type DayState = 'needsResponse' | 'tentative' | 'confirmed';
+/**
+ * What the calendar needs of an event. `organisationName` is set only for
+ * another organisation's (D-091): the calendar is the person's whole diary,
+ * and an event from elsewhere says whose it is.
+ */
+export type CalendarEvent = Pick<
+  Engagement,
+  'id' | 'title' | 'status' | 'startDate' | 'venue' | 'yourResponse' | 'outstandingCount'
+> & { organisationId?: string; organisationName?: string | null };
+
+export type CalendarRehearsal = UpcomingRehearsal & { organisationId?: string; organisationName?: string | null };
+
+type DayState = 'needsResponse' | 'tentative' | 'confirmed' | 'done';
 
 const STATE_RANK: Record<DayState, number> = {
   needsResponse: 0,
   tentative: 1,
   confirmed: 2,
+  done: 3,
 };
 
 export const CALENDAR_KEY: { state: DayState; label: string }[] = [
   { state: 'needsResponse', label: 'Needs a response' },
   { state: 'tentative', label: 'Tentative' },
   { state: 'confirmed', label: 'Confirmed' },
+  { state: 'done', label: 'Done' },
 ];
 
-export function stateOf(engagement: Engagement): DayState | null {
+export function stateOf(engagement: CalendarEvent): DayState | null {
+  // Done stays on the calendar: it is what happened that day, and its
+  // rehearsals with it. Cancelled did not happen, so it goes.
+  if (engagement.status === 'Completed') {
+    return 'done';
+  }
   if (engagement.status === 'Confirmed') {
     return 'confirmed';
   }
@@ -62,11 +81,11 @@ export function EngagementCalendar({
   rehearsals = [],
   onOpenRehearsal,
 }: {
-  engagements: Engagement[];
-  onOpen: (engagementId: string) => void;
-  /** Upcoming rehearsals; past ones are not loaded, so earlier months show none. */
-  rehearsals?: UpcomingRehearsal[];
-  onOpenRehearsal?: (rehearsal: UpcomingRehearsal) => void;
+  engagements: CalendarEvent[];
+  onOpen: (engagement: CalendarEvent) => void;
+  /** Rehearsals for the calendar: future ones, and past ones from the last year. */
+  rehearsals?: CalendarRehearsal[];
+  onOpenRehearsal?: (rehearsal: CalendarRehearsal) => void;
 }) {
   const today = useMemo(() => new Date(), []);
   const [month, setMonth] = useState(
@@ -77,7 +96,7 @@ export function EngagementCalendar({
   // One pass to bucket engagements by day, so the grid does not scan the whole
   // list for each of its cells.
   const byDay = useMemo(() => {
-    const map = new Map<string, Engagement[]>();
+    const map = new Map<string, CalendarEvent[]>();
     for (const engagement of engagements) {
       if (engagement.startDate === null || stateOf(engagement) === null) {
         continue;
@@ -93,7 +112,7 @@ export function EngagementCalendar({
   }, [engagements]);
 
   const rehearsalsByDay = useMemo(() => {
-    const map = new Map<string, UpcomingRehearsal[]>();
+    const map = new Map<string, CalendarRehearsal[]>();
     for (const rehearsal of rehearsals) {
       const existing = map.get(rehearsal.date);
       if (existing) {
@@ -263,7 +282,7 @@ export function EngagementCalendar({
               key={engagement.id}
               accessibilityRole="button"
               accessibilityLabel={engagement.title}
-              onPress={() => onOpen(engagement.id)}
+              onPress={() => onOpen(engagement)}
               style={styles.dayRow}
             >
               <View
@@ -274,9 +293,9 @@ export function EngagementCalendar({
               />
               <View style={styles.dayText}>
                 <Text numberOfLines={1}>{engagement.title}</Text>
-                {engagement.venue ? (
+                {engagement.organisationName || engagement.venue ? (
                   <Text variant="caption" color="muted" numberOfLines={1}>
-                    {engagement.venue}
+                    {[engagement.organisationName, engagement.venue].filter(Boolean).join(' · ')}
                   </Text>
                 ) : null}
               </View>
@@ -298,9 +317,11 @@ export function EngagementCalendar({
               <Text numberOfLines={1}>
                 {rehearsal.title ?? 'Rehearsal'} · {rehearsal.engagementTitle}
               </Text>
-              {rehearsalTimes(rehearsal) || rehearsal.venue ? (
+              {rehearsal.organisationName || rehearsalTimes(rehearsal) || rehearsal.venue ? (
                 <Text variant="caption" color="muted" numberOfLines={1}>
-                  {[rehearsalTimes(rehearsal), rehearsal.venue].filter(Boolean).join(' · ')}
+                  {[rehearsal.organisationName, rehearsalTimes(rehearsal), rehearsal.venue]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </Text>
               ) : null}
             </View>
@@ -315,6 +336,9 @@ export function EngagementCalendar({
 function dotStyle(state: DayState) {
   if (state === 'needsResponse') {
     return styles.dotNeedsResponse;
+  }
+  if (state === 'done') {
+    return styles.dotDone;
   }
   return state === 'tentative' ? styles.dotTentative : styles.dotConfirmed;
 }
@@ -395,6 +419,9 @@ const styles = StyleSheet.create({
   },
   dotConfirmed: {
     backgroundColor: colors.tealText,
+  },
+  dotDone: {
+    backgroundColor: colors.text.muted,
   },
   key: {
     flexDirection: 'row',

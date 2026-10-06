@@ -10,7 +10,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   editDiscussionMessage,
   hideMessage,
-  postDiscussionMessage,
   reactToMessage,
   removeDiscussionMessage,
   type DiscussionMessage,
@@ -19,10 +18,10 @@ import { Composer, type ComposerMode } from '@/components/chat/composer';
 import { MessageActions, type MessageAction } from '@/components/chat/message-actions';
 import { MessageBubble } from '@/components/chat/message-bubble';
 import { Button, Text } from '@/components/ui';
-import { useDiscussion, useDiscussionMutation, useMarkDiscussionRead } from '@/hooks/use-discussion';
+import { useChatSender, useDiscussion, useDiscussionMutation, useMarkDiscussionRead } from '@/hooks/use-discussion';
 import { useEngagements } from '@/hooks/use-engagements';
 import { useActiveOrg } from '@/hooks/use-organisations';
-import { chatItems, type ChatItem } from '@/lib/chat';
+import { chatItems, type ChatItem, type ChatMessage } from '@/lib/chat';
 import { colors, fontFamilies, spacing } from '@/theme';
 
 /**
@@ -49,13 +48,34 @@ export default function Chat() {
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const list = useRef<FlatList<ChatItem>>(null);
 
-  const items = useMemo(() => chatItems(thread.data ?? []), [thread.data]);
+  const sender = useChatSender(engagementId);
 
-  const post = useDiscussionMutation<{ body: string; replyTo: string | null }>(
-    engagementId,
-    (token, organisationId, { body, replyTo }) =>
-      postDiscussionMessage(token, organisationId, engagementId, body, replyTo),
-  );
+  // What the server has, then what this phone is still sending, in the
+  // order it was written. A message the server already returned is shown
+  // once, from the server.
+  const items = useMemo(() => {
+    const confirmed = thread.data ?? [];
+    const known = new Set(confirmed.map((message) => message.id));
+    const yourId = confirmed.find((message) => message.isYours)?.authorUserId ?? 'you';
+    const pending: ChatMessage[] = sender.outgoing
+      .filter((message) => !known.has(message.clientId))
+      .map((message) => ({
+        id: message.clientId,
+        authorUserId: yourId,
+        authorDisplayName: null,
+        isYours: true,
+        body: message.body,
+        isEdited: false,
+        isDeleted: false,
+        wasModerated: false,
+        postedAtUtc: message.queuedAtUtc,
+        editedAtUtc: null,
+        replyTo: message.replyTo,
+        reactions: [],
+        delivery: message.state,
+      }));
+    return chatItems([...confirmed, ...pending]);
+  }, [thread.data, sender.outgoing]);
   const edit = useDiscussionMutation<{ id: string; body: string }>(engagementId, (token, organisationId, { id, body }) =>
     editDiscussionMessage(token, organisationId, engagementId, id, body),
   );
@@ -85,16 +105,37 @@ export default function Chat() {
       return;
     }
 
-    post.mutate(
-      { body, replyTo: mode.kind === 'reply' ? mode.to.id : null },
-      {
-        onSuccess: () => {
-          setDraft('');
-          setMode({ kind: 'new' });
-          list.current?.scrollToOffset({ offset: 0, animated: true });
-        },
-        onError: failed('send your message'),
-      },
+    // Into the thread at once; it is sent from there, and stays there with a
+    // retry if the connection lets it down (D-087).
+    sender.send(
+      body,
+      mode.kind === 'reply'
+        ? {
+            id: mode.to.id,
+            authorDisplayName: mode.to.authorDisplayName,
+            isYours: mode.to.isYours,
+            body: mode.to.body,
+            isDeleted: mode.to.isDeleted,
+          }
+        : null,
+    );
+    setDraft('');
+    setMode({ kind: 'new' });
+    list.current?.scrollToOffset({ offset: 0, animated: true });
+  };
+
+  // A message still on this phone has nothing to react to or reply to yet:
+  // it can be sent again, copied, or dropped.
+  const onUnsentLongPress = (message: ChatMessage) => {
+    Alert.alert(
+      message.delivery === 'failed' ? 'Not sent' : 'Sending…',
+      message.body ?? undefined,
+      [
+        ...(message.delivery === 'failed' ? [{ text: 'Try again', onPress: () => sender.retry(message.id) }] : []),
+        { text: 'Copy', onPress: () => void Clipboard.setStringAsync(message.body ?? '') },
+        { text: 'Delete', style: 'destructive' as const, onPress: () => sender.discard(message.id) },
+        { text: 'Cancel', style: 'cancel' as const },
+      ],
     );
   };
 
@@ -225,7 +266,10 @@ export default function Chat() {
                   message={item.message}
                   startsRun={item.startsRun}
                   highlighted={highlightedId === item.message.id}
-                  onLongPress={() => setSelected(item.message)}
+                  onLongPress={() =>
+                    item.message.delivery ? onUnsentLongPress(item.message) : setSelected(item.message)
+                  }
+                  onRetry={() => sender.retry(item.message.id)}
                   onQuotePress={jumpTo}
                   onReactionPress={(emoji) =>
                     react.mutate({ id: item.message.id, emoji }, { onError: failed('react') })
@@ -247,7 +291,7 @@ export default function Chat() {
             setMode({ kind: 'new' });
           }}
           onSend={send}
-          sending={post.isPending || edit.isPending}
+          sending={edit.isPending}
         />
       </KeyboardAvoidingView>
 

@@ -75,6 +75,29 @@ public sealed class NotificationStore(SahnoDbContext dbContext) : INotificationS
         return counts.ToDictionary(row => row.EngagementId, row => row.Count);
     }
 
+    public async Task<IReadOnlyList<Notification>> ListUnreadForEngagementAsync(
+        Guid organisationId,
+        Guid engagementId,
+        NotificationKind kind,
+        IReadOnlyCollection<Guid> userIds,
+        CancellationToken cancellationToken)
+    {
+        if (userIds.Count == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.Notifications
+            .AsNoTracking()
+            .Where(notification =>
+                notification.OrganisationId == organisationId
+                && notification.EngagementId == engagementId
+                && notification.Kind == kind
+                && notification.ReadAtUtc == null
+                && userIds.Contains(notification.RecipientUserId))
+            .ToListAsync(cancellationToken);
+    }
+
     public Task MarkReadForEngagementAsync(
         Guid organisationId,
         Guid userId,

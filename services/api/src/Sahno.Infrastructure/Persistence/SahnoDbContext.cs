@@ -64,6 +64,8 @@ public sealed class SahnoDbContext(DbContextOptions<SahnoDbContext> options)
 
     public DbSet<DiscussionMessageHide> DiscussionMessageHides => Set<DiscussionMessageHide>();
 
+    public DbSet<DetailRequest> DetailRequests => Set<DetailRequest>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(
