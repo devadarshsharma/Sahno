@@ -61,7 +61,10 @@ public sealed class AvailabilityService(
             return EngagementResult.NotFound;
         }
 
-        if (userIds.Count == 0)
+        // Nobody is asked whether they can do something that is over or not
+        // happening (D-097).
+        if (userIds.Count == 0
+            || engagement.Status is EngagementStatus.Completed or EngagementStatus.Cancelled)
         {
             return EngagementResult.Invalid;
         }
@@ -167,6 +170,13 @@ public sealed class AvailabilityService(
         if (participant is null)
         {
             return EngagementResult.NotFound;
+        }
+
+        // Told, so the event does not simply vanish from their phone (D-097).
+        // Only the first removal, and not an organiser taking themselves off.
+        if (participant.IsActive && userId != actor.UserId)
+        {
+            await notifier.RemovedFromEngagementAsync(engagement, userId, cancellationToken);
         }
 
         participant.Remove();

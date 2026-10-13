@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
@@ -90,12 +91,12 @@ export function DatesCard({ engagement }: { engagement: Engagement }) {
 }
 
 /**
- * The moves available from here. Cancelling, postponing, reopening, and
- * reversing a completion each ask for a reason first, because the API will
- * refuse them without one — and because the reason is what makes the history
- * readable later.
+ * Moving a booking on, with every check that goes with it (D-029, D-092,
+ * D-093). One hook, so the status page and the event page's next-step button
+ * ask exactly the same questions.
  */
-export function TransitionsCard({ engagement }: { engagement: Engagement }) {
+export function useStatusChange(engagement: Engagement) {
+  const router = useRouter();
   const [pending, setPending] = useState<EngagementStatus | null>(null);
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -114,10 +115,6 @@ export function TransitionsCard({ engagement }: { engagement: Engagement }) {
       args.acknowledgeOutstanding,
     ),
   );
-
-  if (engagement.allowedTransitions.length === 0) {
-    return null;
-  }
 
   /**
    * Confirming with answers outstanding is refused with 409 until the
@@ -143,15 +140,96 @@ export function TransitionsCard({ engagement }: { engagement: Engagement }) {
     );
   }
 
-  function start(status: EngagementStatus) {
+  /**
+   * Before confirming, everything a confirmed booking would normally have and
+   * this one does not: nobody asked, answers still out, no date, time or
+   * venue. One prompt naming them all, a way to go and fix the first, and
+   * "Confirm anyway" — a booking can arrive confirmed, and the organiser
+   * knows that better than the app (D-093).
+   */
+  function checkThenConfirm(status: EngagementStatus) {
+    const asked = engagement.selectedCount ?? 0;
+    const unanswered = engagement.outstandingCount ?? 0;
+    const missing = [
+      engagement.startDate === null ? 'date' : null,
+      engagement.startTime === null ? 'start time' : null,
+      engagement.venue === null ? 'venue' : null,
+    ].filter((item): item is string => item !== null);
+
+    const lines = [
+      asked === 0 ? 'Nobody has been asked for their availability yet.' : null,
+      unanswered > 0
+        ? unanswered === 1
+          ? '1 member has not answered yet.'
+          : `${unanswered} members have not answered yet.`
+        : null,
+      missing.length > 0 ? `Not set yet: ${joinNaturally(missing)}.` : null,
+    ].filter((line): line is string => line !== null);
+
+    if (lines.length === 0) {
+      start(status, true);
+      return;
+    }
+
+    // The fix offered is for the first gap that has one: details before
+    // people, since availability cannot be asked without a date.
+    const fix =
+      missing.length > 0
+        ? { text: 'Add details', route: 'details' as const }
+        : asked === 0
+          ? { text: 'Ask members', route: 'people' as const }
+          : null;
+
+    // Not yet · fix · Confirm anyway: left to right on Android; iOS puts the
+    // cancel button last on its own.
+    Alert.alert('Before you confirm', lines.join('\n'), [
+      { text: 'Not yet', style: 'cancel' },
+      ...(fix
+        ? [
+            {
+              text: fix.text,
+              onPress: () =>
+                router.push({
+                  pathname: `/engagement/[engagementId]/${fix.route}`,
+                  params: { engagementId: engagement.id },
+                }),
+            },
+          ]
+        : []),
+      { text: 'Confirm anyway', onPress: () => start(status, true) },
+    ]);
+  }
+
+  /** `acknowledged`: the organiser has already been told what is missing and went ahead. */
+  function start(status: EngagementStatus, acknowledged = false) {
     setError(null);
+    if (status === 'Confirmed' && !acknowledged) {
+      checkThenConfirm(status);
+      return;
+    }
+    // Done before the day is almost always a slip, and it sends the event to
+    // "still owed" and off the confirmed list. Say so, but let it through —
+    // the organiser may know better (D-092).
+    if (status === 'Completed' && !acknowledged && isStillAhead(engagement)) {
+      Alert.alert(
+        'This event has not happened yet',
+        `${engagement.title} is on ${formatEngagementDate(engagement)}. Close it anyway?`,
+        [
+          { text: 'Not yet', style: 'cancel' },
+          { text: 'Close event', onPress: () => start(status, true) },
+        ],
+      );
+      return;
+    }
     if (transitionNeedsReason(engagement.status, status)) {
       setPending(status);
       setReason('');
       return;
     }
     move.mutate(
-      { status, reason: null },
+      // Unanswered availability was in the prompt above, so the server's own
+      // check (D-029) is already answered.
+      { status, reason: null, acknowledgeOutstanding: status === 'Confirmed' && acknowledged },
       {
         onError: (failure) => {
           if (failure instanceof ApiError && failure.status === 409) {
@@ -179,6 +257,23 @@ export function TransitionsCard({ engagement }: { engagement: Engagement }) {
         onError: () => setError('Could not make that change.'),
       },
     );
+  }
+
+  return { start, confirm, move, pending, setPending, reason, setReason, error, setError };
+}
+
+/**
+ * The moves available from here. Cancelling, postponing, reopening, and
+ * reversing a completion each ask for a reason first, because the API will
+ * refuse them without one — and because the reason is what makes the history
+ * readable later.
+ */
+export function TransitionsCard({ engagement }: { engagement: Engagement }) {
+  const { start, confirm, move, pending, setPending, reason, setReason, error, setError } =
+    useStatusChange(engagement);
+
+  if (engagement.allowedTransitions.length === 0) {
+    return null;
   }
 
   return (
@@ -350,7 +445,109 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginBottom: spacing.lg,
   },
+  nextStep: {
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  nextStepPair: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  nextStepHalf: {
+    flex: 1,
+  },
   historyEntry: {
     gap: 2,
   },
 });
+
+/** Whether the event's last day is still to come, in the phone's own today. */
+function isStillAhead(engagement: Engagement): boolean {
+  const last = engagement.endDate ?? engagement.startDate;
+  if (last === null) {
+    return false;
+  }
+  const now = new Date();
+  const today = `${now.getFullYear()}-${`${now.getMonth() + 1}`.padStart(2, '0')}-${`${now.getDate()}`.padStart(2, '0')}`;
+  return last > today;
+}
+
+/** "date", "date and venue", "date, start time and venue". */
+function joinNaturally(parts: string[]): string {
+  return parts.length <= 1
+    ? (parts[0] ?? '')
+    : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
+}
+
+/**
+ * The one move an organiser usually makes next, as a plain button on the
+ * event page — testers looked for "Confirm" and "Close event" there, not
+ * behind the status chip. Everything else (postpone, cancel, closing early)
+ * stays on the status page. The same checks run either way (useStatusChange).
+ *
+ *   Enquiry                          → Ask for availability, or Confirm booking
+ *   Checking availability, Tentative → Confirm booking
+ *   Confirmed, on or after its date  → Close event
+ */
+export function NextStepButton({ engagement }: { engagement: Engagement }) {
+  const router = useRouter();
+  const { start, move, error } = useStatusChange(engagement);
+  const allowed = engagement.allowedTransitions;
+
+  // An enquiry has two usual next steps: ask the group, or — when the booking
+  // arrives already settled — confirm it straight away (D-095).
+  if (engagement.status === 'Draft') {
+    return (
+      <View style={styles.nextStep}>
+        <View style={styles.nextStepPair}>
+          <Button
+            label="Ask for availability"
+            variant="secondary"
+            style={styles.nextStepHalf}
+            onPress={() =>
+              router.push({ pathname: '/engagement/[engagementId]/people', params: { engagementId: engagement.id } })
+            }
+          />
+          {allowed.includes('Confirmed') ? (
+            <Button
+              label={TRANSITION_LABELS.Confirmed}
+              style={styles.nextStepHalf}
+              loading={move.isPending}
+              onPress={() => start('Confirmed')}
+            />
+          ) : null}
+        </View>
+        {error ? (
+          <Text color="error" variant="bodySmall">
+            {error}
+          </Text>
+        ) : null}
+      </View>
+    );
+  }
+
+  let step: { label: string; onPress: () => void } | null = null;
+  if (
+    (engagement.status === 'CheckingAvailability' || engagement.status === 'Tentative') &&
+    allowed.includes('Confirmed')
+  ) {
+    step = { label: TRANSITION_LABELS.Confirmed, onPress: () => start('Confirmed') };
+  } else if (engagement.status === 'Confirmed' && allowed.includes('Completed') && !isStillAhead(engagement)) {
+    step = { label: TRANSITION_LABELS.Completed, onPress: () => start('Completed') };
+  }
+
+  if (step === null) {
+    return null;
+  }
+
+  return (
+    <View style={styles.nextStep}>
+      <Button label={step.label} loading={move.isPending} onPress={step.onPress} />
+      {error ? (
+        <Text color="error" variant="bodySmall">
+          {error}
+        </Text>
+      ) : null}
+    </View>
+  );
+}

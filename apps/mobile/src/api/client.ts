@@ -115,11 +115,11 @@ export async function patchAuthorizedJson<T>(
   return data;
 }
 
-/** POST/PUT/PATCH with a body where no response body is expected. */
+/** POST/PUT/PATCH (or a DELETE that needs a body) where no response body is expected. */
 export async function sendAuthorizedJson(
   path: string,
   accessToken: string,
-  method: 'POST' | 'PUT' | 'PATCH',
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   body: unknown,
   signal?: AbortSignal,
 ): Promise<void> {

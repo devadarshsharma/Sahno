@@ -15,7 +15,11 @@ public sealed record DiscussionRow(
     string? AuthorDisplayName,
     bool IsYours,
     DiscussionQuote? ReplyTo = null,
-    IReadOnlyList<ReactionSummary>? Reactions = null);
+    IReadOnlyList<ReactionSummary>? Reactions = null,
+    IReadOnlyList<DiscussionReader>? SeenBy = null);
+
+/// <summary>Somebody whose reading reached this message and stopped there (D-096).</summary>
+public sealed record DiscussionReader(Guid UserId, string? DisplayName);
 
 /// <summary>The message a reply quotes, as it stands now.</summary>
 public sealed record DiscussionQuote(
@@ -156,6 +160,7 @@ public sealed class DiscussionService(
         var reactions = (await messages.ListReactionsAsync(engagementId, cancellationToken))
             .ToLookup(reaction => reaction.MessageId);
         var byId = thread.ToDictionary(message => message.Id);
+        var marks = await messages.ListReadMarksAsync(engagementId, cancellationToken);
 
         var directory = await memberships.ListForOrganisationAsync(
             actor.OrganisationId,
@@ -166,8 +171,10 @@ public sealed class DiscussionService(
 
         // "Delete for me" leaves the message out of this reader's thread only.
         // A reply to it still shows its quote: the reply is someone else's.
-        return thread
-            .Where(message => !hidden.Contains(message.Id))
+        var visible = thread.Where(message => !hidden.Contains(message.Id)).ToList();
+        var seenAt = SeenAt(visible, marks, actor.UserId, names);
+
+        return visible
             .Select(message => new DiscussionRow(
                 message,
                 names.GetValueOrDefault(message.AuthorUserId),
@@ -185,8 +192,50 @@ public sealed class DiscussionService(
                         group.Key,
                         group.Count(),
                         group.Any(reaction => reaction.UserId == actor.UserId)))
+                    .ToList(),
+                seenAt[message.Id]
+                    .Select(mark => new DiscussionReader(mark.UserId, names.GetValueOrDefault(mark.UserId)))
                     .ToList()))
             .ToList();
+    }
+
+    /// <summary>
+    /// Where each other person's reading stopped (D-096): the latest message,
+    /// in this reader's view, posted by somebody else before they last had the
+    /// chat open. Under your own message your initial would say nothing, so it
+    /// sits under the one before. Only people still in the organisation, most
+    /// recent reader first.
+    /// </summary>
+    private static ILookup<Guid, DiscussionReadMark> SeenAt(
+        IReadOnlyList<DiscussionMessage> visible,
+        IReadOnlyList<DiscussionReadMark> marks,
+        Guid readerUserId,
+        IReadOnlyDictionary<Guid, string?> names)
+    {
+        return marks
+            .Where(mark => mark.UserId != readerUserId && names.ContainsKey(mark.UserId))
+            .Select(mark => (
+                Mark: mark,
+                Message: visible.LastOrDefault(message =>
+                    message.PostedAtUtc <= mark.ReadAtUtc && message.AuthorUserId != mark.UserId)))
+            .Where(pair => pair.Message is not null)
+            .OrderByDescending(pair => pair.Mark.ReadAtUtc)
+            .ToLookup(pair => pair.Message!.Id, pair => pair.Mark);
+    }
+
+    /// <summary>
+    /// The caller has the chat open (D-096): everything in it so far is seen,
+    /// and their initial moves down to the latest message for everyone else.
+    /// </summary>
+    public async Task MarkReadAsync(
+        Membership actor,
+        Guid engagementId,
+        CancellationToken cancellationToken)
+    {
+        if (await CanAccessAsync(actor, engagementId, cancellationToken))
+        {
+            await messages.MarkReadAsync(engagementId, actor.UserId, cancellationToken);
+        }
     }
 
     public async Task<(EngagementResult Result, DiscussionMessage? Posted)> PostAsync(

@@ -44,3 +44,6 @@ services:
       # Optional. Only needed if "enhanced push security" is on in Expo.
       - key: Push__ExpoAccessToken
         sync: false
+      # Optional. Google Places key for venue suggestions; unset means plain text.
+      - key: Places__GoogleApiKey
+        sync: false

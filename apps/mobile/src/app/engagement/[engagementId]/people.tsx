@@ -15,6 +15,7 @@ export default function People() {
           {isOrganiser ? (
             <LineupCard
               engagementId={engagement.id}
+              closed={engagement.status === 'Completed' || engagement.status === 'Cancelled'}
               onSelectMembers={() =>
                 router.push({
                   pathname: '/select-members',

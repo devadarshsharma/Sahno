@@ -2,6 +2,7 @@ using Sahno.Application.Engagements;
 using Sahno.Application.Organisations;
 using Sahno.Domain.Engagements;
 using Sahno.Domain.Notifications;
+using Sahno.Domain.Organisations;
 
 namespace Sahno.Application.Notifications;
 
@@ -219,6 +220,28 @@ public sealed class Notifier(
     /// Somebody on the event asked for details that are not set yet (D-089).
     /// Organisers only — they are the ones who can fill them in.
     /// </summary>
+    /// <summary>
+    /// Somebody was taken off an event (D-097). Without this the event simply
+    /// disappears from their phone and they are left wondering why.
+    /// </summary>
+    public async Task RemovedFromEngagementAsync(
+        Engagement engagement,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var people = await DirectoryAsync(engagement.OrganisationId, cancellationToken);
+
+        await TellAsync(
+            engagement,
+            [userId],
+            people,
+            NotificationKind.RemovedFromEngagement,
+            $"You are off {engagement.Title}",
+            $"{When(engagement)}. An organiser took you off this event, so it no longer shows in your events.",
+            email: false,
+            cancellationToken);
+    }
+
     public async Task DetailsRequestedAsync(
         Engagement engagement,
         Guid askedByUserId,
@@ -531,6 +554,58 @@ public sealed class Notifier(
             "They can now be selected for events.",
             emailBody: null,
             cancellationToken);
+    }
+
+    /// <summary>
+    /// The Owner deleted the organisation (D-101). Push only: the bell is per
+    /// organisation, and this one's is hidden with it. Without this the group
+    /// just vanishes from people's phones. The payload carries no
+    /// notification, so tapping it opens the app and nothing more.
+    /// </summary>
+    public Task OrganisationDeletedAsync(
+        Organisation organisation,
+        IEnumerable<Guid> recipients,
+        CancellationToken cancellationToken)
+    {
+        var until = organisation.PurgeAfterUtc is { } purge ? $" Its owner can restore it until {LocalDay(organisation, purge)}." : string.Empty;
+        return PushOnlyAsync(
+            recipients,
+            $"{organisation.Name} was deleted",
+            $"Its owner deleted {organisation.Name}, so it no longer shows in Sahno.{until}",
+            cancellationToken);
+    }
+
+    /// <summary>The Owner brought it back (D-101): everything is as it was.</summary>
+    public Task OrganisationRestoredAsync(
+        Organisation organisation,
+        IEnumerable<Guid> recipients,
+        CancellationToken cancellationToken)
+    {
+        return PushOnlyAsync(
+            recipients,
+            $"{organisation.Name} is back",
+            $"Its owner restored {organisation.Name}, with everything in it.",
+            cancellationToken);
+    }
+
+    private async Task PushOnlyAsync(
+        IEnumerable<Guid> recipients,
+        string title,
+        string body,
+        CancellationToken cancellationToken)
+    {
+        var devices = await pushDevices.ListActiveForUsersAsync(recipients.Distinct().ToList(), cancellationToken);
+        outbox.Stage(devices
+            .Select(phone => OutboxMessage.Push(phone.Token, title, body, "{}"))
+            .ToList());
+    }
+
+    private static string LocalDay(Organisation organisation, DateTimeOffset utc)
+    {
+        var zone = TimeZoneInfo.TryFindSystemTimeZoneById(organisation.TimeZoneId, out var found)
+            ? found
+            : TimeZoneInfo.Utc;
+        return TimeZoneInfo.ConvertTime(utc, zone).ToString("d MMMM", System.Globalization.CultureInfo.InvariantCulture);
     }
 
     /// <summary>

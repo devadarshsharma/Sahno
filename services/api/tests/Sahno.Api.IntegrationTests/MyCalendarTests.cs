@@ -45,6 +45,35 @@ public sealed class MyCalendarTests(SahnoApiFactory factory)
         Assert.Contains(theirs.Events, row => row.Id == notAsked.Id);
     }
 
+    /// <summary>One default organisation per person, theirs to choose (D-099).</summary>
+    [Fact]
+    public async Task APersonChoosesTheirDefaultOrganisation()
+    {
+        var groupB = await NewOrganisationAsync("default-b", members: 1);
+        var person = groupB.Members[0];
+        var created = await person.PostAsJsonAsync(
+            "/api/organisations",
+            new CreateOrganisationRequest("default-a org", null, null));
+        var groupA = (await created.Content.ReadFromJsonAsync<OrganisationResponse>())!;
+
+        Assert.DoesNotContain(await ListAsync(person), row => row.IsDefault);
+
+        (await person.PutAsync($"/api/organisations/{groupB.Id}/default", content: null)).EnsureSuccessStatusCode();
+        Assert.Equal(groupB.Id, Assert.Single(await ListAsync(person), row => row.IsDefault).Id);
+
+        (await person.PutAsync($"/api/organisations/{groupA.Id}/default", content: null)).EnsureSuccessStatusCode();
+        Assert.Equal(groupA.Id, Assert.Single(await ListAsync(person), row => row.IsDefault).Id);
+
+        // Somebody else's choice is their own; and only your own organisations count.
+        Assert.DoesNotContain(await ListAsync(groupB.Owner), row => row.IsDefault);
+        Assert.Equal(
+            System.Net.HttpStatusCode.NotFound,
+            (await groupB.Owner.PutAsync($"/api/organisations/{groupA.Id}/default", content: null)).StatusCode);
+    }
+
+    private static async Task<List<OrganisationResponse>> ListAsync(HttpClient client) =>
+        (await client.GetFromJsonAsync<List<OrganisationResponse>>("/api/organisations"))!;
+
     private sealed record TestOrganisation(
         Guid Id,
         HttpClient Owner,

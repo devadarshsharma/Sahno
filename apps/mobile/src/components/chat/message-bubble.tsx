@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import type { DiscussionMessage } from '@/api/discussion';
+import type { DiscussionMessage, DiscussionReader } from '@/api/discussion';
 import { Text } from '@/components/ui';
-import { authorName, messageTime, nameColour, removedText, type ChatMessage } from '@/lib/chat';
+import { authorName, initials, messageTime, nameColour, removedText, type ChatMessage } from '@/lib/chat';
 import { colors, fontFamilies, radii, spacing } from '@/theme';
 
 /**
@@ -129,6 +129,41 @@ export function MessageBubble({
           ))}
         </View>
       ) : null}
+
+      <SeenBy readers={message.seenBy ?? []} yours={yours} />
+    </View>
+  );
+}
+
+/** How many initials show before the rest become "+N". */
+const SEEN_SHOWN = 5;
+
+/**
+ * Who has read up to here (D-096): a row of initials, each in that person's
+ * colour, five at most and then "+N". It sits under the last message each
+ * of them has seen, and moves down as they read on.
+ */
+function SeenBy({ readers, yours }: { readers: DiscussionReader[]; yours: boolean }) {
+  if (readers.length === 0) {
+    return null;
+  }
+
+  const shown = readers.slice(0, SEEN_SHOWN);
+  const more = readers.length - shown.length;
+  const names = readers.map((reader) => reader.displayName ?? 'Someone');
+
+  return (
+    <View
+      style={[styles.seen, yours ? styles.seenYours : styles.seenTheirs]}
+      accessible
+      accessibilityLabel={`Seen by ${names.join(', ')}`}
+    >
+      {shown.map((reader) => (
+        <View key={reader.userId} style={[styles.seenDot, { backgroundColor: nameColour(reader.userId) }]}>
+          <Text style={styles.seenInitials}>{initials(reader.displayName)}</Text>
+        </View>
+      ))}
+      {more > 0 ? <Text style={styles.seenMore}>+{more}</Text> : null}
     </View>
   );
 }
@@ -252,6 +287,40 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.uiMedium,
     color: colors.text.error,
   },
+  seen: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginTop: 4,
+  },
+  seenYours: {
+    justifyContent: 'flex-end',
+    marginRight: spacing.xs,
+  },
+  seenTheirs: {
+    marginLeft: spacing.xs,
+  },
+  seenDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.surface.canvas,
+  },
+  seenInitials: {
+    fontSize: 8,
+    lineHeight: 10,
+    fontFamily: fontFamilies.uiMedium,
+    color: colors.surface.raised,
+  },
+  seenMore: {
+    fontSize: 11,
+    lineHeight: 14,
+    color: colors.text.muted,
+    marginLeft: 2,
+  },
   reactions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -282,6 +351,7 @@ const styles = StyleSheet.create({
   },
   reactionEmoji: {
     fontSize: 14,
+    lineHeight: 20,
   },
   reactionCount: {
     fontSize: 12,

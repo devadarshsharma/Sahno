@@ -37,5 +37,13 @@ public sealed class OrganisationConfiguration : IEntityTypeConfiguration<Organis
         builder.Property(organisation => organisation.CreatedAtUtc)
             .HasColumnName("created_at_utc")
             .IsRequired();
+
+        builder.Property(organisation => organisation.DeletedAtUtc)
+            .HasColumnName("deleted_at_utc");
+
+        builder.Property(organisation => organisation.DeletedByUserId)
+            .HasColumnName("deleted_by_user_id");
+
+        builder.Ignore(organisation => organisation.PurgeAfterUtc);
     }
 }

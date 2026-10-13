@@ -23,6 +23,12 @@ public static class NotificationRoutes
             };
         }
 
+        // Taken off the event: it is no longer theirs to open, so the bell.
+        if (kind == NotificationKind.RemovedFromEngagement)
+        {
+            return "/notifications";
+        }
+
         var engagement = $"/engagement/{id}";
         return kind switch
         {

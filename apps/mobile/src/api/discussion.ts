@@ -28,6 +28,8 @@ export type DiscussionMessage = {
   replyTo?: DiscussionQuote | null;
   /** One entry per emoji, in the picker's order. Absent from older APIs. */
   reactions?: DiscussionReaction[];
+  /** Who has read up to here and no further, most recent first; never you (D-096). Absent from older APIs. */
+  seenBy?: DiscussionReader[];
 };
 
 /** A reply's quote. `body` is null once the original was removed. */
@@ -37,6 +39,12 @@ export type DiscussionQuote = {
   isYours: boolean;
   body: string | null;
   isDeleted: boolean;
+};
+
+/** Somebody who has seen a message: enough for their initial and colour. */
+export type DiscussionReader = {
+  userId: string;
+  displayName: string | null;
 };
 
 export type DiscussionReaction = {

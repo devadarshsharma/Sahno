@@ -144,6 +144,7 @@ Render reads `render.yaml` and asks for the `sync: false` values.
 | `Auth0__Audience` | e.g. `https://sahno-api.local` — same as your user secrets | no |
 | `Email__ResendApiKey` | optional; unset = emails are logged, not sent | **yes** |
 | `Push__ExpoAccessToken` | optional; only with Expo "enhanced push security" | **yes** |
+| `Places__GoogleApiKey` | optional; Google Places API (New) key for venue suggestions (D-102), restricted to that API; unset = venue is plain text | **yes** |
 | `Cors__AllowedOrigins__0` | optional; only if a *browser* app must call the API | no |
 
 `PORT` is provided by Render; do not set it.

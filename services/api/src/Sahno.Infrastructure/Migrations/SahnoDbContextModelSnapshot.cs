@@ -144,6 +144,25 @@ namespace Sahno.Infrastructure.Migrations
                     b.ToTable("engagement_discussion_reactions", (string)null);
                 });
 
+            modelBuilder.Entity("Sahno.Domain.Engagements.DiscussionReadMark", b =>
+                {
+                    b.Property<Guid>("EngagementId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("engagement_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTimeOffset>("ReadAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at_utc");
+
+                    b.HasKey("EngagementId", "UserId");
+
+                    b.ToTable("engagement_discussion_reads", (string)null);
+                });
+
             modelBuilder.Entity("Sahno.Domain.Engagements.Engagement", b =>
                 {
                     b.Property<Guid>("Id")
@@ -979,6 +998,10 @@ namespace Sahno.Infrastructure.Migrations
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("internal_notes");
 
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_default");
+
                     b.Property<DateTimeOffset>("JoinedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("joined_at_utc");
@@ -1031,6 +1054,14 @@ namespace Sahno.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
+
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at_utc");
+
+                    b.Property<Guid?>("DeletedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by_user_id");
 
                     b.Property<string>("GroupType")
                         .HasMaxLength(60)
@@ -1232,6 +1263,15 @@ namespace Sahno.Infrastructure.Migrations
                     b.HasOne("Sahno.Domain.Engagements.DiscussionMessage", null)
                         .WithMany()
                         .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Sahno.Domain.Engagements.DiscussionReadMark", b =>
+                {
+                    b.HasOne("Sahno.Domain.Engagements.Engagement", null)
+                        .WithMany()
+                        .HasForeignKey("EngagementId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

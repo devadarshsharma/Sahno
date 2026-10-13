@@ -2,6 +2,7 @@ import {
   getAuthorizedJson,
   postAuthorizedJson,
   sendAuthorized,
+  sendAuthorizedJson,
 } from '@/api/client';
 import { normalizeInviteCode } from '@/lib/invite';
 
@@ -16,6 +17,8 @@ export type Organisation = {
   hasFinancialAccess: boolean;
   showSetupChecklist: boolean;
   memberCount: number;
+  /** The organisation the app opens in (D-099). Absent from older APIs. */
+  isDefault?: boolean;
 };
 
 export type Invitation = {
@@ -99,6 +102,50 @@ export function createOrganisation(
   input: { name: string; groupType?: string | null; timeZoneId?: string | null },
 ): Promise<Organisation> {
   return postAuthorizedJson('/api/organisations', accessToken, input, isOrganisation);
+}
+
+/** Makes this the organisation the app opens in for the caller (D-099). */
+export function setDefaultOrganisation(accessToken: string, organisationId: string): Promise<void> {
+  return sendAuthorizedJson(`/api/organisations/${organisationId}/default`, accessToken, 'PUT', {});
+}
+
+/**
+ * Deletes the organisation (D-101): hidden from everyone at once, restorable
+ * by its Owner until `purgeAfterUtc`, then gone for good. The server checks
+ * the typed name too.
+ */
+export function deleteOrganisation(accessToken: string, organisationId: string, name: string): Promise<void> {
+  return sendAuthorizedJson(`/api/organisations/${organisationId}`, accessToken, 'DELETE', { name });
+}
+
+/** A deleted organisation its Owner can still restore (D-101). */
+export type DeletedOrganisation = {
+  id: string;
+  name: string;
+  deletedAtUtc: string;
+  /** When it, and everything in it, goes for good. */
+  purgeAfterUtc: string;
+};
+
+function isDeletedOrganisationList(value: unknown): value is DeletedOrganisation[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (row) =>
+        typeof row === 'object' &&
+        row !== null &&
+        typeof (row as DeletedOrganisation).id === 'string' &&
+        typeof (row as DeletedOrganisation).purgeAfterUtc === 'string',
+    )
+  );
+}
+
+export function listDeletedOrganisations(accessToken: string, signal?: AbortSignal): Promise<DeletedOrganisation[]> {
+  return getAuthorizedJson('/api/organisations/deleted', accessToken, isDeletedOrganisationList, signal);
+}
+
+export function restoreOrganisation(accessToken: string, organisationId: string): Promise<void> {
+  return sendAuthorized(`/api/organisations/${organisationId}/restore`, accessToken, 'POST');
 }
 
 export function dismissSetupChecklist(

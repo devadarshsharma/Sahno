@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -266,9 +267,15 @@ export default function Chat() {
                   message={item.message}
                   startsRun={item.startsRun}
                   highlighted={highlightedId === item.message.id}
-                  onLongPress={() =>
-                    item.message.delivery ? onUnsentLongPress(item.message) : setSelected(item.message)
-                  }
+                  onLongPress={() => {
+                    // A tap you can feel: the menu is opening (as messaging apps do).
+                    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
+                    if (item.message.delivery) {
+                      onUnsentLongPress(item.message);
+                    } else {
+                      setSelected(item.message);
+                    }
+                  }}
                   onRetry={() => sender.retry(item.message.id)}
                   onQuotePress={jumpTo}
                   onReactionPress={(emoji) =>

@@ -126,9 +126,12 @@ export function AvailabilityAnswerButtons({
 export function LineupCard({
   engagementId,
   onSelectMembers,
+  closed = false,
 }: {
   engagementId: string;
   onSelectMembers: () => void;
+  /** Done or cancelled: nobody new is asked about it (D-097). */
+  closed?: boolean;
 }) {
   const availabilityQuery = useAvailability(engagementId);
   const [error, setError] = useState<string | null>(null);
@@ -239,11 +242,17 @@ export function LineupCard({
         </>
       )}
 
-      <Button
-        label={lineup.length === 0 ? 'Ask members' : 'Add more members'}
-        variant="secondary"
-        onPress={onSelectMembers}
-      />
+      {closed ? (
+        <Text variant="caption" color="muted">
+          This event is closed, so nobody new can be asked about it.
+        </Text>
+      ) : (
+        <Button
+          label={lineup.length === 0 ? 'Ask members' : 'Add more members'}
+          variant="secondary"
+          onPress={onSelectMembers}
+        />
+      )}
 
       {dropped.length > 0 ? (
         <View style={styles.dropped}>

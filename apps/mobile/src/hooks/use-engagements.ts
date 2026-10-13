@@ -113,13 +113,13 @@ export const TRANSITION_LABELS: Record<EngagementStatus, string> = {
   Tentative: 'Mark tentative',
   Confirmed: 'Confirm booking',
   Postponed: 'Postpone',
-  Completed: 'Mark completed',
+  Completed: 'Close event',
   Cancelled: 'Cancel',
 };
 
-export function groupByStatus(
-  engagements: Engagement[],
-): { status: EngagementStatus; items: Engagement[] }[] {
+export function groupByStatus<T extends Pick<Engagement, 'status'>>(
+  engagements: T[],
+): { status: EngagementStatus; items: T[] }[] {
   return PIPELINE_ORDER.map((status) => ({
     status,
     items: engagements.filter((engagement) => engagement.status === status),
@@ -127,7 +127,7 @@ export function groupByStatus(
 }
 
 /** "Sat 20 May 2027", or a plain note when the date is still unknown. */
-export function formatEngagementDate(engagement: Engagement): string {
+export function formatEngagementDate(engagement: Pick<Engagement, 'startDate' | 'endDate'>): string {
   if (engagement.startDate === null) {
     return 'Date TBC';
   }
@@ -217,6 +217,49 @@ export const FILTER_LABELS: Record<BookingsFilter, string> = {
   Completed: 'Completed',
   Cancelled: 'Cancelled',
 };
+
+/** Which bookings the list shows by time (D-100). */
+export type TimeScope = 'upcoming' | 'past' | 'all';
+
+/**
+ * Over: closed, or its last day is before today. A booking whose day has gone
+ * but was never closed is past too — it is history, whatever its status says.
+ * Undated ones are upcoming unless closed: they have not happened yet.
+ */
+export function isPast(
+  engagement: Pick<Engagement, 'status' | 'startDate' | 'endDate'>,
+  today: string,
+): boolean {
+  if (engagement.status === 'Completed') {
+    return true;
+  }
+  const lastDay = engagement.endDate ?? engagement.startDate;
+  return lastDay !== null && lastDay < today;
+}
+
+/**
+ * Past bookings by month, newest first — "what did we do in March" is how
+ * history gets looked up. Undated ones (closed without a date) come last.
+ */
+export function groupByMonth<T extends Pick<Engagement, 'startDate'>>(
+  engagements: T[],
+): { key: string; label: string; items: T[] }[] {
+  const groups = new Map<string, T[]>();
+  for (const engagement of engagements) {
+    const key = engagement.startDate?.slice(0, 7) ?? 'undated';
+    groups.set(key, [...(groups.get(key) ?? []), engagement]);
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => (a === 'undated' ? 1 : b === 'undated' ? -1 : a < b ? 1 : -1))
+    .map(([key, items]) => ({
+      key,
+      label:
+        key === 'undated'
+          ? 'No date'
+          : new Date(`${key}-01T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
+      items: [...items].sort((a, b) => ((a.startDate ?? '') < (b.startDate ?? '') ? 1 : -1)),
+    }));
+}
 
 export function matchesFilter(engagement: Engagement, filter: BookingsFilter): boolean {
   return filter === 'attention' ? needsAttention(engagement) : engagement.status === filter;

@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 
 import { SahnoSymbol } from '@/components/brand';
+import { RecentlyDeleted } from '@/components/recently-deleted';
 import { Button, Screen, Text } from '@/components/ui';
 import { firstNameOf, useMe, useNeedsDisplayName } from '@/hooks/use-me';
 import { useSession } from '@/providers/auth-provider';
@@ -105,6 +106,9 @@ export default function Onboarding() {
             />
           </Animated.View>
         </View>
+
+        {/* Someone who deleted their only organisation can bring it back from here (D-101). */}
+        <RecentlyDeleted onRestored={() => router.replace('/')} />
 
         <Animated.View entering={FadeInUp.delay(500).duration(400)}>
           <Button label="Sign out" variant="ghost" onPress={session.signOut} />

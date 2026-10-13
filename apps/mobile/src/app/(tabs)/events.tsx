@@ -5,16 +5,20 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-nat
 
 import type { Engagement, EngagementStatus } from '@/api/engagements';
 import { EngagementCalendar, type CalendarEvent, type CalendarRehearsal } from '@/components/engagement-calendar';
-import { Button, Screen, Text } from '@/components/ui';
+import { OrgBadge } from '@/components/org-badge';
+import { Button, Screen, Text, toIsoDate } from '@/components/ui';
 import {
   FILTER_LABELS,
   formatEngagementDate,
+  groupByMonth,
   groupByStatus,
+  isPast,
   matchesFilter,
   MEMBER_STATUS_LABELS,
   STATUS_LABELS,
   useEngagements,
   type BookingsFilter,
+  type TimeScope,
 } from '@/hooks/use-engagements';
 import { useActiveOrg } from '@/hooks/use-organisations';
 import { useMyCalendar } from '@/hooks/use-my-calendar';
@@ -30,6 +34,8 @@ export default function Events() {
   const { active, switchTo } = useActiveOrg();
   const engagementsQuery = useEngagements();
   const [view, setView] = useState<'list' | 'calendar'>('list');
+  // The list opens on what is coming up; Past is the bookings' history (D-100).
+  const [scope, setScope] = useState<TimeScope>('upcoming');
 
   // Arrived from a Home tile: show only what that tile counted. Clearing it
   // is one tap, and the param goes with it so a re-tap from Home still works.
@@ -38,9 +44,9 @@ export default function Events() {
   const clearFilter = () => router.setParams({ filter: undefined });
 
   const isOrganiser = active?.role === 'Owner' || active?.role === 'Admin';
-  // The calendar is the person's whole diary, across every organisation
-  // they belong to (D-091); only fetched once it is on screen.
-  const myCalendar = useMyCalendar(view === 'calendar');
+  // The person's whole diary, across every organisation they belong to: the
+  // calendar (D-091) and the list (D-098) both show it.
+  const myCalendar = useMyCalendar();
 
   if (engagementsQuery.isPending) {
     return (
@@ -71,17 +77,46 @@ export default function Events() {
   const shown = filter
     ? engagementsQuery.data.filter((engagement) => matchesFilter(engagement, filter))
     : engagementsQuery.data;
-  const groups = groupByStatus(shown);
+  // The list, like the calendar, is the person's whole diary (D-098): this
+  // organisation's bookings, then what they have with other organisations.
+  // A filter from a Home tile is about this organisation, so it shows only
+  // this one's.
+  const here: ListEvent[] = shown.map((engagement) => ({
+    ...engagement,
+    organisationId: active?.id,
+    organisationName: active?.name ?? null,
+  }));
+  const elsewhere: ListEvent[] = filter
+    ? []
+    : (myCalendar.data?.events ?? []).filter((event) => event.organisationId !== active?.id);
+  const listed = [...here, ...elsewhere].sort(byDate);
+  const multiOrg = elsewhere.length > 0;
+
+  // Upcoming, Past or All (D-100). A filter from a Home tile already says what
+  // to show, so it ignores the scope rather than hiding half of what it counted.
+  const today = toIsoDate(new Date());
+  const past = listed.filter((event) => isPast(event, today));
+  const upcoming = listed.filter((event) => !isPast(event, today));
+  const scoped = filter ? listed : scope === 'past' ? past : scope === 'upcoming' ? upcoming : listed;
+  const scopeCounts: Record<TimeScope, number> = { upcoming: upcoming.length, past: past.length, all: listed.length };
+  // History reads by when, not by pipeline stage.
+  const groups =
+    !filter && scope === 'past'
+      ? groupByMonth(scoped).map((group) => ({ key: group.key, heading: group.label, items: group.items }))
+      : groupByStatus(scoped).map((group) => ({
+          key: group.status,
+          heading: isOrganiser ? STATUS_LABELS[group.status] : MEMBER_STATUS_LABELS[group.status],
+          items: group.items,
+        }));
 
   // This organisation's bookings as the list has them (the filter applies),
-  // then everything the person has with other organisations, named.
+  // then everything the person has with other organisations. Every entry says
+  // whose it is, so the calendar can badge them when it mixes groups (D-098).
   const calendarEvents: CalendarEvent[] = [
-    ...shown,
+    ...here,
     ...(myCalendar.data?.events ?? []).filter((event) => event.organisationId !== active?.id),
   ];
-  const calendarRehearsals: CalendarRehearsal[] = (myCalendar.data?.rehearsals ?? []).map((rehearsal) =>
-    rehearsal.organisationId === active?.id ? { ...rehearsal, organisationName: null } : rehearsal,
-  );
+  const calendarRehearsals: CalendarRehearsal[] = myCalendar.data?.rehearsals ?? [];
 
   // Another organisation's event opens there: say so, then switch (D-044).
   const openIn = (organisationId: string | undefined, organisationName: string | null | undefined, open: () => void) => {
@@ -163,6 +198,32 @@ export default function Events() {
         </View>
       ) : null}
 
+      {view === 'list' && !filter && listed.length > 0 ? (
+        <View style={styles.scopeRow}>
+          {SCOPES.map((option) => {
+            const selected = scope === option;
+            return (
+              <Pressable
+                key={option}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={`${SCOPE_LABELS[option]}, ${scopeCounts[option]}`}
+                onPress={() => setScope(option)}
+                style={[styles.scopeChip, selected ? styles.scopeChipOn : null]}
+              >
+                <Text
+                  variant="bodySmall"
+                  color={selected ? 'primary' : 'secondary'}
+                  style={selected ? styles.filterName : null}
+                >
+                  {SCOPE_LABELS[option]} · {scopeCounts[option]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+
       {view === 'calendar' ? (
         <EngagementCalendar
           engagements={calendarEvents}
@@ -184,6 +245,18 @@ export default function Events() {
             )
           }
         />
+      ) : listed.length > 0 && groups.length === 0 ? (
+        <View style={styles.empty}>
+          <Ionicons name={scope === 'past' ? 'time-outline' : 'calendar-outline'} size={40} color={colors.tealText} />
+          <Text variant="subheading" style={styles.centeredText}>
+            {scope === 'past' ? 'Nothing in the past yet' : 'Nothing coming up'}
+          </Text>
+          <Text color="secondary" variant="bodySmall" style={styles.centeredText}>
+            {scope === 'past'
+              ? 'Finished bookings, and ones whose date has gone, show here.'
+              : 'Earlier bookings are under Past.'}
+          </Text>
+        </View>
       ) : groups.length === 0 ? (
         <View style={styles.empty}>
           <Ionicons
@@ -206,37 +279,76 @@ export default function Events() {
         </View>
       ) : (
         groups.map((group) => (
-          <View key={group.status} style={styles.group}>
-            <Text variant="subheading">
-              {isOrganiser
-                ? STATUS_LABELS[group.status]
-                : MEMBER_STATUS_LABELS[group.status]}
-            </Text>
+          <View key={group.key} style={styles.group}>
+            <Text variant="subheading">{group.heading}</Text>
             {group.items.map((engagement) => (
               <EngagementRow
                 key={engagement.id}
                 engagement={engagement}
+                showOrganisation={multiOrg}
                 onPress={() =>
-                  router.push({
-                    pathname: '/engagement/[engagementId]',
-                    params: { engagementId: engagement.id },
-                  })
+                  openIn(engagement.organisationId, engagement.organisationName, () =>
+                    router.push({
+                      pathname: '/engagement/[engagementId]',
+                      params: { engagementId: engagement.id },
+                    }),
+                  )
                 }
               />
             ))}
           </View>
         ))
       )}
+
+      {view === 'list' && !filter && scope !== 'upcoming' && multiOrg ? (
+        <Text variant="caption" color="muted" style={styles.centeredText}>
+          Events with other organisations go back twelve months.
+        </Text>
+      ) : null}
     </Screen>
   );
+}
+
+const SCOPES: TimeScope[] = ['upcoming', 'past', 'all'];
+
+const SCOPE_LABELS: Record<TimeScope, string> = {
+  upcoming: 'Upcoming',
+  past: 'Past',
+  all: 'All',
+};
+
+/**
+ * What a list row needs of an event — met by this organisation's bookings and
+ * by the person's events with other organisations alike (D-098).
+ */
+type ListEvent = Pick<
+  Engagement,
+  'id' | 'title' | 'status' | 'startDate' | 'endDate' | 'venue' | 'outstandingCount' | 'yourResponse'
+> & { organisationId?: string; organisationName?: string | null };
+
+/** Soonest first; undated last, as they have no day to sort by. */
+function byDate(a: ListEvent, b: ListEvent): number {
+  if (a.startDate === b.startDate) {
+    return 0;
+  }
+  if (a.startDate === null) {
+    return 1;
+  }
+  if (b.startDate === null) {
+    return -1;
+  }
+  return a.startDate < b.startDate ? -1 : 1;
 }
 
 function EngagementRow({
   engagement,
   onPress,
+  showOrganisation,
 }: {
-  engagement: Engagement;
+  engagement: ListEvent;
   onPress: () => void;
+  /** The list mixes organisations: say whose this is. */
+  showOrganisation: boolean;
 }) {
   return (
     <Pressable
@@ -249,6 +361,9 @@ function EngagementRow({
         <Text variant="subheading" numberOfLines={1}>
           {engagement.title}
         </Text>
+        {showOrganisation && engagement.organisationId && engagement.organisationName ? (
+          <OrgBadge organisationId={engagement.organisationId} name={engagement.organisationName} />
+        ) : null}
         <Text
           variant="bodySmall"
           color={engagement.startDate === null ? 'muted' : 'secondary'}
@@ -278,7 +393,7 @@ function EngagementRow({
  * often read on its own, and the number is the bit that decides what to do
  * next.
  */
-function StatusChip({ engagement }: { engagement: Engagement }) {
+function StatusChip({ engagement }: { engagement: ListEvent }) {
   const waiting = engagement.outstandingCount ?? 0;
   const chasing =
     engagement.status === 'CheckingAvailability' ||
@@ -341,6 +456,23 @@ const styles = StyleSheet.create({
   filterName: {
     fontFamily: fontFamilies.uiMedium,
     color: colors.text.primary,
+  },
+  scopeRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  scopeChip: {
+    paddingHorizontal: spacing.md,
+    minHeight: 32,
+    justifyContent: 'center',
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  scopeChipOn: {
+    backgroundColor: colors.tealSoft,
+    borderColor: colors.tealSoft,
   },
   viewToggle: {
     flexDirection: 'row',

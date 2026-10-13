@@ -153,6 +153,42 @@ public sealed class DiscussionEndpointTests(SahnoApiFactory factory)
     }
 
     /// <summary>
+    /// Seen by (D-096): opening the chat puts your initial under the latest
+    /// message someone else wrote, for everybody but you, and reading again
+    /// moves it down.
+    /// </summary>
+    [Fact]
+    public async Task OpeningTheChatShowsWhoHasSeenWhat()
+    {
+        var org = await NewOrganisationAsync("chat-seen", members: 2);
+        var engagement = await NewDraftAsync(org, "Seen");
+        await RequestAvailabilityAsync(org, engagement.Id, org.MemberIds);
+        var read = $"{Discussion(org, engagement.Id)}/read";
+
+        var first = await PostAsync(org.Owner, org, engagement.Id, "Soundcheck at five.");
+        var second = await PostAsync(org.Members[0], org, engagement.Id, "On my way.");
+
+        (await org.Members[1].PostAsync(read, content: null)).EnsureSuccessStatusCode();
+        (await org.Members[0].PostAsync(read, content: null)).EnsureSuccessStatusCode();
+
+        var ownerView = await ThreadAsync(org.Owner, org, engagement.Id);
+        // Member 1 read everything; member 0's last message from someone else is the first.
+        Assert.Equal([org.MemberIds[1]], ownerView.Single(row => row.Id == second.Id).SeenBy!.Select(reader => reader.UserId));
+        Assert.Equal([org.MemberIds[0]], ownerView.Single(row => row.Id == first.Id).SeenBy!.Select(reader => reader.UserId));
+
+        // Nobody sees their own initial.
+        var memberView = await ThreadAsync(org.Members[1], org, engagement.Id);
+        Assert.DoesNotContain(memberView.SelectMany(row => row.SeenBy!), reader => reader.UserId == org.MemberIds[1]);
+
+        // A new message, read again: the initial moves down to it.
+        var third = await PostAsync(org.Owner, org, engagement.Id, "Parking is out back.");
+        (await org.Members[1].PostAsync(read, content: null)).EnsureSuccessStatusCode();
+        var after = await ThreadAsync(org.Owner, org, engagement.Id);
+        Assert.Contains(after.Single(row => row.Id == third.Id).SeenBy!, reader => reader.UserId == org.MemberIds[1]);
+        Assert.DoesNotContain(after.Single(row => row.Id == second.Id).SeenBy!, reader => reader.UserId == org.MemberIds[1]);
+    }
+
+    /// <summary>
     /// A reaction tells the message's author and nobody else (D-087); taking
     /// it back or reacting to your own message tells nobody, and opening the
     /// chat clears it with the messages.

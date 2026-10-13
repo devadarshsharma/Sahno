@@ -273,6 +273,17 @@ public interface IDiscussionStore
     /// <summary>Stages a reaction's removal; <see cref="SaveAsync"/> commits it.</summary>
     void RemoveReaction(DiscussionReaction reaction);
 
+    /// <summary>How far each person has read this chat (D-096).</summary>
+    Task<IReadOnlyList<DiscussionReadMark>> ListReadMarksAsync(
+        Guid engagementId,
+        CancellationToken cancellationToken);
+
+    /// <summary>Moves this person's read mark to now, creating it the first time, and saves.</summary>
+    Task MarkReadAsync(
+        Guid engagementId,
+        Guid userId,
+        CancellationToken cancellationToken);
+
     /// <summary>The messages of one thread this person has deleted for themselves.</summary>
     Task<IReadOnlySet<Guid>> HiddenMessageIdsAsync(
         Guid engagementId,

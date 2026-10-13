@@ -87,6 +87,12 @@ public sealed class Membership
     public DateTimeOffset? SetupChecklistDismissedAtUtc { get; private set; }
 
     /// <summary>
+    /// The organisation the app opens in for this person (D-099). At most one
+    /// of a person's memberships is the default; none means their first.
+    /// </summary>
+    public bool IsDefault { get; private set; }
+
+    /// <summary>
     /// Whether this membership may see and manage protected financial data
     /// (D-016). The Owner always may; an Admin only once the Owner has granted
     /// it; a Member never. Read this rather than <see cref="CanManageFinances"/>,
@@ -138,6 +144,10 @@ public sealed class Membership
     {
         SetupChecklistDismissedAtUtc ??= DateTimeOffset.UtcNow;
     }
+
+    public void MakeDefault() => IsDefault = true;
+
+    public void ClearDefault() => IsDefault = false;
 
     /// <summary>
     /// Moves this membership between Admin and Member. Ownership is not

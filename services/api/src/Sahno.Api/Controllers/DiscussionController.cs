@@ -75,6 +75,7 @@ public sealed class DiscussionController(
             caller,
             engagementId,
             cancellationToken);
+        await discussionService.MarkReadAsync(caller, engagementId, cancellationToken);
 
         return NoContent();
     }
@@ -320,6 +321,9 @@ public sealed class DiscussionController(
                     reaction.Emoji,
                     reaction.Count,
                     reaction.IncludesYou))
+                .ToList(),
+            (row.SeenBy ?? [])
+                .Select(reader => new DiscussionReaderResponse(reader.UserId, reader.DisplayName))
                 .ToList());
     }
 

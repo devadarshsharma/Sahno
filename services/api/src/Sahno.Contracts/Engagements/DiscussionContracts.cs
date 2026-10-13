@@ -22,7 +22,15 @@ public sealed record DiscussionMessageResponse(
     /// <summary>The message this replies to, as it stands now; null if not a reply (D-086).</summary>
     DiscussionQuoteResponse? ReplyTo = null,
     /// <summary>Reactions, one row per emoji, in the picker's order (D-086).</summary>
-    IReadOnlyList<DiscussionReactionResponse>? Reactions = null);
+    IReadOnlyList<DiscussionReactionResponse>? Reactions = null,
+    /// <summary>
+    /// Who has read up to here and no further, most recent first (D-096). The
+    /// caller is never in it.
+    /// </summary>
+    IReadOnlyList<DiscussionReaderResponse>? SeenBy = null);
+
+/// <summary>Somebody who has seen a message: enough for their initial and colour.</summary>
+public sealed record DiscussionReaderResponse(Guid UserId, string? DisplayName);
 
 /// <summary>
 /// What a reply quotes. <see cref="Body"/> is null once the original is

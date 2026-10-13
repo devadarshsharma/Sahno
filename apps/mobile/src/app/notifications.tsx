@@ -124,6 +124,8 @@ function kindLabel(kind: NotificationKind): string {
       return 'Availability';
     case 'AvailabilityAnswered':
       return 'Answer';
+    case 'RemovedFromEngagement':
+      return 'Lineup change';
     case 'EngagementConfirmed':
       return 'Confirmed';
     case 'EngagementPostponed':

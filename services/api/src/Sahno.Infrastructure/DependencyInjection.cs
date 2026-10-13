@@ -5,11 +5,13 @@ using Microsoft.Extensions.Options;
 using Sahno.Application.Engagements;
 using Sahno.Application.Notifications;
 using Sahno.Application.Organisations;
+using Sahno.Application.Places;
 using Sahno.Application.Repertoire;
 using Sahno.Application.Users;
 using Sahno.Infrastructure.Engagements;
 using Sahno.Infrastructure.Notifications;
 using Sahno.Infrastructure.Organisations;
+using Sahno.Infrastructure.Places;
 using Sahno.Infrastructure.Repertoire;
 using Sahno.Infrastructure.Persistence;
 using Sahno.Infrastructure.Users;
@@ -95,9 +97,19 @@ public static class DependencyInjection
                 : provider.GetRequiredService<LoggingPushSender>();
         });
         services.AddScoped<LoggingPushSender>();
+
+        // Venue suggestions (D-102) go through the server so the Google key
+        // never ships in the app.
+        services.AddOptions<PlacesOptions>().BindConfiguration(PlacesOptions.SectionName);
+        services.AddHttpClient<IPlaceSuggestions, GooglePlaceSuggestions>(client =>
+        {
+            client.BaseAddress = new Uri("https://places.googleapis.com/v1/");
+            client.Timeout = TimeSpan.FromSeconds(5);
+        });
         services.AddScoped<OutboxDispatcher>();
         services.AddHostedService<OutboxWorker>();
         services.AddHostedService<ReminderWorker>();
+        services.AddHostedService<OrganisationPurgeWorker>();
         services.TryAddSingleton(TimeProvider.System);
 
         return services;

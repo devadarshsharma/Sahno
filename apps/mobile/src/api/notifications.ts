@@ -4,6 +4,7 @@ export type NotificationKind =
   | 'AvailabilityRequested'
   | 'AvailabilityReminder'
   | 'AvailabilityAnswered'
+  | 'RemovedFromEngagement'
   | 'EngagementConfirmed'
   | 'EngagementPostponed'
   | 'EngagementCancelled'

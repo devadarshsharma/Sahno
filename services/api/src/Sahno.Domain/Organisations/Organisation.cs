@@ -39,6 +39,36 @@ public sealed class Organisation
 
     public DateTimeOffset CreatedAtUtc { get; }
 
+    /// <summary>
+    /// How long a deleted organisation can still be restored by its Owner
+    /// before it and everything in it are removed for good (D-101).
+    /// </summary>
+    public static readonly TimeSpan RestoreWindow = TimeSpan.FromDays(30);
+
+    /// <summary>
+    /// When the Owner deleted it; null while it is in use. A deleted
+    /// organisation is invisible everywhere except to its Owner's restore
+    /// list, and is purged once <see cref="RestoreWindow"/> has passed.
+    /// </summary>
+    public DateTimeOffset? DeletedAtUtc { get; private set; }
+
+    public Guid? DeletedByUserId { get; private set; }
+
+    /// <summary>When it goes for good, if it is deleted.</summary>
+    public DateTimeOffset? PurgeAfterUtc => DeletedAtUtc + RestoreWindow;
+
+    public void MarkDeleted(Guid userId, DateTimeOffset now)
+    {
+        DeletedAtUtc ??= now;
+        DeletedByUserId ??= userId;
+    }
+
+    public void Restore()
+    {
+        DeletedAtUtc = null;
+        DeletedByUserId = null;
+    }
+
     public static Organisation Create(
         string name,
         string? groupType,

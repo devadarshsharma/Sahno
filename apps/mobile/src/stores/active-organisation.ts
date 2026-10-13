@@ -2,8 +2,8 @@ import { create } from 'zustand';
 
 /**
  * The active-organisation context (D-044, D-064). Deliberately in-memory for
- * this slice: on a cold start the app defaults to the person's first
- * organisation. Switching strictly changes the data context — callers must
+ * this slice: on a cold start the app opens the person's default organisation,
+ * else their first (D-099). Switching strictly changes the data context — callers must
  * invalidate org-scoped queries when this changes.
  */
 type ActiveOrganisationState = {

@@ -1666,3 +1666,154 @@ Freelance musicians play with several groups, and a group can double-book itself
 - **Private to the person.** The check runs on their own calendar, on their phone; no organiser is ever told what a member has on with another group.
 
 Replaces D-090's `…/rehearsals/calendar` endpoint, which this calendar absorbs (done events and their rehearsals still show).
+
+---
+
+## D-092 — Marking an event done before its date asks first
+
+**Date:** 12 October 2026
+**Status:** Accepted
+
+An event dated ahead was marked Completed by mistake, which took it off the confirmed list and put it under "payment still owed". Nothing checked the date.
+
+- Choosing **Close event** (formerly "Mark completed") while the event's last day is still to come (by the phone's today) asks: "*Sufi sama* is on Fri 24 Oct. Close it anyway?" — **Not yet** / **Close event**. A warning, not a block, matching D-091: an organiser may close an event early on purpose.
+- Reopen (Completed → Confirmed) is unchanged and is how an early "done" is undone.
+
+Also: the organiser's setup checklist on Home now ticks off its steps from what has happened (members invited, first enquiry created) and offers **Create** for the enquiry. "Add an organisation logo" and "Review organisation settings" left the list until those screens exist.
+
+---
+
+## D-093 — Confirming asks about what a confirmed booking would normally have
+
+**Date:** 12 October 2026
+**Status:** Accepted
+
+An enquiry can go straight to Confirmed (a booking that arrives confirmed), and nothing pointed out what was still missing.
+
+- **Confirm** first lists, in one prompt, anything of these that applies: nobody has been asked for availability; members who have not answered; no date, start time or venue.
+- It offers to fix the first gap — **Add details** (date, time, venue) before **Ask members**, since availability cannot be asked without a date — alongside **Not yet** and **Confirm anyway**. A warning, never a block (as D-091, D-092).
+- Confirming anyway also acknowledges unanswered availability, so the server's D-029 check does not ask a second time.
+
+---
+
+## D-094 — The usual next step is a button on the event page
+
+**Date:** 12 October 2026
+**Status:** Accepted
+
+A tester asked for plain "Confirmed" and "event closed" buttons. Moving a booking on meant knowing to tap the status chip, then choosing from every possible move, cancel and postpone included.
+
+- Organisers now see one button on the event page for the move they usually make next: **Ask for availability** on an enquiry (opens People), **Confirm booking** while checking availability or tentative, and **Close event** once a confirmed event's date has come. Before that date there is no close button on the page.
+- Everything else — postpone, cancel, reopen, closing early — stays behind the status chip. Both routes run the same checks (D-029, D-092, D-093).
+- "Mark completed" is now **Close event** everywhere.
+
+---
+
+## D-095 — Status is a visible section, and an enquiry can be confirmed in one tap
+
+**Date:** 12 October 2026
+**Status:** Accepted (refines D-094)
+
+The same tester could not find how to move an enquiry to Confirmed: the status lived only behind the chip in the event header, and D-094's button offered an enquiry only "Ask for availability".
+
+- **Status** is now the first row of the organiser's section list on the event page ("Status · Enquiry · change"), opening the same status page as the chip. The chip still works.
+- An enquiry shows two buttons side by side: **Ask for availability** and **Confirm booking** — a booking that arrives already settled skips the availability round. Confirming still runs D-093's checks.
+
+---
+
+## D-096 — Chat shows who has seen what
+
+**Date:** 12 October 2026
+**Status:** Accepted (replaces D-086's "no read receipts")
+
+Testers asked to see who had read the chat, the way group messaging apps show it.
+
+- Opening an event's chat records how far that person has read (`engagement_discussion_reads`: one row per person per chat, moved forward each time; migration `AddDiscussionReads`, additive).
+- Each person's initial, in their name colour, sits under the latest message they have seen that somebody else wrote — under your own message it would say nothing — and moves down as they read on. Up to five initials, then "+N". You never see your own.
+- Everyone in the chat sees it; there is no per-organisation switch yet. D-086 suggested one, off by default; if groups ask to turn it off, that is the follow-up.
+- Reading is pushed live, so open chats update as people catch up.
+
+Also in chat: reaction emoji are no longer clipped (the line was shorter than the glyph), and long-pressing a message gives a short vibration as its menu opens (`expo-haptics`, a native module — needs a new build).
+
+---
+
+## D-097 — People taken off an event are told; closed events take no new people
+
+**Date:** 13 October 2026
+**Status:** Accepted
+
+- **Removal is notified.** Taking somebody off an event's lineup now tells them, in-app and by push: "You are off *Saturday gig*" — the event no longer shows in their events. Only the first removal notifies, and not an organiser taking themselves off. The notification opens the bell, not the event they can no longer see. (Kind `RemovedFromEngagement`; no migration.)
+- **No new people on a done or cancelled event.** Asking somebody whether they can make an event that is over or not happening is refused by the API, and the People page shows "This event is closed, so nobody new can be asked about it" instead of **Add more members**. Adding people at every other stage — including after confirming — is unchanged.
+
+---
+
+## D-098 — Mixed-organisation lists badge every entry
+
+**Date:** 13 October 2026
+**Status:** Accepted
+
+On the Bookings calendar, events and rehearsals from other organisations (D-091) were told apart only by the organisation's name in small grey text, and the active organisation's entries had none — testers could not tell which was which.
+
+- When the calendar holds more than one organisation, every event and rehearsal in its day list carries a badge: the organisation's name on a pill, in a colour fixed to that organisation (derived from its id, so a group looks the same everywhere). With a single organisation, no badges.
+- Venue and times move to their own line under the badge.
+- **The Bookings list spans organisations too**, like the calendar: the active organisation's bookings plus the person's events with other organisations (as `GET /api/me/calendar` returns them — dated, from the last twelve months, not cancelled or postponed), merged by date within each status group and badged the same way. Opening another organisation's event offers to switch, as on the calendar. A filter arriving from a Home tile is about the active organisation, so it shows only that one's.
+
+---
+
+## D-099 — People choose the organisation the app opens in
+
+**Date:** 13 October 2026
+**Status:** Accepted
+
+The app opened in the first organisation a person joined, every cold start. For somebody in several groups that is rarely the one they want.
+
+- **Your organisations** (the switcher) offers **Make default** on each organisation when you are in more than one; the chosen one shows **★ Default**. The app opens there; switching during a session still works as before and lasts until the app is closed.
+- Stored on the account, not the phone (`memberships.is_default`, at most one per person; migration `AddDefaultOrganisation`, additive), so it follows the person to any phone and survives reinstalling. Leaving an organisation takes its default with it; the app then opens in the first one again.
+- `PUT /api/organisations/{id}/default`; the organisation list says which is the default.
+
+---
+
+## D-100 — The Bookings list splits upcoming from past
+
+**Date:** 13 October 2026
+**Status:** Accepted
+
+The list grouped everything by status, so a booking whose day had gone but was never closed sat under **Confirmed** beside next month's, and there was no way to look back at what had been done.
+
+- The list has **Upcoming · Past · All**, each with its count; it opens on Upcoming. The calendar is unchanged.
+- **Past** is anything closed (Completed) or whose last day is before today, whatever its status — a gig nobody closed is still history. Undated bookings are upcoming unless closed.
+- Upcoming and All keep the status groups (soonest first within each). Past is grouped **by month, newest first**, each row keeping its status chip, so a past booking still showing *Confirmed* is visibly one that was never closed.
+- A filter from a Home tile ignores the switch and shows everything it counted, as before.
+- Other organisations' events come from `GET /api/me/calendar`, which reaches back twelve months (D-090); Past says so when it mixes organisations.
+
+---
+
+## D-101 — The Owner can delete an organisation, and restore it for 30 days
+
+**Date:** 13 October 2026
+**Status:** Accepted
+
+There was no way to get rid of an organisation: one made by mistake, a test group, or a group that has stopped.
+
+- **Owner only.** An Admin or Member gets 403; a non-member 404, as everywhere. Handing a group on is still a transfer of ownership.
+- **Name typed out, checked twice.** The app's delete screen (from **Your organisations**, bottom, Owner's organisations only) lists what goes and enables the button only once the name matches (case and outer spaces ignored). The server checks it again: `DELETE /api/organisations/{id}` takes `{ "name": "…" }` and refuses a mismatch with 400, so no stray request can delete one.
+- **Soft delete, then purge.** Deleting sets `organisations.deleted_at_utc` (and `deleted_by_user_id`; migration `SoftDeleteOrganisations`, additive). From that moment it is gone for everyone: EF query filters hide the organisation and every row hung directly off it — memberships, invitations, engagements, notifications, customers, repertoire — so nothing reaches it, including invite codes and cross-organisation views. Thirty days later (`Organisation.RestoreWindow`) an hourly worker (`OrganisationPurgeWorker`) removes it and everything in it for good, in one transaction. Accounts, push devices and people's other organisations are never touched.
+- **The Owner restores it themselves**, any time in the thirty days, from **Recently deleted** in Your organisations (or on onboarding, if it was their only one): `GET /api/organisations/deleted`, `POST /api/organisations/{id}/restore`. It comes back exactly as it was, for everyone. After the window, restore answers 410 even if the purge has not run yet. Self-service rather than through support: the Owner could delete it alone, so undoing it alone adds no risk and spares a support queue.
+- **Members are told** by push both ways ("*X* was deleted — its owner can restore it until *date*", "*X* is back"). Not on the bell, which is per organisation and hidden with it.
+- **Why not hard delete at once:** an Owner's mistake, or a compromised Owner account, would end a whole group with no way back. **Why not keep it forever:** once deleted there is no reason to hold its members' details, chat and payments (Australian Privacy Principle 11.2). A disclosed thirty days does both. The privacy policy should say so, along with how long database backups keep data after that.
+- Live updates now also refresh the organisation list, so other members' phones drop (or regain) the organisation at once, and pick up role changes and removals the same way.
+
+---
+
+## D-102 — Venues suggest real places as you type
+
+**Date:** 13 October 2026
+**Status:** Accepted
+
+Venues were typed free-hand, so the same hall appeared three ways and "open in maps" sometimes found the wrong place.
+
+- The venue fields — new booking, the booking's Details, and a rehearsal's **Where** — suggest real places after three characters, from **Google Places Autocomplete (New)**: up to five, each with the place's name and address, with "Google Maps" attribution as Google's terms require. Tapping one fills the field with the place's full line ("Hamer Hall, 100 St Kilda Rd, Southbank VIC, Australia"); on the Details card, a pick saves at once and the blur that follows does not save a second time, so members are told about one venue change, not two.
+- **Still free text.** Suggestions are only suggestions: "Ali's place", "TBC", or an unmapped hall are kept as typed. The venue is still stored as the one line of text; no place id or coordinates, so nothing else changes, and opening in maps searches that line as before.
+- **Through the API, not from the app.** `GET /api/places/autocomplete?input=…&sessionToken=…&regionCode=…` (signed in; 60 a minute per account). The Google key (`Places:GoogleApiKey`) lives only on the server, where it cannot be lifted from an app download and billed. Unset, the endpoint answers nothing and the fields behave as plain text; a Google failure is likewise just no suggestions.
+- **Cost control:** only prediction text is requested (field mask), keystrokes are debounced (300 ms), lookups are cached for ten minutes, and each typing session shares a session token. Suggestions are biased to, not restricted to, the phone's country, so a tour venue abroad is still found.
+- Google receives what is typed into a venue field and the phone's country; it is listed as a service provider in the privacy policy draft.

@@ -17,6 +17,7 @@ import {
   TimeField,
   formatTime,
 } from '@/components/ui';
+import { VenueField } from '@/components/venue-field';
 import { VenueLink } from '@/components/venue-link';
 import {
   formatEngagementDate,
@@ -129,12 +130,13 @@ export function DetailsCard({ engagement }: { engagement: Engagement }) {
         helperText="When it begins."
       />
 
-      <TextInput
+      <VenueField
         label="Venue"
         placeholder="Still to be confirmed"
         value={venue}
         onChangeText={setVenue}
         onBlur={() => run({ venue: venue.trim() === '' ? null : venue })}
+        onPick={(picked) => run({ venue: picked })}
       />
 
       <TextInput

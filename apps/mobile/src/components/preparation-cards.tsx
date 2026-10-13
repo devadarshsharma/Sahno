@@ -29,6 +29,7 @@ import {
   formatIsoDate,
   formatTime,
 } from '@/components/ui';
+import { VenueField } from '@/components/venue-field';
 import { VenueLink } from '@/components/venue-link';
 import type { Participant } from '@/api/availability';
 import { useAvailability } from '@/hooks/use-availability';
@@ -547,7 +548,7 @@ function AddRehearsal({
     <View style={styles.form}>
       <DateField label="Date" value={date} onChange={setDate} />
       <TimeField label="Start time" value={startTime} onChange={setStartTime} />
-      <TextInput
+      <VenueField
         label="Where"
         placeholder="e.g. Dural hall"
         value={venue}

@@ -89,6 +89,100 @@ public sealed class OrganisationsController(
         return row is null ? NotFound() : Ok(ToResponse(row));
     }
 
+    /// <summary>The organisation the app opens in for the caller (D-099).</summary>
+    [HttpPut("{id:guid}/default")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> MakeDefault(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var user = await CurrentUserAsync(cancellationToken);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        return await organisationService.SetDefaultAsync(id, user.Id, cancellationToken)
+            ? NoContent()
+            : NotFound();
+    }
+
+    /// <summary>
+    /// Deletes the organisation (D-101): hidden from everyone at once,
+    /// restorable by its Owner for thirty days, then purged. Owner only, and
+    /// only with its name typed out; any other member gets 403.
+    /// </summary>
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(
+        Guid id,
+        DeleteOrganisationRequest request,
+        CancellationToken cancellationToken)
+    {
+        var user = await CurrentUserAsync(cancellationToken);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        return await organisationService.DeleteAsync(id, user.Id, request.Name, cancellationToken) switch
+        {
+            OrganisationDeleteResult.Deleted => NoContent(),
+            OrganisationDeleteResult.NotOwner => Forbid(),
+            OrganisationDeleteResult.NameMismatch => BadRequest(new { message = "Type the organisation's name to delete it." }),
+            _ => NotFound(),
+        };
+    }
+
+    /// <summary>What the caller deleted and can still restore (D-101).</summary>
+    [HttpGet("deleted")]
+    [ProducesResponseType<IReadOnlyList<DeletedOrganisationResponse>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<DeletedOrganisationResponse>>> ListDeleted(
+        CancellationToken cancellationToken)
+    {
+        var user = await CurrentUserAsync(cancellationToken);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        var rows = await organisationService.ListRestorableAsync(user.Id, cancellationToken);
+        return Ok(rows
+            .Select(organisation => new DeletedOrganisationResponse(
+                organisation.Id,
+                organisation.Name,
+                organisation.DeletedAtUtc!.Value,
+                organisation.PurgeAfterUtc!.Value))
+            .ToList());
+    }
+
+    /// <summary>Brings a deleted organisation back, as it was (D-101). Owner only.</summary>
+    [HttpPost("{id:guid}/restore")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status410Gone)]
+    public async Task<IActionResult> Restore(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var user = await CurrentUserAsync(cancellationToken);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        return await organisationService.RestoreAsync(id, user.Id, cancellationToken) switch
+        {
+            OrganisationRestoreResult.Restored => NoContent(),
+            OrganisationRestoreResult.TooLate => StatusCode(StatusCodes.Status410Gone),
+            _ => NotFound(),
+        };
+    }
+
     [HttpPost("{id:guid}/setup-checklist/dismiss")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -240,7 +334,8 @@ public sealed class OrganisationsController(
             ShowSetupChecklist:
                 row.Membership.Role == MembershipRole.Owner
                 && row.Membership.SetupChecklistDismissedAtUtc is null,
-            row.MemberCount);
+            row.MemberCount,
+            row.Membership.IsDefault);
     }
 
     private static InvitationResponse ToResponse(Invitation invitation)

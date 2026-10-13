@@ -10,6 +10,7 @@ import { createEngagement } from '@/api/engagements';
 import { BookingClashNotice } from '@/components/clash-notice';
 import { CustomerPicker } from '@/components/customer-picker';
 import { Button, Card, DateField, Screen, Text, TextInput } from '@/components/ui';
+import { VenueField } from '@/components/venue-field';
 import { useEngagementMutation } from '@/hooks/use-engagements';
 import { useIsOrganiser } from '@/hooks/use-customers';
 import { colors, radii, spacing } from '@/theme';
@@ -126,7 +127,7 @@ export default function CreateEngagement() {
           control={control}
           name="venue"
           render={({ field }) => (
-            <TextInput
+            <VenueField
               label="Venue (optional)"
               placeholder="Still to be confirmed"
               value={field.value}

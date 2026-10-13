@@ -36,8 +36,11 @@ export function useActiveOrg(): {
     useActiveOrganisation();
 
   const organisations = organisationsQuery.data ?? [];
+  // What was picked this session, else the person's default (D-099), else
+  // the first they joined.
   const active =
     organisations.find((org) => org.id === activeOrganisationId) ??
+    organisations.find((org) => org.isDefault) ??
     organisations[0] ??
     null;
 

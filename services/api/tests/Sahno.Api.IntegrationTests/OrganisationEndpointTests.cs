@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Sahno.Api.IntegrationTests.Authentication;
 using Sahno.Api.RateLimiting;
+using Sahno.Application.Organisations;
+using Sahno.Contracts.Engagements;
 using Sahno.Contracts.Organisations;
 using Sahno.Domain.Organisations;
 using Sahno.Infrastructure.Persistence;
@@ -206,6 +208,172 @@ public sealed class OrganisationEndpointTests(SahnoApiFactory factory)
 
         await Assert.ThrowsAsync<DbUpdateException>(
             () => dbContext.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task DeleteOrganisation_HidesItFromEveryone_ButKeepsItsData()
+    {
+        using var owner = CreateClient("auth0|delete-owner");
+        using var member = CreateClient("auth0|delete-member");
+
+        var doomed = await CreateOrganisationAsync(owner, "Doomed Org");
+        var kept = await CreateOrganisationAsync(owner, "Kept Org");
+        await JoinAsync(owner, member, doomed.Id);
+        await CreateEngagementAsync(owner, doomed.Id);
+        await CreateEngagementAsync(owner, kept.Id);
+
+        var delete = await DeleteAsync(owner, doomed.Id, "  doomed org ");
+        Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
+
+        Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync($"/api/organisations/{doomed.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await member.GetAsync($"/api/organisations/{doomed.Id}/engagements")).StatusCode);
+        var memberList = await member.GetFromJsonAsync<List<OrganisationResponse>>("/api/organisations");
+        Assert.NotNull(memberList);
+        Assert.Empty(memberList);
+        var ownerList = await owner.GetFromJsonAsync<List<OrganisationResponse>>("/api/organisations");
+        Assert.NotNull(ownerList);
+        Assert.Equal([kept.Id], ownerList.Select(organisation => organisation.Id));
+
+        // Hidden, not gone: it can still be restored.
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<SahnoDbContext>();
+        Assert.True(await dbContext.Engagements.IgnoreQueryFilters().AnyAsync(row => row.OrganisationId == doomed.Id));
+        Assert.Equal(2, await dbContext.Memberships.IgnoreQueryFilters().CountAsync(row => row.OrganisationId == doomed.Id));
+        Assert.True(await dbContext.Engagements.AnyAsync(row => row.OrganisationId == kept.Id));
+    }
+
+    [Fact]
+    public async Task DeleteOrganisation_NeedsItsNameTypedOut()
+    {
+        using var owner = CreateClient("auth0|delete-name-owner");
+        var organisation = await CreateOrganisationAsync(owner, "Named Org");
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await DeleteAsync(owner, organisation.Id, "DELETE")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await DeleteAsync(owner, organisation.Id, null)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync($"/api/organisations/{organisation.Id}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteOrganisation_IsTheOwnersAlone()
+    {
+        using var owner = CreateClient("auth0|delete-only-owner");
+        using var member = CreateClient("auth0|delete-not-owner");
+        using var stranger = CreateClient("auth0|delete-stranger");
+
+        var organisation = await CreateOrganisationAsync(owner, "Not Yours Org");
+        await JoinAsync(owner, member, organisation.Id);
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await DeleteAsync(member, organisation.Id, "Not Yours Org")).StatusCode);
+        // Non-members get 404 — existence is not disclosed.
+        Assert.Equal(HttpStatusCode.NotFound, (await DeleteAsync(stranger, organisation.Id, "Not Yours Org")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync($"/api/organisations/{organisation.Id}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task ADeletedOrganisation_CannotBeJoined()
+    {
+        using var owner = CreateClient("auth0|delete-join-owner");
+        using var joiner = CreateClient("auth0|delete-join-joiner");
+        var organisation = await CreateOrganisationAsync(owner, "Closed Org");
+        var invitation = await CreateInvitationAsync(owner, organisation.Id);
+
+        (await DeleteAsync(owner, organisation.Id, "Closed Org")).EnsureSuccessStatusCode();
+
+        Assert.Equal(HttpStatusCode.NotFound, (await joiner.GetAsync($"/api/invitations/{invitation.Token}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await joiner.PostAsync($"/api/invitations/{invitation.Token}/accept", content: null)).StatusCode);
+    }
+
+    [Fact]
+    public async Task TheOwner_RestoresADeletedOrganisation_AsItWas()
+    {
+        using var owner = CreateClient("auth0|restore-owner");
+        using var member = CreateClient("auth0|restore-member");
+        var organisation = await CreateOrganisationAsync(owner, "Back Again Org");
+        await JoinAsync(owner, member, organisation.Id);
+        await CreateEngagementAsync(owner, organisation.Id);
+        (await DeleteAsync(owner, organisation.Id, "Back Again Org")).EnsureSuccessStatusCode();
+
+        var deleted = await owner.GetFromJsonAsync<List<DeletedOrganisationResponse>>("/api/organisations/deleted");
+        Assert.NotNull(deleted);
+        var entry = Assert.Single(deleted, row => row.Id == organisation.Id);
+        Assert.Equal(Organisation.RestoreWindow, entry.PurgeAfterUtc - entry.DeletedAtUtc);
+
+        // Only the Owner sees it, or can bring it back.
+        var memberDeleted = await member.GetFromJsonAsync<List<DeletedOrganisationResponse>>("/api/organisations/deleted");
+        Assert.NotNull(memberDeleted);
+        Assert.Empty(memberDeleted);
+        Assert.Equal(HttpStatusCode.NotFound, (await member.PostAsync($"/api/organisations/{organisation.Id}/restore", null)).StatusCode);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.PostAsync($"/api/organisations/{organisation.Id}/restore", null)).StatusCode);
+
+        var memberList = await member.GetFromJsonAsync<List<OrganisationResponse>>("/api/organisations");
+        Assert.NotNull(memberList);
+        Assert.Contains(memberList, row => row.Id == organisation.Id);
+        var engagements = await member.GetAsync($"/api/organisations/{organisation.Id}/engagements");
+        Assert.Equal(HttpStatusCode.OK, engagements.StatusCode);
+        var stillDeleted = await owner.GetFromJsonAsync<List<DeletedOrganisationResponse>>("/api/organisations/deleted");
+        Assert.NotNull(stillDeleted);
+        Assert.DoesNotContain(stillDeleted, row => row.Id == organisation.Id);
+    }
+
+    [Fact]
+    public async Task AfterThirtyDays_ADeletedOrganisationIsPurged_AndNothingElse()
+    {
+        using var owner = CreateClient("auth0|purge-owner");
+        using var member = CreateClient("auth0|purge-member");
+        var doomed = await CreateOrganisationAsync(owner, "Purged Org");
+        var kept = await CreateOrganisationAsync(owner, "Survivor Org");
+        await JoinAsync(owner, member, doomed.Id);
+        await CreateEngagementAsync(owner, doomed.Id);
+        await CreateEngagementAsync(owner, kept.Id);
+        (await DeleteAsync(owner, doomed.Id, "Purged Org")).EnsureSuccessStatusCode();
+
+        var clock = factory.Services.GetRequiredService<TestClock>();
+        try
+        {
+            // Past the window but not yet purged: too late to restore.
+            clock.Now = DateTimeOffset.UtcNow + Organisation.RestoreWindow + TimeSpan.FromMinutes(1);
+            Assert.Equal(HttpStatusCode.Gone, (await owner.PostAsync($"/api/organisations/{doomed.Id}/restore", null)).StatusCode);
+
+            using var purgeScope = factory.Services.CreateScope();
+            var service = purgeScope.ServiceProvider.GetRequiredService<OrganisationService>();
+            Assert.True(await service.PurgeExpiredAsync(CancellationToken.None) >= 1);
+        }
+        finally
+        {
+            clock.Now = null;
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<SahnoDbContext>();
+        Assert.False(await dbContext.Organisations.IgnoreQueryFilters().AnyAsync(row => row.Id == doomed.Id));
+        Assert.False(await dbContext.Memberships.IgnoreQueryFilters().AnyAsync(row => row.OrganisationId == doomed.Id));
+        Assert.False(await dbContext.Invitations.IgnoreQueryFilters().AnyAsync(row => row.OrganisationId == doomed.Id));
+        Assert.False(await dbContext.Engagements.IgnoreQueryFilters().AnyAsync(row => row.OrganisationId == doomed.Id));
+        Assert.True(await dbContext.Engagements.AnyAsync(row => row.OrganisationId == kept.Id));
+        Assert.True(await dbContext.Memberships.AnyAsync(row => row.OrganisationId == kept.Id));
+        Assert.Equal(HttpStatusCode.NotFound, (await owner.PostAsync($"/api/organisations/{doomed.Id}/restore", null)).StatusCode);
+    }
+
+    private static Task<HttpResponseMessage> DeleteAsync(HttpClient client, Guid organisationId, string? name)
+    {
+        return client.SendAsync(new HttpRequestMessage(HttpMethod.Delete, $"/api/organisations/{organisationId}")
+        {
+            Content = JsonContent.Create(new DeleteOrganisationRequest(name)),
+        });
+    }
+
+    private static async Task JoinAsync(HttpClient owner, HttpClient joiner, Guid organisationId)
+    {
+        var invitation = await CreateInvitationAsync(owner, organisationId);
+        (await joiner.PostAsync($"/api/invitations/{invitation.Token}/accept", content: null)).EnsureSuccessStatusCode();
+    }
+
+    private static async Task CreateEngagementAsync(HttpClient owner, Guid organisationId)
+    {
+        (await owner.PostAsJsonAsync(
+            $"/api/organisations/{organisationId}/engagements",
+            new CreateEngagementRequest("Gig", null, null, null, null))).EnsureSuccessStatusCode();
     }
 
     private HttpClient CreateClient(string subject)

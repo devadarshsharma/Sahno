@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Sahno.Api.IntegrationTests.Authentication;
 using Sahno.Contracts.Engagements;
+using Sahno.Contracts.Notifications;
 using Sahno.Contracts.Organisations;
 
 namespace Sahno.Api.IntegrationTests;
@@ -180,6 +181,45 @@ public sealed class AvailabilityEndpointTests(SahnoApiFactory factory)
         var peek = await org.Members[0].GetAsync(
             $"/api/organisations/{org.Id}/engagements/{engagement.Id}");
         Assert.Equal(HttpStatusCode.NotFound, peek.StatusCode);
+    }
+
+    /// <summary>
+    /// Taken off an event, you are told, once, and pointed at the bell rather
+    /// than an event you can no longer open (D-097).
+    /// </summary>
+    [Fact]
+    public async Task SomebodyTakenOffAnEventIsTold()
+    {
+        var org = await NewOrganisationAsync("removal-told", members: 2);
+        var engagement = await NewAskedAsync(org, "Lineup change");
+        var remove = $"{Availability(org, engagement.Id)}/{org.MemberIds[0]}";
+
+        (await org.Owner.DeleteAsync(remove)).EnsureSuccessStatusCode();
+        (await org.Owner.DeleteAsync(remove)).EnsureSuccessStatusCode();
+
+        var bell = await org.Members[0].GetFromJsonAsync<List<NotificationResponse>>(
+            $"/api/organisations/{org.Id}/notifications");
+        var told = Assert.Single(bell!, row => row.Kind == "RemovedFromEngagement");
+        Assert.Equal("You are off Lineup change", told.Title);
+        Assert.Equal("/notifications", told.Route);
+
+        var other = await org.Members[1].GetFromJsonAsync<List<NotificationResponse>>(
+            $"/api/organisations/{org.Id}/notifications");
+        Assert.DoesNotContain(other!, row => row.Kind == "RemovedFromEngagement");
+    }
+
+    /// <summary>Nobody is asked about an event that is over or not happening (D-097).</summary>
+    [Fact]
+    public async Task NobodyIsAskedAboutAClosedOrCancelledEvent()
+    {
+        var org = await NewOrganisationAsync("ask-closed", members: 2);
+        var engagement = await NewAskedAsync(org, "Called off");
+        (await org.Owner.PostAsJsonAsync(
+            $"/api/organisations/{org.Id}/engagements/{engagement.Id}/transition",
+            new TransitionEngagementRequest("Cancelled", "Venue fell through"))).EnsureSuccessStatusCode();
+
+        var late = await RequestAsync(org, engagement.Id, [org.MemberIds[1]]);
+        Assert.Equal(HttpStatusCode.BadRequest, late.StatusCode);
     }
 
     [Fact]

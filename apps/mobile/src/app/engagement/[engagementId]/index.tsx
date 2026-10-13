@@ -4,6 +4,7 @@ import type { ComponentProps } from 'react';
 import { ActivityIndicator, Pressable, Share, StyleSheet, View } from 'react-native';
 
 import type { Engagement } from '@/api/engagements';
+import { NextStepButton } from '@/components/admin-cards';
 import { MyAvailabilityCard } from '@/components/availability-cards';
 import { AddToCalendarCard } from '@/components/calendar-card';
 import { DetailRequestsCard } from '@/components/detail-requests-card';
@@ -13,7 +14,7 @@ import { Button, Card, CountBadge, Screen, Text } from '@/components/ui';
 import { useAvailability } from '@/hooks/use-availability';
 import { useEngagementCustomer, useFinancialAccess } from '@/hooks/use-commercial';
 import { useDiscussion } from '@/hooks/use-discussion';
-import { formatEngagementDate, useEngagements } from '@/hooks/use-engagements';
+import { formatEngagementDate, STATUS_WORDS, useEngagements } from '@/hooks/use-engagements';
 import { useActiveOrg } from '@/hooks/use-organisations';
 import {
   useRehearsals,
@@ -189,6 +190,9 @@ export default function EngagementOverview() {
         </View>
       ) : null}
 
+      {/* The organiser's usual next move, in plain sight (D-094). */}
+      {isOrganiser ? <NextStepButton engagement={engagement} /> : null}
+
       {/* A member's answer, right here: for them the header and strip above
           are the whole of Details, and their answer was all People held. */}
       {isOrganiser ? null : <MyAvailabilityCard engagementId={engagement.id} />}
@@ -199,6 +203,16 @@ export default function EngagementOverview() {
       )}
 
       <Card style={styles.menu}>
+        {/* Where the booking stands, as a row like every other section — a
+            tester could not find the status behind the header chip (D-095). */}
+        {isOrganiser ? (
+          <Row
+            icon="flag-outline"
+            title="Status"
+            summary={`${STATUS_WORDS[engagement.status]} · change`}
+            onPress={() => go('status')}
+          />
+        ) : null}
         {/* Organisers keep Details and People: dates and details to edit,
             and the whole lineup to manage. */}
         {isOrganiser ? (

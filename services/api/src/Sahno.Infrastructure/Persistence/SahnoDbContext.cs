@@ -66,9 +66,25 @@ public sealed class SahnoDbContext(DbContextOptions<SahnoDbContext> options)
 
     public DbSet<DetailRequest> DetailRequests => Set<DetailRequest>();
 
+    public DbSet<DiscussionReadMark> DiscussionReadMarks => Set<DiscussionReadMark>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(SahnoDbContext).Assembly);
+
+        // A deleted organisation (D-101) is gone as far as every query is
+        // concerned: it, and every row hung directly off it. Nearly every
+        // request is authorised through a membership, so filtering those alone
+        // locks it; the rest close the paths that start elsewhere — an invite
+        // code, a person's events or notifications across their groups.
+        // Only restoring and purging look past this, with IgnoreQueryFilters.
+        modelBuilder.Entity<Organisation>().HasQueryFilter(organisation => organisation.DeletedAtUtc == null);
+        modelBuilder.Entity<Membership>().HasQueryFilter(row => Organisations.Any(organisation => organisation.Id == row.OrganisationId && organisation.DeletedAtUtc == null));
+        modelBuilder.Entity<Invitation>().HasQueryFilter(row => Organisations.Any(organisation => organisation.Id == row.OrganisationId && organisation.DeletedAtUtc == null));
+        modelBuilder.Entity<Engagement>().HasQueryFilter(row => Organisations.Any(organisation => organisation.Id == row.OrganisationId && organisation.DeletedAtUtc == null));
+        modelBuilder.Entity<Notification>().HasQueryFilter(row => Organisations.Any(organisation => organisation.Id == row.OrganisationId && organisation.DeletedAtUtc == null));
+        modelBuilder.Entity<Customer>().HasQueryFilter(row => Organisations.Any(organisation => organisation.Id == row.OrganisationId && organisation.DeletedAtUtc == null));
+        modelBuilder.Entity<Piece>().HasQueryFilter(row => Organisations.Any(organisation => organisation.Id == row.OrganisationId && organisation.DeletedAtUtc == null));
     }
 }

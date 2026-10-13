@@ -35,6 +35,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     ...config.ios,
     bundleIdentifier: 'app.sahno.mobile',
+    infoPlist: {
+      ...config.ios?.infoPlist,
+      // Only HTTPS and the platform's own encryption: exempt, so App Store
+      // Connect does not ask the export-compliance question on every build.
+      ITSAppUsesNonExemptEncryption: false,
+    },
   },
   android: {
     ...config.android,

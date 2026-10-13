@@ -16,6 +16,9 @@ public enum NotificationKind
     /// <summary>Somebody on the lineup answered. Organisers only.</summary>
     AvailabilityAnswered = 3,
 
+    /// <summary>An organiser took you off an event's lineup (D-097).</summary>
+    RemovedFromEngagement = 4,
+
     EngagementConfirmed = 10,
     EngagementPostponed = 11,
     EngagementCancelled = 12,

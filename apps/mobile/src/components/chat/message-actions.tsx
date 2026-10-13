@@ -140,8 +140,12 @@ const styles = StyleSheet.create({
   reactionChosen: {
     backgroundColor: colors.tealSoft,
   },
+  // The line must be taller than the glyph, or the shared text style's
+  // line height clips the top of the emoji.
   reactionEmoji: {
     fontSize: 26,
+    lineHeight: 34,
+    textAlign: 'center',
   },
   list: {
     gap: 2,

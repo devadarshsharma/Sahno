@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Sahno.Api.IntegrationTests.Authentication;
 using Sahno.Application.Notifications;
 using Sahno.Infrastructure.Notifications;
+using Sahno.Infrastructure.Organisations;
 using Sahno.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
 
@@ -74,7 +75,8 @@ public sealed class SahnoApiFactory
             foreach (var worker in services
                          .Where(descriptor =>
                              descriptor.ImplementationType == typeof(OutboxWorker)
-                             || descriptor.ImplementationType == typeof(ReminderWorker))
+                             || descriptor.ImplementationType == typeof(ReminderWorker)
+                             || descriptor.ImplementationType == typeof(OrganisationPurgeWorker))
                          .ToList())
             {
                 services.Remove(worker);

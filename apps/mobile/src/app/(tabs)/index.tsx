@@ -318,14 +318,21 @@ export default function Index() {
             <Card style={styles.card}>
               <Text variant="subheading">Get {active.name} going</Text>
               <View style={styles.checklist}>
+                {/* Each step ticks itself off from what has actually happened.
+                    Logo and settings left the list until they exist: a step
+                    nobody can take is not a step. */}
                 <ChecklistItem
                   label="Invite your Members"
+                  done={active.memberCount > 1}
                   actionLabel="Invite"
                   onPress={() => router.push('/invitations')}
                 />
-                <ChecklistItem label="Create your first Enquiry" comingSoon />
-                <ChecklistItem label="Add an organisation logo" comingSoon />
-                <ChecklistItem label="Review organisation settings" comingSoon />
+                <ChecklistItem
+                  label="Create your first Enquiry"
+                  done={engagements.length > 0}
+                  actionLabel="Create"
+                  onPress={() => router.push('/create-engagement')}
+                />
               </View>
               <Button
                 label="Dismiss checklist"
@@ -690,26 +697,29 @@ function ChecklistItem({
   label,
   actionLabel,
   onPress,
-  comingSoon = false,
+  done = false,
 }: {
   label: string;
   actionLabel?: string;
   onPress?: () => void;
-  comingSoon?: boolean;
+  done?: boolean;
 }) {
   return (
     <View style={styles.checklistItem}>
       <Text
         variant="body"
-        color={comingSoon ? 'muted' : 'primary'}
+        color={done ? 'muted' : 'primary'}
         style={styles.checklistLabel}
       >
         {label}
       </Text>
-      {comingSoon ? (
-        <Text variant="caption" color="muted">
-          coming soon
-        </Text>
+      {done ? (
+        <View style={styles.checklistDone} accessibilityLabel={`${label}: done`}>
+          <Ionicons name="checkmark-circle" size={18} color={colors.tealText} />
+          <Text variant="caption" color="accent">
+            Done
+          </Text>
+        </View>
       ) : (
         <Button
           label={actionLabel ?? 'Open'}
@@ -977,6 +987,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minHeight: 44,
     gap: spacing.md,
+  },
+  checklistDone: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: spacing.sm,
   },
   checklistLabel: {
     flex: 1,

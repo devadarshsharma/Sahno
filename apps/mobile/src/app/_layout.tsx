@@ -134,6 +134,7 @@ function RootNavigator() {
         <Stack.Screen name="notifications" />
         <Stack.Screen name="announce" />
         <Stack.Screen name="switch-organisation" />
+        <Stack.Screen name="delete-organisation" />
         <Stack.Screen name="brand-preview" />
       </Stack.Protected>
       <Stack.Protected guard={!isAuthenticated}>

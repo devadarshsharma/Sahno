@@ -107,6 +107,43 @@ public sealed class DiscussionStore(SahnoDbContext dbContext) : IDiscussionStore
         dbContext.DiscussionReactions.Remove(reaction);
     }
 
+    public async Task<IReadOnlyList<DiscussionReadMark>> ListReadMarksAsync(
+        Guid engagementId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.DiscussionReadMarks
+            .AsNoTracking()
+            .Where(mark => mark.EngagementId == engagementId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task MarkReadAsync(
+        Guid engagementId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var mark = await dbContext.DiscussionReadMarks.FindAsync([engagementId, userId], cancellationToken);
+        if (mark is null)
+        {
+            dbContext.DiscussionReadMarks.Add(DiscussionReadMark.Now(engagementId, userId));
+        }
+        else
+        {
+            mark.ReadNow();
+        }
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException) when (mark is null)
+        {
+            // Two phones opened the chat at once and the other made the mark
+            // first. Theirs is as good as ours.
+            dbContext.ChangeTracker.Clear();
+        }
+    }
+
     public async Task<IReadOnlySet<Guid>> HiddenMessageIdsAsync(
         Guid engagementId,
         Guid userId,

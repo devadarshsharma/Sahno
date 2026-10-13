@@ -34,6 +34,109 @@ public sealed class OrganisationStore(SahnoDbContext dbContext) : IOrganisationS
         dbContext.Set<Membership>().Add(ownerMembership);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task SaveAsync(Organisation organisation, CancellationToken cancellationToken)
+    {
+        // Loaded untracked; marking it modified writes it back.
+        dbContext.Organisations.Update(organisation);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public Task<Organisation?> FindIncludingDeletedAsync(Guid id, CancellationToken cancellationToken)
+    {
+        return dbContext.Organisations
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .SingleOrDefaultAsync(organisation => organisation.Id == id, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Organisation>> ListDeletedOwnedByAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        return await dbContext.Organisations
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(organisation => organisation.DeletedAtUtc != null
+                && dbContext.Memberships.IgnoreQueryFilters().Any(membership =>
+                    membership.OrganisationId == organisation.Id
+                    && membership.UserId == userId
+                    && membership.Role == MembershipRole.Owner))
+            .OrderByDescending(organisation => organisation.DeletedAtUtc)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Guid>> ListDeletedBeforeAsync(DateTimeOffset cutoff, CancellationToken cancellationToken)
+    {
+        return await dbContext.Organisations
+            .IgnoreQueryFilters()
+            .Where(organisation => organisation.DeletedAtUtc != null && organisation.DeletedAtUtc < cutoff)
+            .Select(organisation => organisation.Id)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<(Guid UserId, MembershipRole Role)>> ListMembersIncludingDeletedAsync(
+        Guid organisationId,
+        CancellationToken cancellationToken)
+    {
+        var rows = await dbContext.Memberships
+            .IgnoreQueryFilters()
+            .Where(membership => membership.OrganisationId == organisationId)
+            .Select(membership => new { membership.UserId, membership.Role })
+            .ToListAsync(cancellationToken);
+        return rows.Select(row => (row.UserId, row.Role)).ToList();
+    }
+
+    public async Task PurgeAsync(Guid organisationId, CancellationToken cancellationToken)
+    {
+        // Every org-scoped set is read past the deleted-organisation filter
+        // (SahnoDbContext): this is the one place meant to see it.
+        // Most tables carry an organisation or engagement id without a foreign
+        // key, so nothing cascades on its own: every one is cleared here, the
+        // engagement-scoped rows before the engagements they hang off.
+        var engagements = dbContext.Engagements.IgnoreQueryFilters()
+            .Where(engagement => engagement.OrganisationId == organisationId)
+            .Select(engagement => engagement.Id);
+        var messages = dbContext.DiscussionMessages
+            .Where(message => engagements.Contains(message.EngagementId))
+            .Select(message => message.Id);
+        var rehearsals = dbContext.Rehearsals
+            .Where(rehearsal => engagements.Contains(rehearsal.EngagementId))
+            .Select(rehearsal => rehearsal.Id);
+        var pieces = dbContext.Pieces.IgnoreQueryFilters()
+            .Where(piece => piece.OrganisationId == organisationId)
+            .Select(piece => piece.Id);
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        await dbContext.ReminderLogs
+            .Where(log => engagements.Contains(log.SubjectId) || rehearsals.Contains(log.SubjectId))
+            .ExecuteDeleteAsync(cancellationToken);
+        await dbContext.DiscussionMessageHides.Where(hide => messages.Contains(hide.MessageId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.DiscussionReactions.Where(row => engagements.Contains(row.EngagementId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.DiscussionReadMarks.Where(row => engagements.Contains(row.EngagementId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.DiscussionMessages.Where(row => engagements.Contains(row.EngagementId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.DetailRequests.Where(row => engagements.Contains(row.EngagementId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.EngagementActivities.Where(row => engagements.Contains(row.EngagementId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.EngagementCustomers.Where(row => engagements.Contains(row.EngagementId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.EngagementFinance.Where(row => engagements.Contains(row.EngagementId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.PerformerPayments.Where(row => engagements.Contains(row.EngagementId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.EngagementParticipants.Where(row => engagements.Contains(row.EngagementId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.EngagementResources.Where(row => engagements.Contains(row.EngagementId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.ReadinessWaivers.Where(row => engagements.Contains(row.EngagementId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.Responsibilities.Where(row => engagements.Contains(row.EngagementId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.SetListEntries.Where(row => engagements.Contains(row.EngagementId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.Rehearsals.Where(row => engagements.Contains(row.EngagementId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.Engagements.IgnoreQueryFilters().Where(row => row.OrganisationId == organisationId).ExecuteDeleteAsync(cancellationToken);
+
+        await dbContext.PieceLinks.Where(link => pieces.Contains(link.PieceId)).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.Pieces.IgnoreQueryFilters().Where(row => row.OrganisationId == organisationId).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.Customers.IgnoreQueryFilters().Where(row => row.OrganisationId == organisationId).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.Notifications.IgnoreQueryFilters().Where(row => row.OrganisationId == organisationId).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.Invitations.IgnoreQueryFilters().Where(row => row.OrganisationId == organisationId).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.Memberships.IgnoreQueryFilters().Where(row => row.OrganisationId == organisationId).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.Organisations.IgnoreQueryFilters().Where(row => row.Id == organisationId).ExecuteDeleteAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+    }
 }
 
 public sealed class MembershipStore(SahnoDbContext dbContext) : IMembershipStore

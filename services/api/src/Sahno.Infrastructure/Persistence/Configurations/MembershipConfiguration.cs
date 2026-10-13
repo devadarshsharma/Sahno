@@ -54,6 +54,10 @@ public sealed class MembershipConfiguration : IEntityTypeConfiguration<Membershi
         builder.Property(membership => membership.SetupChecklistDismissedAtUtc)
             .HasColumnName("setup_checklist_dismissed_at_utc");
 
+        builder.Property(membership => membership.IsDefault)
+            .HasColumnName("is_default")
+            .IsRequired();
+
         // One membership per person per organisation (D-044).
         builder.HasIndex(membership => new
             {

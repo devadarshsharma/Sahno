@@ -35,6 +35,7 @@ services:
       Auth0__Audience: ${AUTH0_AUDIENCE:?Set AUTH0_AUDIENCE in .env}
       Email__ResendApiKey: ${RESEND_API_KEY:-}
       Push__ExpoAccessToken: ${EXPO_ACCESS_TOKEN:-}
+      Places__GoogleApiKey: ${GOOGLE_PLACES_API_KEY:-}
     ports:
       - "127.0.0.1:${SAHNO_API_PORT:-8080}:8080"
 

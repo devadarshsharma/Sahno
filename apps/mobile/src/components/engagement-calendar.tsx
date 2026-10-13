@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Engagement } from '@/api/engagements';
 import type { UpcomingRehearsal } from '@/api/upcoming-rehearsals';
+import { OrgBadge } from '@/components/org-badge';
 import { rehearsalTimes } from '@/components/rehearsal-list';
 import { Text } from '@/components/ui';
 import { colors, radii, spacing } from '@/theme';
@@ -14,9 +15,9 @@ import { colors, radii, spacing } from '@/theme';
  * the order in which they need the reader to do something.
  */
 /**
- * What the calendar needs of an event. `organisationName` is set only for
- * another organisation's (D-091): the calendar is the person's whole diary,
- * and an event from elsewhere says whose it is.
+ * What the calendar needs of an event. The calendar is the person's whole
+ * diary (D-091); when it holds more than one organisation, every row carries
+ * its organisation's badge (D-098).
  */
 export type CalendarEvent = Pick<
   Engagement,
@@ -140,6 +141,13 @@ export function EngagementCalendar({
       (_, index) => new Date(month.getFullYear(), month.getMonth(), index + 1),
     ),
   ];
+
+  // Badges only earn their place when the calendar mixes organisations (D-098).
+  const multiOrg = useMemo(
+    () =>
+      new Set([...engagements, ...rehearsals].map((item) => item.organisationId).filter(Boolean)).size > 1,
+    [engagements, rehearsals],
+  );
 
   const chosenEvents = chosen ? (byDay.get(chosen) ?? []) : [];
   const chosenRehearsals = chosen ? (rehearsalsByDay.get(chosen) ?? []) : [];
@@ -293,9 +301,12 @@ export function EngagementCalendar({
               />
               <View style={styles.dayText}>
                 <Text numberOfLines={1}>{engagement.title}</Text>
-                {engagement.organisationName || engagement.venue ? (
+                {multiOrg && engagement.organisationId && engagement.organisationName ? (
+                  <OrgBadge organisationId={engagement.organisationId} name={engagement.organisationName} />
+                ) : null}
+                {engagement.venue ? (
                   <Text variant="caption" color="muted" numberOfLines={1}>
-                    {[engagement.organisationName, engagement.venue].filter(Boolean).join(' · ')}
+                    {engagement.venue}
                   </Text>
                 ) : null}
               </View>
@@ -317,11 +328,12 @@ export function EngagementCalendar({
               <Text numberOfLines={1}>
                 {rehearsal.title ?? 'Rehearsal'} · {rehearsal.engagementTitle}
               </Text>
-              {rehearsal.organisationName || rehearsalTimes(rehearsal) || rehearsal.venue ? (
+              {multiOrg && rehearsal.organisationId && rehearsal.organisationName ? (
+                <OrgBadge organisationId={rehearsal.organisationId} name={rehearsal.organisationName} />
+              ) : null}
+              {rehearsalTimes(rehearsal) || rehearsal.venue ? (
                 <Text variant="caption" color="muted" numberOfLines={1}>
-                  {[rehearsal.organisationName, rehearsalTimes(rehearsal), rehearsal.venue]
-                    .filter(Boolean)
-                    .join(' · ')}
+                  {[rehearsalTimes(rehearsal), rehearsal.venue].filter(Boolean).join(' · ')}
                 </Text>
               ) : null}
             </View>

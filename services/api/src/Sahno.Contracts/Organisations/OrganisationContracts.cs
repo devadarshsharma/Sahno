@@ -19,7 +19,9 @@ public sealed record OrganisationResponse(
     /// </summary>
     bool HasFinancialAccess,
     bool ShowSetupChecklist,
-    int MemberCount);
+    int MemberCount,
+    /// <summary>The organisation the app opens in for the caller (D-099).</summary>
+    bool IsDefault = false);
 
 public sealed record CreateInvitationRequest(DateTimeOffset? ExpiresAtUtc);
 
@@ -40,3 +42,14 @@ public sealed record AcceptInvitationResponse(
     Guid OrganisationId,
     string OrganisationName,
     string Role);
+
+/// <summary>Deleting needs the organisation's name typed out (D-101).</summary>
+public sealed record DeleteOrganisationRequest(string? Name);
+
+/// <summary>A deleted organisation its Owner can still restore (D-101).</summary>
+public sealed record DeletedOrganisationResponse(
+    Guid Id,
+    string Name,
+    DateTimeOffset DeletedAtUtc,
+    /// <summary>When it, and everything in it, goes for good.</summary>
+    DateTimeOffset PurgeAfterUtc);

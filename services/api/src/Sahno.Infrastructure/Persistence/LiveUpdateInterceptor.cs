@@ -100,6 +100,10 @@ public sealed class LiveUpdateInterceptor(
                 case Engagement engagement:
                     _organisations.Add(engagement.OrganisationId);
                     break;
+                case Organisation organisation:
+                    // Deleted or restored (D-101): its phones refetch and drop or regain it.
+                    _organisations.Add(organisation.Id);
+                    break;
                 case Membership membership:
                     _organisations.Add(membership.OrganisationId);
                     break;
@@ -129,6 +133,9 @@ public sealed class LiveUpdateInterceptor(
                     break;
                 case DetailRequest request:
                     _engagements.Add(request.EngagementId);
+                    break;
+                case DiscussionReadMark mark:
+                    _engagements.Add(mark.EngagementId);
                     break;
                 case EngagementCustomer customer:
                     _engagements.Add(customer.EngagementId);

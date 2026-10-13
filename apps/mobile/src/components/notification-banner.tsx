@@ -99,6 +99,8 @@ function iconFor(kind: NotificationKind): React.ComponentProps<typeof Ionicons>[
       return 'chatbubble-outline';
     case 'DiscussionReaction':
       return 'heart-outline';
+    case 'RemovedFromEngagement':
+      return 'person-remove-outline';
     case 'AvailabilityRequested':
     case 'AvailabilityReminder':
     case 'AvailabilityAnswered':

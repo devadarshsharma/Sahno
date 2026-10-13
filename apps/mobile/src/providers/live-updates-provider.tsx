@@ -52,8 +52,14 @@ export function LiveUpdatesProvider({ children }: PropsWithChildren) {
     let failedStarts = 0;
     let connectedBefore = false;
 
+    // The organisation list too: a role change, a removal, or the
+    // organisation itself deleted (D-101) shows there, and the app falls back
+    // to another organisation when this one is gone.
     const invalidate = () =>
-      queryClient.invalidateQueries({ queryKey: ['org', organisationId] });
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['org', organisationId] }),
+        queryClient.invalidateQueries({ queryKey: ['organisations'] }),
+      ]);
 
     const connection = new HubConnectionBuilder()
       .withUrl(

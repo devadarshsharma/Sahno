@@ -31,6 +31,27 @@ public interface IOrganisationStore
         Organisation organisation,
         Membership ownerMembership,
         CancellationToken cancellationToken);
+
+    /// <summary>Saves a change to the organisation itself (deleting or restoring it, D-101), with whatever else is staged.</summary>
+    Task SaveAsync(Organisation organisation, CancellationToken cancellationToken);
+
+    /// <summary>The organisation even when deleted — for restoring it.</summary>
+    Task<Organisation?> FindIncludingDeletedAsync(Guid id, CancellationToken cancellationToken);
+
+    /// <summary>Deleted organisations this person owns, still within the restore window or not yet purged.</summary>
+    Task<IReadOnlyList<Organisation>> ListDeletedOwnedByAsync(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>Deleted organisations whose restore window has passed.</summary>
+    Task<IReadOnlyList<Guid>> ListDeletedBeforeAsync(DateTimeOffset cutoff, CancellationToken cancellationToken);
+
+    /// <summary>Everyone in it, deleted or not, with their role.</summary>
+    Task<IReadOnlyList<(Guid UserId, MembershipRole Role)>> ListMembersIncludingDeletedAsync(Guid organisationId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Removes the organisation and everything in it for good (D-101), in one
+    /// transaction. Only for one whose restore window has passed.
+    /// </summary>
+    Task PurgeAsync(Guid organisationId, CancellationToken cancellationToken);
 }
 
 public interface IMembershipStore

@@ -200,3 +200,21 @@ Owner/authorised Admins can track commercial operational facts without Sahno bec
 
 The MVP is ready for Customer Zero when AQP can complete the primary organiser/member journey on iOS and Android without losing lifecycle state, availability, critical Event details, responsibilities, discussion context, or outstanding payment obligations.
 
+
+## Before public release — privacy, accounts, and data lifecycle
+
+Picked up on 13 October 2026 while adding organisation deletion (D-101) and drafting the privacy policy. Customer Zero can pilot without these; the App Store and a public launch cannot.
+
+### Outcome
+
+People can leave Sahno entirely, groups can take their records with them, and the published privacy policy matches what the product does.
+
+### Acceptance criteria
+
+- **Account deletion in the app** (App Store guideline 5.1.1(v)). Decide first what happens to the person's chat messages and contributions: kept with their name, kept anonymised, or removed. An Owner must transfer ownership or delete each organisation they own before deleting their account.
+- **Export before deleting an organisation** (promised by D-073): bookings, payments and customers, as CSV or PDF, offered on the delete screen. Groups need their records for tax.
+- **Decide whether deleting an organisation needs re-authentication**, as D-073 asked. Today the Owner types the organisation's name, and the server checks it too (D-101).
+- **Minimum age or parental consent** for groups with young members (dance schools, youth choirs).
+- **Finish and publish the privacy policy** (`docs/legal/PRIVACY_POLICY.md`): fill in the placeholders, confirm backup and log retention, and get a legal review. Its reviewer notes list each open item.
+- **Write the Terms of Service.**
+- **Link both documents from the sign-in screen**, which already says "you agree to our Terms of Service and Privacy Policy" but links to neither.
