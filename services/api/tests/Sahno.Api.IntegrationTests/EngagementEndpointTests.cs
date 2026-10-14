@@ -193,7 +193,7 @@ public sealed class EngagementEndpointTests(SahnoApiFactory factory)
     [InlineData("Draft", "Cancelled")]
     [InlineData("CheckingAvailability", "Draft")]
     [InlineData("CheckingAvailability", "Completed")]
-    [InlineData("Confirmed", "Tentative")]
+    [InlineData("Confirmed", "Draft")]
     [InlineData("Completed", "Cancelled")]
     public async Task MovesTheLifecycleDoesNotAllow_AreRefused(string from, string to)
     {
@@ -223,7 +223,8 @@ public sealed class EngagementEndpointTests(SahnoApiFactory factory)
 
         var confirmed = await GetAsync(org, engagement.Id);
         Assert.Equal(
-            new[] { "Cancelled", "Completed", "Postponed" },
+            // Including the two steps back from a confirmation (D-109).
+            new[] { "Cancelled", "CheckingAvailability", "Completed", "Postponed", "Tentative" },
             confirmed.AllowedTransitions.Order().ToArray());
     }
 
