@@ -57,7 +57,7 @@ export default function DeleteOrganisation() {
         // Falls back to the default, else the first one left; with none,
         // Home sends them to onboarding.
         setActiveOrganisation(null);
-        queryClient.removeQueries({ queryKey: ['org'] });
+        queryClient.removeQueries({ queryKey: ['org', organisation.id] });
       }
       await queryClient.refetchQueries({ queryKey: ['organisations'], type: 'all' });
       router.dismissAll();

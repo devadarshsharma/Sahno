@@ -28,6 +28,7 @@ import {
   TimeField,
   formatIsoDate,
   formatTime,
+  TextAction,
 } from '@/components/ui';
 import { VenueField } from '@/components/venue-field';
 import { VenueLink } from '@/components/venue-link';
@@ -139,6 +140,7 @@ export function ResponsibilitiesCard({
                 (participant) => participant.isActive,
               )}
               busy={progress.isPending || remove.isPending || assign.isPending}
+              removing={remove.isPending && remove.variables === job.id}
               onToggle={() =>
                 progress.mutate(
                   { responsibilityId: job.id, isDone: !job.isDone },
@@ -216,6 +218,7 @@ function ResponsibilityRow({
   assigning,
   lineup,
   busy,
+  removing,
   onToggle,
   onStartAssigning,
   onAssign,
@@ -227,6 +230,8 @@ function ResponsibilityRow({
   assigning: boolean;
   lineup: Participant[];
   busy: boolean;
+  /** This row's removal is in flight. */
+  removing: boolean;
   onToggle: () => void;
   onStartAssigning: () => void;
   onAssign: (assignedUserId: string | null) => void;
@@ -267,14 +272,13 @@ function ResponsibilityRow({
         </View>
 
         {canManage ? (
-          <Text
-            variant="caption"
-            color="muted"
-            onPress={busy ? undefined : onRemove}
-            suppressHighlighting
-          >
-            Remove
-          </Text>
+          <TextAction
+            label="Remove"
+            accessibilityLabel={`Remove ${job.title}`}
+            busy={removing}
+            confirm={{ title: 'Remove this job?', message: job.title }}
+            onPress={onRemove}
+          />
         ) : null}
       </View>
 
@@ -462,21 +466,17 @@ export function RehearsalsCard({
                 ) : null}
               </View>
               {isOrganiser ? (
-                <Text
-                  variant="caption"
-                  color="muted"
-                  onPress={
-                    remove.isPending
-                      ? undefined
-                      : () =>
-                          remove.mutate(rehearsal.id, {
-                            onError: () => setError('Could not remove that.'),
-                          })
+                <TextAction
+                  label="Remove"
+                  accessibilityLabel={`Remove ${rehearsal.title ?? 'rehearsal'}, ${describeRehearsal(rehearsal)}`}
+                  busy={remove.isPending && remove.variables === rehearsal.id}
+                  confirm={{ title: 'Remove this rehearsal?', message: describeRehearsal(rehearsal) }}
+                  onPress={() =>
+                    remove.mutate(rehearsal.id, {
+                      onError: () => setError('Could not remove that.'),
+                    })
                   }
-                  suppressHighlighting
-                >
-                  Remove
-                </Text>
+                />
               ) : null}
             </View>
           ))}
@@ -641,7 +641,7 @@ export function ResourcesCard({
               key={resource.id}
               resource={resource}
               canRemove={isOrganiser}
-              busy={remove.isPending}
+              busy={remove.isPending && remove.variables === resource.id}
               onRemove={() =>
                 remove.mutate(resource.id, {
                   onError: () => setError('Could not remove that.'),
@@ -742,14 +742,13 @@ function ResourceRow({
       </View>
 
       {canRemove ? (
-        <Text
-          variant="caption"
-          color="muted"
-          onPress={busy ? undefined : onRemove}
-          suppressHighlighting
-        >
-          Remove
-        </Text>
+        <TextAction
+          label="Remove"
+          accessibilityLabel={`Remove ${resource.title}`}
+          busy={busy}
+          confirm={{ title: 'Remove this?', message: resource.title }}
+          onPress={onRemove}
+        />
       ) : null}
     </View>
   );

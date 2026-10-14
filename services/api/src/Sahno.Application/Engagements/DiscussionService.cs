@@ -87,6 +87,7 @@ public sealed class DiscussionService(
 
         var latest = await messages.LatestForEngagementsAsync(
             visible.Select(engagement => engagement.Id).ToList(),
+            actor.UserId,
             cancellationToken);
         if (latest.Count == 0)
         {

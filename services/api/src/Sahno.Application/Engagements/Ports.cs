@@ -241,10 +241,13 @@ public interface IDiscussionStore
     /// <summary>
     /// The newest message of each of these engagements, keyed by engagement;
     /// an engagement with no messages is simply absent. Tombstones count — a
-    /// removal is still the latest thing that happened in a thread.
+    /// removal is still the latest thing that happened in a thread. Messages
+    /// the reader deleted for themselves do not: the inbox previews what their
+    /// thread shows.
     /// </summary>
     Task<IReadOnlyDictionary<Guid, DiscussionMessage>> LatestForEngagementsAsync(
         IReadOnlyCollection<Guid> engagementIds,
+        Guid readerUserId,
         CancellationToken cancellationToken);
 
     Task AddAsync(DiscussionMessage message, CancellationToken cancellationToken);

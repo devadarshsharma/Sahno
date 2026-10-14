@@ -15,7 +15,7 @@ import {
 } from '@/api/commercial';
 import type { Participant } from '@/api/availability';
 import { bookingsLabel, CustomerPicker } from '@/components/customer-picker';
-import { Button, Card, DateField, Text, TextInput } from '@/components/ui';
+import { Button, Card, DateField, Text, TextAction, TextInput } from '@/components/ui';
 import { useAvailability } from '@/hooks/use-availability';
 import {
   useCommercialMutation,
@@ -149,14 +149,11 @@ export function CustomerCard({ engagementId }: { engagementId: string }) {
               How it came in, what was said, what to remember.
             </Text>
           )}
-          <Text
-            variant="bodySmall"
+          <TextAction
+            label={link.privateNotes ? 'Edit notes' : 'Add notes'}
             color="accent"
             onPress={() => setEditingNotes(true)}
-            suppressHighlighting
-          >
-            {link.privateNotes ? 'Edit notes' : 'Add notes'}
-          </Text>
+          />
         </View>
       )}
 
@@ -446,21 +443,16 @@ function PaymentsSection({
               {payment.notes ? ` · ${payment.notes}` : ''}
             </Text>
           </View>
-          <Text
-            variant="caption"
-            color="muted"
-            onPress={
-              remove.isPending
-                ? undefined
-                : () =>
-                    remove.mutate(payment.id, {
-                      onError: () => onError('Could not remove that.'),
-                    })
+          <TextAction
+            label="Remove"
+            busy={remove.isPending && remove.variables === payment.id}
+            confirm={{ title: 'Remove this payment?' }}
+            onPress={() =>
+              remove.mutate(payment.id, {
+                onError: () => onError('Could not remove that.'),
+              })
             }
-            suppressHighlighting
-          >
-            Remove
-          </Text>
+          />
         </View>
       ))}
 

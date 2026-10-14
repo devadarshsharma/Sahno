@@ -233,6 +233,8 @@ export function transitionNeedsReason(
     to === 'Cancelled' ||
     to === 'Postponed' ||
     from === 'Cancelled' ||
-    from === 'Completed'
+    from === 'Completed' ||
+    // Walking back a confirmation members were told about (D-109).
+    (from === 'Confirmed' && (to === 'Tentative' || to === 'CheckingAvailability'))
   );
 }

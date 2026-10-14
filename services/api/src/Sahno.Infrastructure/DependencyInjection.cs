@@ -27,10 +27,17 @@ public static class DependencyInjection
         // The interceptor broadcasts after each commit, so anything that saves
         // a row in an organisation is live without the service knowing.
         services.AddScoped<LiveUpdateInterceptor>();
+        // Per-request database timing, logged by the API (D-104).
+        services.AddScoped<DbTiming>();
+        services.AddScoped<DbCommandTimingInterceptor>();
+        services.AddScoped<DbConnectionTimingInterceptor>();
         services.AddDbContext<SahnoDbContext>((provider, options) =>
             options
                 .UseNpgsql(connectionString)
-                .AddInterceptors(provider.GetRequiredService<LiveUpdateInterceptor>()));
+                .AddInterceptors(
+                    provider.GetRequiredService<LiveUpdateInterceptor>(),
+                    provider.GetRequiredService<DbCommandTimingInterceptor>(),
+                    provider.GetRequiredService<DbConnectionTimingInterceptor>()));
 
         services.AddScoped<IUserStore, UserStore>();
         services.AddScoped<IOrganisationStore, OrganisationStore>();

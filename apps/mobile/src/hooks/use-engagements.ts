@@ -117,6 +117,20 @@ export const TRANSITION_LABELS: Record<EngagementStatus, string> = {
   Cancelled: 'Cancel',
 };
 
+/**
+ * The button for a move, from where the booking is now. Mostly the target's
+ * own label; stepping back from Confirmed says it is a step back (D-109).
+ */
+export function transitionLabel(from: EngagementStatus, to: EngagementStatus): string {
+  if (from === 'Confirmed' && to === 'Tentative') {
+    return 'Back to tentative';
+  }
+  if (from === 'Confirmed' && to === 'CheckingAvailability') {
+    return 'Back to checking availability';
+  }
+  return TRANSITION_LABELS[to];
+}
+
 export function groupByStatus<T extends Pick<Engagement, 'status'>>(
   engagements: T[],
 ): { status: EngagementStatus; items: T[] }[] {

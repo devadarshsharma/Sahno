@@ -290,6 +290,74 @@ public sealed class AvailabilityEndpointTests(SahnoApiFactory factory)
         Assert.Equal("Confirmed", (await GetEngagementAsync(org, engagement.Id)).Status);
     }
 
+    /// <summary>
+    /// Who is going (D-021, D-108): nothing while answers are being collected;
+    /// once confirmed, everyone on the event sees the people who said yes —
+    /// and only them, with no answers attached.
+    /// </summary>
+    [Fact]
+    public async Task OnceConfirmed_EveryoneOnTheEventSeesWhoIsGoing()
+    {
+        var org = await NewOrganisationAsync("going", members: 3);
+        var engagement = await NewAskedAsync(org, "Who is coming");
+        await RespondAsync(org.Members[0], org, engagement.Id, "Available");
+        await RespondAsync(org.Members[1], org, engagement.Id, "Maybe");
+        await RespondAsync(org.Members[2], org, engagement.Id, "Unavailable");
+
+        var before = await org.Members[0].GetFromJsonAsync<GoingResponse>($"{Availability(org, engagement.Id)}/going");
+        Assert.NotNull(before);
+        Assert.False(before.Shown);
+        Assert.Empty(before.People);
+
+        (await TransitionAsync(org, engagement.Id, "Confirmed")).EnsureSuccessStatusCode();
+
+        var mine = await org.Members[0].GetFromJsonAsync<GoingResponse>($"{Availability(org, engagement.Id)}/going");
+        Assert.NotNull(mine);
+        Assert.True(mine.Shown);
+        var me = Assert.Single(mine.People);
+        Assert.Equal(org.MemberIds[0], me.UserId);
+        Assert.True(me.IsYou);
+
+        // Someone who said no sees the same list, not their own place in it.
+        var declined = await org.Members[2].GetFromJsonAsync<GoingResponse>($"{Availability(org, engagement.Id)}/going");
+        Assert.NotNull(declined);
+        Assert.Equal([org.MemberIds[0]], declined.People.Select(person => person.UserId));
+        Assert.False(declined.People[0].IsYou);
+    }
+
+    /// <summary>
+    /// A confirmation can be walked back (D-109): with a reason, keeping the
+    /// lineup and every answer, and telling the people on the event.
+    /// </summary>
+    [Fact]
+    public async Task AConfirmedEvent_CanGoBackToTentative_KeepingItsLineup()
+    {
+        var org = await NewOrganisationAsync("unconfirm", members: 2);
+        var engagement = await NewAskedAsync(org, "Too soon");
+        await RespondAsync(org.Members[0], org, engagement.Id, "Available");
+        await RespondAsync(org.Members[1], org, engagement.Id, "Maybe");
+        (await TransitionAsync(org, engagement.Id, "Confirmed")).EnsureSuccessStatusCode();
+        Assert.Contains("Tentative", (await GetEngagementAsync(org, engagement.Id)).AllowedTransitions);
+
+        // Members were told it was confirmed, so they are told why it is not.
+        Assert.Equal(HttpStatusCode.BadRequest, (await TransitionAsync(org, engagement.Id, "Tentative")).StatusCode);
+
+        var back = await org.Owner.PostAsJsonAsync(
+            $"/api/organisations/{org.Id}/engagements/{engagement.Id}/transition",
+            new TransitionEngagementRequest("Tentative", "Confirmed by mistake"));
+        Assert.Equal(HttpStatusCode.NoContent, back.StatusCode);
+        Assert.Equal("Tentative", (await GetEngagementAsync(org, engagement.Id)).Status);
+
+        var lineup = await AvailabilityAsync(org, engagement.Id);
+        Assert.Equal(2, lineup.Summary.Selected);
+        Assert.Equal(1, lineup.Summary.Available);
+        Assert.Equal(1, lineup.Summary.Maybe);
+
+        var news = await org.Members[0].GetFromJsonAsync<List<NotificationResponse>>(
+            $"/api/organisations/{org.Id}/notifications");
+        Assert.Contains(news!, row => row.Kind == "EngagementUnconfirmed");
+    }
+
     [Fact]
     public async Task WithEveryAnswerIn_ConfirmingNeedsNoAcknowledgement()
     {

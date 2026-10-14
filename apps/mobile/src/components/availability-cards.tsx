@@ -14,6 +14,7 @@ import { Button, Card, Text } from '@/components/ui';
 import {
   useAvailability,
   useAvailabilityMutation,
+  useGoing,
   useOwnAvailability,
 } from '@/hooks/use-availability';
 import { useEngagements } from '@/hooks/use-engagements';
@@ -280,7 +281,82 @@ export function LineupCard({
   );
 }
 
+/**
+ * Who is going (D-021, D-108). Once the event is confirmed, everyone on it
+ * sees the people who said yes: names and what they do, no answers. Before
+ * that it renders nothing — while availability is being collected, a member
+ * sees only their own.
+ */
+export function GoingCard({ engagementId }: { engagementId: string }) {
+  const going = useGoing(engagementId);
+
+  if (!going.data?.shown) {
+    return null;
+  }
+
+  const people = going.data.people;
+
+  return (
+    <Card style={styles.card}>
+      <Text variant="subheading">Who’s going</Text>
+      <Text color="secondary" variant="bodySmall">
+        {people.length === 0
+          ? 'Nobody has said yes yet.'
+          : people.length === 1
+            ? '1 person.'
+            : `${people.length} people.`}
+      </Text>
+      {people.map((person) => {
+        const name = person.isYou ? 'You' : (person.displayName ?? 'A member');
+        return (
+          <View
+            key={person.userId}
+            style={styles.goingRow}
+            accessible
+            accessibilityLabel={[name, person.function].filter(Boolean).join(', ')}
+          >
+            <View style={styles.goingInitial}>
+              <Text variant="label" style={styles.goingInitialText}>
+                {(person.displayName ?? '?').trim().charAt(0).toUpperCase()}
+              </Text>
+            </View>
+            <View style={styles.goingText}>
+              <Text variant="bodySmall">{name}</Text>
+              {person.function ? (
+                <Text variant="caption" color="muted">
+                  {person.function}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        );
+      })}
+    </Card>
+  );
+}
+
 const styles = StyleSheet.create({
+  goingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: 44,
+  },
+  goingInitial: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.full,
+    backgroundColor: colors.tealSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goingInitialText: {
+    color: colors.tealText,
+  },
+  goingText: {
+    flex: 1,
+    gap: 2,
+  },
   card: {
     gap: spacing.md,
     marginBottom: spacing.lg,

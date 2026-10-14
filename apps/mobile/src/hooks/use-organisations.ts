@@ -53,9 +53,12 @@ export function useActiveOrg(): {
     refetch: organisationsQuery.refetch,
     switchTo: (organisationId: string) => {
       setActiveOrganisation(organisationId);
-      // Switching strictly changes the data context (D-044): drop every
-      // org-scoped cache so nothing leaks across organisations.
-      queryClient.removeQueries({ queryKey: ['org'] });
+      // Switching strictly changes the data context (D-044). Every
+      // org-scoped query is keyed by its organisation's id, so nothing can
+      // leak across — and each organisation keeps its own cache. Switching
+      // back shows what was there at once and refreshes it underneath,
+      // instead of starting every screen from a spinner (D-103).
+      void queryClient.invalidateQueries({ queryKey: ['org', organisationId] });
     },
   };
 }

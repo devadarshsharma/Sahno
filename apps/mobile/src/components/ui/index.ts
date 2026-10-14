@@ -15,3 +15,4 @@ export type { TimeFieldProps } from './time-field';
 export { Hero } from './hero';
 export type { HeroProps } from './hero';
 export { CountBadge, BADGE_COLOR } from './count-badge';
+export { TextAction } from './text-action';

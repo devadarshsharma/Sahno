@@ -17,6 +17,7 @@ import {
   formatEngagementDate,
   STATUS_WORDS,
   TRANSITION_LABELS,
+  transitionLabel,
   useEngagementActivity,
   useEngagementMutation,
 } from '@/hooks/use-engagements';
@@ -284,7 +285,7 @@ export function TransitionsCard({ engagement }: { engagement: Engagement }) {
         engagement.allowedTransitions.map((status) => (
           <Button
             key={status}
-            label={TRANSITION_LABELS[status]}
+            label={transitionLabel(engagement.status, status)}
             variant={status === 'Cancelled' ? 'ghost' : 'secondary'}
             loading={move.isPending}
             onPress={() => start(status)}
@@ -293,7 +294,7 @@ export function TransitionsCard({ engagement }: { engagement: Engagement }) {
       ) : (
         <>
           <Text color="secondary" variant="bodySmall">
-            {TRANSITION_LABELS[pending]} — everyone involved will see why.
+            {transitionLabel(engagement.status, pending)} — everyone involved will see why.
           </Text>
           <TextInput
             label="Reason"
@@ -303,7 +304,7 @@ export function TransitionsCard({ engagement }: { engagement: Engagement }) {
             autoFocus
           />
           <Button
-            label={TRANSITION_LABELS[pending]}
+            label={transitionLabel(engagement.status, pending)}
             loading={move.isPending}
             onPress={confirm}
           />

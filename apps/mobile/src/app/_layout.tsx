@@ -11,7 +11,7 @@ import {
   InstrumentSans_600SemiBold,
 } from '@expo-google-fonts/instrument-sans';
 import { useQueryClient } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
+import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -19,6 +19,9 @@ import { Appearance, StyleSheet, View } from 'react-native';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { SahnoSymbol } from '@/components/brand';
+import { CalendarSync } from '@/components/calendar-sync';
+import { CrashScreen } from '@/components/crash-screen';
+import { installCrashHandler } from '@/lib/crash-handler';
 import { AuthProvider, useSession } from '@/providers/auth-provider';
 import { LiveUpdatesProvider } from '@/providers/live-updates-provider';
 import { NotificationsProvider } from '@/providers/notifications-provider';
@@ -34,6 +37,17 @@ SplashScreen.preventAutoHideAsync();
 // app.json and the Android theme declare the same thing for a fresh build; this
 // is what makes it true in an already-installed one.
 Appearance.setColorScheme('light');
+
+// Errors in taps and timers keep the app open and say what happened (D-110).
+installCrashHandler();
+
+/**
+ * Anything that fails to draw, anywhere, lands here instead of closing the app
+ * (D-110). Retrying redraws from the top.
+ */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return <CrashScreen error={error} onRetry={() => void retry()} />;
+}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -112,6 +126,8 @@ function RootNavigator() {
           screen overrides this with its own light-icon StatusBar while
           mounted. */}
       <StatusBar style="dark" />
+      {/* Keeps calendar entries Sahno added in line with Sahno (D-105). */}
+      {isAuthenticated ? <CalendarSync /> : null}
       <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="(tabs)" />

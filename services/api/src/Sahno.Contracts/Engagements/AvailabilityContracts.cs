@@ -38,6 +38,15 @@ public sealed record RespondAvailabilityRequest(string Response);
 /// What a Member is told about their own participation. Deliberately just
 /// their own answer: nobody else's is theirs to see (D-021).
 /// </summary>
+/// <summary>
+/// Who is going (D-108). <c>Shown</c> is false until the event is confirmed,
+/// and <c>People</c> is then empty: while availability is being collected, a
+/// Member sees only their own answer (D-021).
+/// </summary>
+public sealed record GoingResponse(bool Shown, IReadOnlyList<GoingPersonResponse> People);
+
+public sealed record GoingPersonResponse(Guid UserId, string? DisplayName, string? Function, bool IsYou);
+
 public sealed record OwnAvailabilityResponse(
     bool IsSelected,
     string? Response,

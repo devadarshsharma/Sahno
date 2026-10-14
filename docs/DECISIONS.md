@@ -1817,3 +1817,111 @@ Venues were typed free-hand, so the same hall appeared three ways and "open in m
 - **Through the API, not from the app.** `GET /api/places/autocomplete?input=…&sessionToken=…&regionCode=…` (signed in; 60 a minute per account). The Google key (`Places:GoogleApiKey`) lives only on the server, where it cannot be lifted from an app download and billed. Unset, the endpoint answers nothing and the fields behave as plain text; a Google failure is likewise just no suggestions.
 - **Cost control:** only prediction text is requested (field mask), keystrokes are debounced (300 ms), lookups are cached for ten minutes, and each typing session shares a session token. Suggestions are biased to, not restricted to, the phone's country, so a tour venue abroad is still found.
 - Google receives what is typed into a venue field and the phone's country; it is listed as a service provider in the privacy policy draft.
+
+---
+
+## D-103 — Switching organisations keeps each one's cache
+
+**Date:** 14 October 2026
+**Status:** Accepted
+
+Switching organisations dropped every organisation's cached data, so each switch — even back to one just left — started every screen from a spinner and refetched everything.
+
+- Each organisation now keeps its own cache. Every org-scoped query is keyed by the organisation's id (`['org', id, …]`), which is what keeps data from leaking across organisations (D-044); dropping the cache added nothing to that. Switching back shows what was there at once and refreshes it underneath; the first visit to an organisation in a session still loads.
+- Deleting an organisation drops only that organisation's cache.
+
+---
+
+## D-104 — Every API request logs where its time went
+
+**Date:** 14 October 2026
+**Status:** Accepted
+
+Switching organisations felt slow, and the test API's readiness check took 0.3–0.45 s against 0.08 s without the database, while the database was under 10 ms away on the network. Rather than guess, each request now logs one line: method, route template, status, total time, how many database queries and how long they took, and how many connections were opened and how long that took. Only the route template is logged — never the path or query string — so no ids or typed text (a venue search) reach the log. Health checks and the live hub are left out.
+
+---
+
+## D-105 — Events added to the phone's calendar stay up to date
+
+**Date:** 14 October 2026
+**Status:** Accepted
+
+**Add to my calendar** (Tentative and Confirmed events) made a copy and forgot it, so a booking that moved or was called off left a wrong entry behind — synced by Google or iCloud to every device the person has.
+
+- Sahno now remembers, on the phone, which entries it added. Each time the person's calendar is fetched (opening the app, coming back to it, a live change), every such entry is rewritten if its booking changed — title, Tentative/Confirmed, dates, start time, venue — and taken out if it was cancelled, postponed, moved back to asking, or the person was taken off it. A finished event stays. An entry deleted by hand is forgotten, never put back. An event older than the calendar's twelve-month reach is left as it is.
+- **Timed when Sahno has a start time** (single-day events), in the organisation's time zone, shown as three hours since Sahno has no finishing time; the notes say so. Otherwise all-day, as before.
+- The event page says when an event is in the calendar and offers **Remove from my calendar**. An entry added by the old version (matched on title) is taken over, not duplicated.
+- **Full calendar access, not write-only:** keeping an entry right means finding it again. The permission text says so. Needs a new app build. This also fixes a crash: the old build asked iOS for *write-only* access, which the app's settings had no explanation text for, and iOS closes an app outright when it requests a permission without one.
+- Updates happen when the app is opened. A subscription feed that updates without the app is parked in the backlog ("Later — calendar subscription feed").
+
+---
+
+## D-106 — A chat always fetches what is new when opened
+
+**Date:** 14 October 2026
+**Status:** Accepted
+
+The inbox could show a message the chat, once opened, did not have.
+
+- **Opening a chat always refetches it.** The thread used the app's 30-second freshness, so a chat opened within half a minute of the last visit showed the saved copy and asked for nothing — while the inbox, refreshed by the new message, already showed it. Now the saved copy shows at once and the newest is always fetched; the header reads "Updating…" while it is.
+- **A chat-message push refreshes that thread and the inbox**, not just the bell, so a phone whose live connection dropped (backgrounded, a bad signal) still has the message when the chat is opened from the banner or the notification.
+- **The inbox previews what the reader's thread shows.** A message deleted "for me" (D-086) was still the inbox preview; now the preview is the latest message the reader can still see.
+
+---
+
+## D-107 — Date and time fields behave natively on each platform
+
+**Date:** 14 October 2026
+**Status:** Accepted
+
+On iPhone, setting a time or date could not keep the suggested value: the iOS picker reports only a *change*, and the field saved on change, so keeping 7 pm (or today) saved nothing and the field stayed "Not set". A wheel also saved on its first tick. Android, whose dialog reports OK whether or not the value changed, was unaffected.
+
+Every date and time field (proposed date, rehearsal date and time, call and start time, deposit and balance dates) now goes through one `PickerField`:
+
+- **Android:** the system dialog. OK sets the value, including the suggested one; Cancel leaves it.
+- **iOS:** as in Calendar and Settings. Tapping expands the system wheel (time) or calendar (date) under the field; the field follows it live, tinted; tapping the field again, or **Done**, closes it. An empty field takes the suggested value as it opens, so keeping it needs no scrolling.
+- **One save per choice**, on close — never per tick. The booking's times and proposed date save straight to the server, and a save per tick would tell members about every hour the wheel passed through.
+- **Clear** stays for fields that may be empty, and is hidden while a picker is open.
+
+---
+
+## D-108 — Members see who is going, once the event is confirmed
+
+**Date:** 14 October 2026
+**Status:** Accepted
+
+D-021 decided that once an engagement is confirmed, participating Members see the final participant list but not the answers collected earlier. It had not been built: a Member's People page showed only their own answer.
+
+- **Who's going** on the event's People page, for Members: the people on the lineup who said they are available — name, what they do (D-046), "You" for themselves. No answers, no Maybes, no one who declined or never answered.
+- **Only once Confirmed**, and still afterwards when Completed, so a past event shows who played. While availability is being collected (Checking availability, Tentative) a Member still sees only their own answer.
+- Members never see who was asked, so listing only the yeses reveals nothing about who said no.
+- `GET …/availability/going` answers anyone who can see the event (Members only see events they are on, D-020), with `shown: false` and nobody until the event is confirmed. Organisers keep their full lineup with answers.
+
+---
+
+## D-109 — A confirmation can be walked back
+
+**Date:** 14 October 2026
+**Status:** Accepted
+
+Once Confirmed, a booking could only be completed, cancelled or postponed, so a confirmation made too soon or by a slip could not be undone.
+
+- **Confirmed → Tentative** ("Back to tentative") and **Confirmed → Checking availability** ("Back to checking availability"), for organisers, from the booking's **What happens next**.
+- **A reason is required**, as for every walk-back: members were told it is confirmed, so they are told why it is not.
+- **Members on the event are told**, in-app, by push and by email, as the confirmation was (`EngagementUnconfirmed`; stored as text, so no migration). Older app builds show it with a generic icon.
+- **Nothing else is undone.** The lineup, everyone's answers, jobs, rehearsals and chat stay as they were. Calendar entries Sahno added (D-105) follow: back to tentative retitles them "[Tentative]", back to checking availability takes them out.
+- Until the new app build is installed, an older build shows the new buttons but does not ask for a reason, so the change is refused with "Could not make that change."
+
+---
+
+## D-110 — Errors show a screen instead of closing the app
+
+**Date:** 14 October 2026
+**Status:** Accepted
+
+On a release build an unhandled JavaScript error closes the app with no word — an Android tester's app simply vanished on a booking's Status page, leaving nothing to go on.
+
+- **A screen that fails to draw** shows "Something went wrong", the error and where it happened, **Try again**, and **Copy error details** to send. App-wide from the root layout; inside an event, from the event's layout, which also offers **Back** so the rest of the app carries on.
+- **An error outside drawing** — a tap handler, a timer — never reaches those screens, and React Native treats it as fatal. Release builds now catch fatal errors and show them in an alert instead of closing. Non-fatal errors, and development builds, behave as before.
+- The crash screen depends on nothing but the theme, because it may be standing in for the providers that failed.
+- This keeps the app open and puts the error on screen; it does not report it anywhere. Automatic crash reports (Sentry, D-069) remain a separate decision.

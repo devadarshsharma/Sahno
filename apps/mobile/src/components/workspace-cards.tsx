@@ -16,6 +16,7 @@ import {
   TextInput,
   TimeField,
   formatTime,
+  TextAction,
 } from '@/components/ui';
 import { VenueField } from '@/components/venue-field';
 import { VenueLink } from '@/components/venue-link';
@@ -258,14 +259,12 @@ function ReadinessRow({
         </Text>
       </View>
 
-      <Text
-        variant="caption"
+      <TextAction
+        label={entry.state === 'NotRequired' ? 'Put back' : 'Not required'}
         color="accent"
-        onPress={busy ? undefined : onToggle}
-        suppressHighlighting
-      >
-        {entry.state === 'NotRequired' ? 'Put back' : 'Not required'}
-      </Text>
+        busy={busy}
+        onPress={onToggle}
+      />
     </View>
   );
 }

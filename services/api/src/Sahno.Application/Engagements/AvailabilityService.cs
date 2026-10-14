@@ -10,6 +10,9 @@ public sealed record ParticipantRow(
     EngagementParticipant Participant,
     string? DisplayName);
 
+/// <summary>One person going to a confirmed event, as everyone on it sees them (D-108).</summary>
+public sealed record GoingRow(Guid UserId, string? DisplayName, string? Function);
+
 /// <summary>
 /// The lineup summary organisers work from, and the count that drives the
 /// confirmation warning (D-029).
@@ -294,6 +297,39 @@ public sealed class AvailabilityService(
             .Select(participant => new ParticipantRow(
                 participant,
                 names.GetValueOrDefault(participant.UserId)))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Who is going, for everyone on the event (D-021, D-108): once it is
+    /// Confirmed (and after, when Completed), the people on its lineup who said
+    /// they are available — names and what they do, nothing about anyone's
+    /// answer. Null before then: while availability is being collected, a
+    /// Member sees only their own. Only the yeses are listed, and Members never
+    /// see who was asked, so the list says nothing about who declined.
+    /// </summary>
+    public async Task<IReadOnlyList<GoingRow>?> ListGoingAsync(
+        Engagement engagement,
+        CancellationToken cancellationToken)
+    {
+        if (engagement.Status is not (EngagementStatus.Confirmed or EngagementStatus.Completed))
+        {
+            return null;
+        }
+
+        var rows = await participants.ListForEngagementAsync(engagement.Id, cancellationToken);
+        var directory = (await memberships.ListForOrganisationAsync(engagement.OrganisationId, cancellationToken))
+            .ToDictionary(row => row.Membership.UserId);
+
+        return rows
+            .Where(participant => participant.IsActive && participant.Response == AvailabilityResponse.Available)
+            .Where(participant => directory.ContainsKey(participant.UserId))
+            .Select(participant =>
+            {
+                var member = directory[participant.UserId];
+                return new GoingRow(participant.UserId, member.DisplayName, member.Membership.Function);
+            })
+            .OrderBy(row => row.DisplayName ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
     }
 

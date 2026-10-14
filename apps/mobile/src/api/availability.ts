@@ -77,6 +77,38 @@ export function getAvailability(
   );
 }
 
+/** One person going to a confirmed event (D-108). */
+export type GoingPerson = {
+  userId: string;
+  displayName: string | null;
+  function: string | null;
+  isYou: boolean;
+};
+
+/** Who is going. `shown` is false until the event is confirmed (D-021). */
+export type Going = {
+  shown: boolean;
+  people: GoingPerson[];
+};
+
+function isGoing(value: unknown): value is Going {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as Going).shown === 'boolean' &&
+    Array.isArray((value as Going).people)
+  );
+}
+
+export function getGoing(
+  accessToken: string,
+  organisationId: string,
+  engagementId: string,
+  signal?: AbortSignal,
+): Promise<Going> {
+  return getAuthorizedJson(`${base(organisationId, engagementId)}/going`, accessToken, isGoing, signal);
+}
+
 export function getOwnAvailability(
   accessToken: string,
   organisationId: string,

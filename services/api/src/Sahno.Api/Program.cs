@@ -175,6 +175,36 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
+// One line per API request with where its time went (D-104): total, database
+// queries, and connection opens. The route template is logged, never the
+// path or query string, so no ids or typed text (a venue search) reach the
+// log. Health checks and the live hub are left out: they are noise.
+var requestTimingLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Sahno.RequestTiming");
+app.Use(async (context, next) =>
+{
+    var started = System.Diagnostics.Stopwatch.GetTimestamp();
+    await next();
+
+    if (context.Request.Path.StartsWithSegments("/health") || context.Request.Path.StartsWithSegments("/hubs"))
+    {
+        return;
+    }
+
+    var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(started);
+    var db = context.RequestServices.GetService<Sahno.Infrastructure.Persistence.DbTiming>();
+    var route = (context.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText ?? "(unmatched)";
+    requestTimingLogger.LogInformation(
+        "{Method} {Route} {Status} in {ElapsedMs:0} ms: {Queries} queries {QueryMs:0} ms, {Opens} connection opens {OpenMs:0} ms",
+        context.Request.Method,
+        route,
+        context.Response.StatusCode,
+        elapsed.TotalMilliseconds,
+        db?.Commands ?? 0,
+        db?.CommandTime.TotalMilliseconds ?? 0,
+        db?.Opens ?? 0,
+        db?.OpenTime.TotalMilliseconds ?? 0);
+});
+
 // Authorised responses must never be cached by any intermediary or client
 // HTTP layer — account data changes with the bearer token, not the URL.
 app.Use(async (context, next) =>

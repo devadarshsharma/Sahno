@@ -222,7 +222,8 @@ export default function Chat() {
             {engagement?.title ?? 'Chat'}
           </Text>
           <Text variant="caption" color="muted" numberOfLines={1}>
-            Event chat
+            {/* The saved copy is on screen; say when newer messages are being fetched. */}
+            {thread.isFetching && thread.data ? 'Updating…' : 'Event chat'}
           </Text>
         </View>
       </View>

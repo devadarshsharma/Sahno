@@ -166,6 +166,15 @@ export function NotificationsProvider({ children }: PropsWithChildren) {
   const announce = useCallback(
     (payload: NotificationPayload) => {
       void refreshBell(payload.organisationId);
+      // A chat message: refresh that thread (and the inbox) too, so opening
+      // it from here shows the message even when the live connection is down
+      // and only the push got through (D-106).
+      if (payload.notificationType === 'DiscussionMessage' && payload.engagementId) {
+        void queryClient.invalidateQueries({
+          queryKey: ['org', payload.organisationId, 'engagements', payload.engagementId, 'discussion'],
+        });
+        void queryClient.invalidateQueries({ queryKey: ['org', payload.organisationId, 'chats'] });
+      }
       if (wasShown(payload.notificationId)) {
         return;
       }
@@ -174,7 +183,7 @@ export function NotificationsProvider({ children }: PropsWithChildren) {
         setBanner(payload);
       }
     },
-    [refreshBell],
+    [refreshBell, queryClient],
   );
 
   const dismissBanner = useCallback(() => setBanner(null), []);

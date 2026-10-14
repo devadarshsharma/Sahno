@@ -91,6 +91,7 @@ The engagement is delayed and may initially have no replacement date.
 - `Postponed → Checking Availability`, `Postponed → Tentative`, or `Postponed → Confirmed` when an Owner or Admin resumes it at the appropriate real-world state.
 - `Cancelled → Checking Availability`, `Tentative`, or `Confirmed` when an Owner/Admin reopens it with a reason and Member notification.
 - `Completed → Confirmed` when an Owner/Admin reverses a mistaken completion with a reason.
+- `Confirmed → Tentative` or `Confirmed → Checking Availability` when an Owner/Admin walks back a confirmation made too soon or by mistake, with a reason; Members are notified, and the lineup and its answers are kept (D-109).
 
 ## Date changes
 

@@ -20,6 +20,7 @@ public sealed class DiscussionStore(SahnoDbContext dbContext) : IDiscussionStore
 
     public async Task<IReadOnlyDictionary<Guid, DiscussionMessage>> LatestForEngagementsAsync(
         IReadOnlyCollection<Guid> engagementIds,
+        Guid readerUserId,
         CancellationToken cancellationToken)
     {
         if (engagementIds.Count == 0)
@@ -32,6 +33,8 @@ public sealed class DiscussionStore(SahnoDbContext dbContext) : IDiscussionStore
         var latest = await dbContext.DiscussionMessages
             .AsNoTracking()
             .Where(message => engagementIds.Contains(message.EngagementId))
+            .Where(message => !dbContext.DiscussionMessageHides.Any(hide =>
+                hide.MessageId == message.Id && hide.UserId == readerUserId))
             .GroupBy(message => message.EngagementId)
             .Select(thread => thread
                 .OrderByDescending(message => message.PostedAtUtc)

@@ -30,6 +30,12 @@ export function useDiscussion(engagementId: string) {
       return listDiscussion(accessToken, active!.id, engagementId, signal);
     },
     enabled: active !== null && session.status === 'authenticated',
+    // Opening a chat always asks for what is new (D-106). The copy from the
+    // last visit shows meanwhile, but the inbox may already be showing a
+    // message this copy predates — trusting a 30-second-old thread is what
+    // made "there is a message, but the chat does not have it".
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 }
 

@@ -264,6 +264,28 @@ public sealed class DiscussionEndpointTests(SahnoApiFactory factory)
         Assert.Single(await ThreadAsync(org.Owner, org, engagement.Id));
     }
 
+    /// <summary>
+    /// The inbox previews what the reader's thread shows: a message they
+    /// deleted for themselves is not the preview, the one before it is.
+    /// </summary>
+    [Fact]
+    public async Task TheInboxPreview_SkipsWhatYouDeletedForYourself()
+    {
+        var org = await NewOrganisationAsync("chat-hide-inbox", members: 1);
+        var engagement = await NewDraftAsync(org, "Preview");
+        await RequestAvailabilityAsync(org, engagement.Id, org.MemberIds);
+        await PostAsync(org.Owner, org, engagement.Id, "Still here.");
+        var latest = await PostAsync(org.Owner, org, engagement.Id, "Gone for me.");
+
+        (await org.Members[0].PostAsync($"{Discussion(org, engagement.Id)}/{latest.Id}/hide", content: null))
+            .EnsureSuccessStatusCode();
+
+        var mine = Assert.Single(await InboxAsync(org.Members[0], org), row => row.EngagementId == engagement.Id);
+        Assert.Equal("Still here.", mine.LastMessagePreview);
+        var owners = Assert.Single(await InboxAsync(org.Owner, org), row => row.EngagementId == engagement.Id);
+        Assert.Equal("Gone for me.", owners.LastMessagePreview);
+    }
+
     private static async Task<List<ChatInboxEntryResponse>> InboxAsync(HttpClient client, TestOrganisation org)
     {
         var inbox = await client.GetFromJsonAsync<List<ChatInboxEntryResponse>>(

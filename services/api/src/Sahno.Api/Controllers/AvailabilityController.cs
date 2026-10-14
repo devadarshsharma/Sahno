@@ -77,6 +77,44 @@ public sealed class AvailabilityController(
     }
 
     /// <summary>
+    /// Who is going, for anyone who can see the event (D-021, D-108): its
+    /// confirmed lineup once it is Confirmed, nothing before.
+    /// </summary>
+    [HttpGet("going")]
+    [ProducesResponseType<GoingResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<GoingResponse>> Going(
+        Guid organisationId,
+        Guid engagementId,
+        CancellationToken cancellationToken)
+    {
+        var caller = await CallerAsync(organisationId, cancellationToken);
+        if (caller is null)
+        {
+            return NotFound();
+        }
+
+        // A Member sees only events they are on (D-020); the same gate here.
+        var engagement = await engagementService.FindVisibleAsync(caller, engagementId, cancellationToken);
+        if (engagement is null)
+        {
+            return NotFound();
+        }
+
+        var going = await availabilityService.ListGoingAsync(engagement, cancellationToken);
+        return Ok(going is null
+            ? new GoingResponse(false, [])
+            : new GoingResponse(
+                true,
+                going.Select(row => new GoingPersonResponse(
+                        row.UserId,
+                        row.DisplayName,
+                        row.Function,
+                        row.UserId == caller.UserId))
+                    .ToList()));
+    }
+
+    /// <summary>
     /// The caller's own participation and answer. This is the only
     /// availability a Member can read (D-021).
     /// </summary>

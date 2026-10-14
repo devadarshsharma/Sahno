@@ -162,6 +162,26 @@ public sealed class Notifier(
                     cancellationToken);
                 break;
 
+            // A confirmation walked back (D-109). Told, and emailed, like the
+            // confirmation was: people may have planned around it.
+            case EngagementStatus.CheckingAvailability
+                or EngagementStatus.Tentative
+                when from is EngagementStatus.Confirmed:
+                await TellAsync(
+                    engagement,
+                    participantUserIds,
+                    people,
+                    NotificationKind.EngagementUnconfirmed,
+                    $"{engagement.Title} is no longer confirmed",
+                    Join(
+                        engagement.Status == EngagementStatus.Tentative
+                            ? $"{When(engagement)}. It is tentative again — keep the date, but it is not settled."
+                            : $"{When(engagement)}. Availability is being checked again.",
+                        detail),
+                    email: true,
+                    cancellationToken);
+                break;
+
             default:
                 // Draft → Checking Availability is told through the request
                 // itself; Tentative and Completed are organiser bookkeeping.

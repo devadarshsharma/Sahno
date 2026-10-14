@@ -267,10 +267,12 @@ export default function EngagementOverview() {
         ) : null}
       </Card>
 
-      <AddToCalendarCard
-        engagement={engagement}
-        organisationName={active?.name ?? 'your organisation'}
-      />
+      {active ? (
+        <AddToCalendarCard
+          engagement={engagement}
+          organisation={{ id: active.id, name: active.name, timeZoneId: active.timeZoneId }}
+        />
+      ) : null}
 
       {/* Sharing a booking outside the group is the organisers' call, not
           every member's: they decide who hears about an engagement and when.

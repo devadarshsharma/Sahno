@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   getAvailability,
+  getGoing,
   getOwnAvailability,
 } from '@/api/availability';
 import { useActiveOrg } from '@/hooks/use-organisations';
@@ -24,6 +25,21 @@ export function useAvailability(engagementId: string) {
 }
 
 /** The caller's own answer — the only availability a member can read. */
+/** Who is going, once the event is confirmed (D-108). */
+export function useGoing(engagementId: string) {
+  const session = useSession();
+  const { active } = useActiveOrg();
+
+  return useQuery({
+    queryKey: ['org', active?.id, 'engagements', engagementId, 'availability', 'going'],
+    queryFn: async ({ signal }) => {
+      const accessToken = await session.getAccessToken();
+      return getGoing(accessToken, active!.id, engagementId, signal);
+    },
+    enabled: active !== null && session.status === 'authenticated',
+  });
+}
+
 export function useOwnAvailability(engagementId: string) {
   const session = useSession();
   const { active } = useActiveOrg();

@@ -134,6 +134,8 @@ function kindLabel(kind: NotificationKind): string {
       return 'Cancelled';
     case 'EngagementReopened':
       return 'Back on';
+    case 'EngagementUnconfirmed':
+      return 'No longer confirmed';
     case 'EngagementDateChanged':
       return 'New date';
     case 'EngagementDetailsChanged':

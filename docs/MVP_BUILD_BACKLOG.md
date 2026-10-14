@@ -218,3 +218,18 @@ People can leave Sahno entirely, groups can take their records with them, and th
 - **Finish and publish the privacy policy** (`docs/legal/PRIVACY_POLICY.md`): fill in the placeholders, confirm backup and log retention, and get a legal review. Its reviewer notes list each open item.
 - **Write the Terms of Service.**
 - **Link both documents from the sign-in screen**, which already says "you agree to our Terms of Service and Privacy Policy" but links to neither.
+
+## Later — calendar subscription feed
+
+Parked on 14 October 2026, in favour of adding events to the phone's calendar first (D-105).
+
+### Outcome
+
+Each person subscribes once to a private link, and their Sahno events stay correct in Google Calendar, Apple Calendar or Outlook on every device, without opening the app.
+
+### Acceptance criteria
+
+- A private, per-person `webcal://` ICS feed covering every organisation they belong to, with only what they are allowed to see: their own events, plus rehearsals. The link can be reset if it leaks.
+- Tentative events are marked in the title; cancelled ones disappear.
+- Open question: whether **Needs response** events appear too (marked "?"), or only Tentative and Confirmed, as INFORMATION_ARCHITECTURE.md says.
+- No Google Calendar API or OAuth: calendar write scopes need Google's security review, and a feed works with every calendar app.

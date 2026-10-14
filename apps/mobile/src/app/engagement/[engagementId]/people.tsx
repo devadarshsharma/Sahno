@@ -1,9 +1,12 @@
 import { useRouter } from 'expo-router';
 
-import { LineupCard, MyAvailabilityCard } from '@/components/availability-cards';
+import { GoingCard, LineupCard, MyAvailabilityCard } from '@/components/availability-cards';
 import { EngagementSectionScreen } from '@/components/engagement-screen';
 
-/** The lineup for organisers; a member's own answer for everyone else. */
+/**
+ * The lineup for organisers; for everyone else, their own answer and — once
+ * the event is confirmed — who is going (D-108).
+ */
 export default function People() {
   const router = useRouter();
 
@@ -23,7 +26,9 @@ export default function People() {
                 })
               }
             />
-          ) : null}
+          ) : (
+            <GoingCard engagementId={engagement.id} />
+          )}
         </>
       )}
     </EngagementSectionScreen>

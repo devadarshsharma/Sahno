@@ -38,6 +38,9 @@ public enum NotificationKind
     /// <summary>Somebody on an event asked for a detail that is not set yet (D-089). Organisers only.</summary>
     DetailsRequested = 17,
 
+    /// <summary>A confirmed event went back to tentative or to checking availability (D-109).</summary>
+    EngagementUnconfirmed = 18,
+
     /// <summary>A job on an event has been given to you.</summary>
     ResponsibilityAssigned = 20,
 

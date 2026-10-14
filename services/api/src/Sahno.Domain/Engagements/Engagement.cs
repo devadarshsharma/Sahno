@@ -146,11 +146,16 @@ public sealed class Engagement
                 EngagementStatus.Cancelled,
                 EngagementStatus.Postponed,
             ],
+            // Back to Tentative or Checking Availability undoes a confirmation
+            // made too soon or by mistake (D-109); the lineup and its answers
+            // are untouched.
             [EngagementStatus.Confirmed] =
             [
                 EngagementStatus.Completed,
                 EngagementStatus.Cancelled,
                 EngagementStatus.Postponed,
+                EngagementStatus.Tentative,
+                EngagementStatus.CheckingAvailability,
             ],
             // Resuming picks the state that matches reality (D-036).
             [EngagementStatus.Postponed] =
@@ -178,7 +183,10 @@ public sealed class Engagement
     public static bool RequiresReason(EngagementStatus from, EngagementStatus to)
     {
         return to is EngagementStatus.Cancelled or EngagementStatus.Postponed
-            || from is EngagementStatus.Cancelled or EngagementStatus.Completed;
+            || from is EngagementStatus.Cancelled or EngagementStatus.Completed
+            // Members were told it is confirmed; they are told why it is not.
+            || (from is EngagementStatus.Confirmed
+                && to is EngagementStatus.Tentative or EngagementStatus.CheckingAvailability);
     }
 
     public static bool IsTransitionAllowed(EngagementStatus from, EngagementStatus to)

@@ -107,6 +107,7 @@ function iconFor(kind: NotificationKind): React.ComponentProps<typeof Ionicons>[
       return 'people-outline';
     case 'EngagementCancelled':
     case 'EngagementPostponed':
+    case 'EngagementUnconfirmed':
       return 'alert-circle-outline';
     case 'EngagementConfirmed':
       return 'checkmark-circle-outline';

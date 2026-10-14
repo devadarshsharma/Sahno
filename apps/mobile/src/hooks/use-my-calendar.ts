@@ -7,7 +7,7 @@ import { useSession } from '@/providers/auth-provider';
 /** How far back the calendar reaches (D-090). */
 const HISTORY_MONTHS = 12;
 
-function historyStart(): string {
+export function historyStart(): string {
   const from = new Date();
   from.setMonth(from.getMonth() - HISTORY_MONTHS, 1);
   return `${from.getFullYear()}-${`${from.getMonth() + 1}`.padStart(2, '0')}-01`;
