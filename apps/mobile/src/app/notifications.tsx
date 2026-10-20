@@ -1,29 +1,34 @@
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import type { Notification, NotificationKind } from '@/api/notifications';
-import { Button, Card, Screen, Text } from '@/components/ui';
+import { Button, Card, Screen, Text, TextAction } from '@/components/ui';
 import {
   useMarkAllRead,
   useMarkRead,
-  useNotifications,
+  useReadNotifications,
+  useUnreadNotifications,
 } from '@/hooks/use-notifications';
 import { colors, radii, spacing } from '@/theme';
 
 /**
- * The bell's list (D-042, D-049). Newest first, unread rows marked, and
- * tapping one goes to the event it is about. Reading happens on the tap: a
- * notification you opened is one you have seen, and there is no separate
- * gesture to learn.
+ * The bell (D-042, D-049, D-111). What is unread, newest first, with **Mark
+ * all as read** at the top; tapping one goes to the event it is about and
+ * reads it. Once read, a notification leaves this list — the bell is for what
+ * still needs a look — and waits under **Earlier**, fetched twenty at a time
+ * only when asked for.
  */
 export default function Notifications() {
   const router = useRouter();
-  const query = useNotifications();
+  const unreadQuery = useUnreadNotifications();
+  const [showEarlier, setShowEarlier] = useState(false);
+  const readQuery = useReadNotifications(showEarlier);
   const markRead = useMarkRead();
   const markAllRead = useMarkAllRead();
 
-  const rows = query.data ?? [];
-  const unread = rows.filter((row) => !row.isRead).length;
+  const unread = unreadQuery.data ?? [];
+  const earlier = (readQuery.data?.pages ?? []).flat();
 
   function open(notification: Notification) {
     if (!notification.isRead) {
@@ -40,76 +45,115 @@ export default function Notifications() {
   return (
     <Screen
       scroll
-      onRefresh={() => query.refetch()}
-      refreshing={query.isRefetching}
+      onRefresh={() => {
+        void unreadQuery.refetch();
+        if (showEarlier) {
+          void readQuery.refetch();
+        }
+      }}
+      refreshing={unreadQuery.isRefetching}
       hero={{
         title: 'Notifications',
-        subtitle:
-          rows.length === 0
-            ? 'Nothing yet.'
-            : unread === 0
-              ? 'All caught up.'
-              : `${unread} unread.`,
+        subtitle: unreadQuery.isPending
+          ? undefined
+          : unread.length === 0
+            ? 'All caught up.'
+            : `${unread.length} unread.`,
       }}
     >
-
-      {query.isPending ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.tealText} />
+      {unread.length > 0 ? (
+        <View style={styles.toolbar}>
+          <TextAction
+            label="Mark all as read"
+            color="accent"
+            busy={markAllRead.isPending}
+            onPress={() => markAllRead.mutate()}
+          />
         </View>
       ) : null}
 
-      {rows.length > 0 ? (
+      {unreadQuery.isPending ? (
+        <View style={styles.centered}>
+          <ActivityIndicator color={colors.tealText} />
+        </View>
+      ) : unread.length > 0 ? (
         <Card style={styles.list}>
-          {rows.map((row) => (
-            <Pressable
-              key={row.id}
-              accessibilityRole="button"
-              accessibilityLabel={`${row.title}${row.isRead ? '' : ', unread'}`}
-              onPress={() => open(row)}
-              style={({ pressed }) => [
-                styles.row,
-                pressed ? styles.rowPressed : null,
-              ]}
-            >
-              <View style={[styles.dot, row.isRead ? styles.dotRead : null]} />
-              <View style={styles.rowBody}>
-                <View style={styles.rowHead}>
-                  <Text variant="caption" color="muted" style={styles.rowKind}>
-                    {kindLabel(row.kind)}
-                  </Text>
-                  <Text variant="caption" color="muted" style={styles.rowWhen}>
-                    {formatWhen(row.createdAtUtc)}
-                  </Text>
-                </View>
-                <Text
-                  variant="bodySmall"
-                  color={row.isRead ? 'secondary' : 'primary'}
-                >
-                  {row.title}
-                </Text>
-                {row.body ? (
-                  <Text variant="caption" color="secondary" numberOfLines={2}>
-                    {row.body}
-                  </Text>
-                ) : null}
-              </View>
-              <Text color="muted">›</Text>
-            </Pressable>
+          {unread.map((row) => (
+            <NotificationRow key={row.id} notification={row} onPress={() => open(row)} />
           ))}
         </Card>
-      ) : null}
+      ) : (
+        <Text color="muted" variant="bodySmall" style={styles.empty}>
+          Nothing new. Read notifications are under Earlier.
+        </Text>
+      )}
 
-      {unread > 0 ? (
-        <Button
-          label="Mark all as read"
-          variant="ghost"
-          onPress={() => markAllRead.mutate()}
-          loading={markAllRead.isPending}
-        />
-      ) : null}
-
+      {showEarlier ? (
+        <>
+          <Text variant="subheading" style={styles.sectionHeading}>
+            Earlier
+          </Text>
+          {readQuery.isPending ? (
+            <View style={styles.centered}>
+              <ActivityIndicator color={colors.tealText} />
+            </View>
+          ) : earlier.length === 0 ? (
+            <Text color="muted" variant="bodySmall" style={styles.empty}>
+              Nothing earlier.
+            </Text>
+          ) : (
+            <Card style={styles.list}>
+              {earlier.map((row) => (
+                <NotificationRow key={row.id} notification={row} onPress={() => open(row)} />
+              ))}
+            </Card>
+          )}
+          {readQuery.hasNextPage ? (
+            <Button
+              label="Show more"
+              variant="secondary"
+              loading={readQuery.isFetchingNextPage}
+              onPress={() => void readQuery.fetchNextPage()}
+            />
+          ) : null}
+          <Button label="Hide earlier notifications" variant="ghost" onPress={() => setShowEarlier(false)} />
+        </>
+      ) : (
+        <Button label="Show earlier notifications" variant="ghost" onPress={() => setShowEarlier(true)} />
+      )}
     </Screen>
+  );
+}
+
+function NotificationRow({ notification, onPress }: { notification: Notification; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${notification.title}${notification.isRead ? '' : ', unread'}`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, pressed ? styles.rowPressed : null]}
+    >
+      <View style={[styles.dot, notification.isRead ? styles.dotRead : null]} />
+      <View style={styles.rowBody}>
+        <View style={styles.rowHead}>
+          <Text variant="caption" color="muted" style={styles.rowKind}>
+            {kindLabel(notification.kind)}
+          </Text>
+          <Text variant="caption" color="muted" style={styles.rowWhen}>
+            {formatWhen(notification.createdAtUtc)}
+          </Text>
+        </View>
+        <Text variant="bodySmall" color={notification.isRead ? 'secondary' : 'primary'}>
+          {notification.title}
+        </Text>
+        {notification.body ? (
+          <Text variant="caption" color="secondary" numberOfLines={2}>
+            {notification.body}
+          </Text>
+        ) : null}
+      </View>
+      <Text color="muted">›</Text>
+    </Pressable>
   );
 }
 
@@ -181,6 +225,16 @@ function formatWhen(createdAtUtc: string): string {
 }
 
 const styles = StyleSheet.create({
+  toolbar: {
+    alignItems: 'flex-end',
+    marginBottom: spacing.sm,
+  },
+  empty: {
+    marginBottom: spacing.lg,
+  },
+  sectionHeading: {
+    marginBottom: spacing.sm,
+  },
   centered: {
     paddingVertical: spacing.xl,
     alignItems: 'center',

@@ -547,3 +547,16 @@ Packages → sahno-api) and `up -d` again. The image is private if the package
 is: `docker login ghcr.io` on the server with a token that has `read:packages`,
 or make the package public (the source already is). Suspend the Render service while this server is in use, so there is one
 test API, not two.
+
+---
+
+## 15. Crash reporting (Sentry, D-117)
+
+The app carries Sentry, switched off until these are set. Nothing else changes.
+
+1. Create a free account at sentry.io and a **React Native** project (pick the data region deliberately, US or EU; the privacy policy names it).
+2. In the EAS environment `preview` (and later `production`), add:
+   - `EXPO_PUBLIC_SENTRY_DSN` — the project's DSN (Settings → Client Keys). Plain text is fine; a DSN only allows sending reports.
+   - `SENTRY_ORG` and `SENTRY_PROJECT` — the organisation and project **slugs**.
+   - `SENTRY_AUTH_TOKEN` — **secret**; Settings → Auth Tokens → an organisation token. Used at build time to upload source maps.
+3. Make a new build. Reports arrive in Sentry under *Issues*: native crashes, Android freezes and JavaScript errors from every install, Play, TestFlight or APK.

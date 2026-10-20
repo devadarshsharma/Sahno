@@ -3,18 +3,24 @@ import type { ComponentProps, ReactElement } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Engagement, EngagementStatus } from '@/api/engagements';
+import type { UpcomingRehearsal } from '@/api/upcoming-rehearsals';
 import { AvailabilityAnswerButtons } from '@/components/availability-cards';
 import { YourClashNotice } from '@/components/clash-notice';
-import { Text } from '@/components/ui';
+import { formatTime, Text, toIsoDate } from '@/components/ui';
 import { VenueLink } from '@/components/venue-link';
 import { formatEngagementDate } from '@/hooks/use-engagements';
 import { colors, fontFamilies, radii, shadows, spacing } from '@/theme';
 
-/** The statuses in which a member's answer is still being counted. */
+/**
+ * When a member answers on the card: while answers are being counted, and on
+ * a confirmed event they were asked about but never answered — it may have
+ * been confirmed with answers still out (D-029), and they still owe one (D-113).
+ */
 function answerable(engagement: Engagement): boolean {
   return (
     engagement.status === 'CheckingAvailability' ||
-    engagement.status === 'Tentative'
+    engagement.status === 'Tentative' ||
+    (engagement.status === 'Confirmed' && engagement.yourResponse === null)
   );
 }
 
@@ -37,10 +43,15 @@ export function EngagementCard({
   engagement,
   isOrganiser,
   onPress,
+  rehearsals = [],
+  onOpenRehearsals,
 }: {
   engagement: Engagement;
   isOrganiser: boolean;
   onPress: () => void;
+  /** This event's upcoming rehearsals, soonest first: one line, not one card each (D-114). */
+  rehearsals?: UpcomingRehearsal[];
+  onOpenRehearsals?: () => void;
 }) {
   const when = formatWhen(engagement);
   const answerHere = !isOrganiser && answerable(engagement);
@@ -70,6 +81,22 @@ export function EngagementCard({
         />
         {/* Its own tap target inside the card: maps, not the event. */}
         {engagement.venue ? <VenueLink venue={engagement.venue} size="small" /> : null}
+        {/* Its own tap target too: the rehearsal details, not the event overview. */}
+        {rehearsals.length > 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${rehearsalSummary(rehearsals)}. Open rehearsals.`}
+            onPress={onOpenRehearsals}
+            hitSlop={6}
+            style={({ pressed }) => [styles.rehearsals, pressed ? styles.rehearsalsPressed : null]}
+          >
+            <Ionicons name="musical-notes-outline" size={15} color={colors.tealText} style={styles.lineIcon} />
+            <Text variant="bodySmall" style={styles.rehearsalsText} numberOfLines={1}>
+              {rehearsalSummary(rehearsals)}
+            </Text>
+            <Ionicons name="chevron-forward" size={14} color={colors.tealText} />
+          </Pressable>
+        ) : null}
       </View>
 
       {stats.length > 0 ? <View style={styles.stats}>{stats}</View> : null}
@@ -220,6 +247,27 @@ function Stat({
   );
 }
 
+/** "2 rehearsals · next Mon 19 Oct, 6:00 PM", or "· today, 6:00 PM" on the day. */
+function rehearsalSummary(rehearsals: UpcomingRehearsal[]): string {
+  const next = rehearsals[0];
+  const count = rehearsals.length === 1 ? '1 rehearsal' : `${rehearsals.length} rehearsals`;
+  const today = toIsoDate(new Date());
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const day =
+    next.date === today
+      ? 'today'
+      : next.date === toIsoDate(tomorrowDate)
+        ? 'tomorrow'
+        : new Date(`${next.date}T00:00:00`).toLocaleDateString(undefined, {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'short',
+          });
+  const time = next.startTime ? `, ${formatTime(next.startTime)}` : '';
+  return `${count} · ${rehearsals.length === 1 ? '' : 'next '}${day}${time}`;
+}
+
 function Line({
   icon,
   text,
@@ -304,6 +352,20 @@ export function formatClock(time: string): string {
 }
 
 const styles = StyleSheet.create({
+  rehearsals: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    minHeight: 28,
+  },
+  rehearsalsPressed: {
+    opacity: 0.6,
+  },
+  rehearsalsText: {
+    color: colors.tealText,
+    flexShrink: 1,
+    marginRight: 2,
+  },
   card: {
     backgroundColor: colors.surface.raised,
     borderRadius: radii.lg,

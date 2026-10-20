@@ -45,6 +45,9 @@ public sealed record ChatInboxRow(
 /// organiser can take any message down but never change one — moderation is
 /// removal, not authorship.
 /// </summary>
+/// <summary>Somebody who can be mentioned in a chat (D-112).</summary>
+public sealed record MentionableRow(Guid UserId, string? DisplayName, string? Function);
+
 public sealed class DiscussionService(
     IEngagementStore engagements,
     IEngagementParticipantStore participants,
@@ -245,7 +248,8 @@ public sealed class DiscussionService(
         string body,
         CancellationToken cancellationToken,
         Guid? replyToMessageId = null,
-        Guid? clientMessageId = null)
+        Guid? clientMessageId = null,
+        IReadOnlyCollection<Guid>? mentionedUserIds = null)
     {
         if (!await CanAccessAsync(actor, engagementId, cancellationToken))
         {
@@ -272,27 +276,109 @@ public sealed class DiscussionService(
             }
         }
 
-        var message = DiscussionMessage.Post(engagementId, actor.UserId, body, replyToMessageId, clientMessageId);
-
         var engagement = await engagements.FindByIdAsync(
             actor.OrganisationId,
             engagementId,
             cancellationToken);
-        var lineup = await participants.ListForEngagementAsync(
+        var lineup = (await participants.ListForEngagementAsync(
+                engagementId,
+                cancellationToken))
+            .Where(participant => participant.IsActive)
+            .Select(participant => participant.UserId)
+            .ToList();
+
+        // Only somebody who can read this chat can be mentioned in it (D-112):
+        // the lineup and the organisers. Anyone else is dropped, not refused —
+        // the words are still worth sending.
+        var readers = await ReadersAsync(actor.OrganisationId, lineup, cancellationToken);
+        var message = DiscussionMessage.Post(
             engagementId,
-            cancellationToken);
+            actor.UserId,
+            body,
+            replyToMessageId,
+            clientMessageId,
+            mentionedUserIds?.Where(readers.Contains));
+
         await notifier.DiscussionMessageAsync(
             engagement!,
-            lineup
-                .Where(participant => participant.IsActive)
-                .Select(participant => participant.UserId)
-                .ToList(),
+            lineup,
             actor.UserId,
             message.Body!,
-            cancellationToken);
+            cancellationToken,
+            message.MentionedUserIds);
 
         await messages.AddAsync(message, cancellationToken);
         return (EngagementResult.Success, message);
+    }
+
+    /// <summary>
+    /// Who the caller may mention in this chat (D-112), most likely first is
+    /// left to the app. An organiser: everyone who can read it — the lineup and
+    /// the organisers. A Member never sees who was asked (D-021), so for them
+    /// it is the organisers, people who have already written here, and, once
+    /// the event is confirmed, who is going (D-108). Never the caller.
+    /// </summary>
+    public async Task<IReadOnlyList<MentionableRow>?> MentionableAsync(
+        Membership actor,
+        Guid engagementId,
+        CancellationToken cancellationToken)
+    {
+        if (!await CanAccessAsync(actor, engagementId, cancellationToken))
+        {
+            return null;
+        }
+
+        var engagement = await engagements.FindByIdAsync(actor.OrganisationId, engagementId, cancellationToken);
+        var lineup = await participants.ListForEngagementAsync(engagementId, cancellationToken);
+        var directory = (await memberships.ListForOrganisationAsync(actor.OrganisationId, cancellationToken))
+            .ToDictionary(row => row.Membership.UserId);
+        var organisers = directory.Values
+            .Where(row => OrganisationAuthorizationService.IsOrganiser(row.Membership))
+            .Select(row => row.Membership.UserId);
+
+        IEnumerable<Guid> allowed;
+        if (OrganisationAuthorizationService.IsOrganiser(actor))
+        {
+            allowed = lineup.Where(participant => participant.IsActive)
+                .Select(participant => participant.UserId)
+                .Concat(organisers);
+        }
+        else
+        {
+            var activeLineup = lineup.Where(participant => participant.IsActive).ToList();
+            var onLineup = activeLineup.Select(participant => participant.UserId).ToHashSet();
+            var authors = (await messages.ListForEngagementAsync(engagementId, cancellationToken))
+                .Select(message => message.AuthorUserId)
+                .Where(onLineup.Contains);
+            var going = engagement!.Status is EngagementStatus.Confirmed or EngagementStatus.Completed
+                ? activeLineup
+                    .Where(participant => participant.Response == AvailabilityResponse.Available)
+                    .Select(participant => participant.UserId)
+                : [];
+            allowed = organisers.Concat(authors).Concat(going);
+        }
+
+        return allowed
+            .Distinct()
+            .Where(userId => userId != actor.UserId && directory.ContainsKey(userId))
+            .Select(userId => new MentionableRow(
+                userId,
+                directory[userId].DisplayName,
+                directory[userId].Membership.Function))
+            .OrderBy(row => row.DisplayName ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+    }
+
+    /// <summary>Everyone who can read an event's chat: its lineup and the organisers.</summary>
+    private async Task<HashSet<Guid>> ReadersAsync(
+        Guid organisationId,
+        IEnumerable<Guid> lineup,
+        CancellationToken cancellationToken)
+    {
+        var organisers = (await memberships.ListForOrganisationAsync(organisationId, cancellationToken))
+            .Where(row => OrganisationAuthorizationService.IsOrganiser(row.Membership))
+            .Select(row => row.Membership.UserId);
+        return lineup.Concat(organisers).ToHashSet();
     }
 
     /// <summary>

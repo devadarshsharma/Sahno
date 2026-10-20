@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import type { EngagementStatus } from '@/api/engagements';
 import {
@@ -13,7 +13,7 @@ import {
 } from '@/api/repertoire';
 import { StatusChip } from '@/components/engagement-card';
 import { PieceForm } from '@/components/piece-form';
-import { Button, Card, formatIsoDate, Screen, Text, TextInput } from '@/components/ui';
+import { Button, Card, formatIsoDate, Screen, showAlert, Text, TextInput } from '@/components/ui';
 import { useIsOrganiser } from '@/hooks/use-customers';
 import { formatDuration, usePieceDetail, useRepertoireMutation } from '@/hooks/use-repertoire';
 import { colors, radii, spacing } from '@/theme';
@@ -73,7 +73,7 @@ export default function PieceDetail() {
   const fail = () => setError('Could not save that.');
 
   const confirmDelete = () =>
-    Alert.alert(
+    showAlert(
       'Remove from repertoire?',
       `“${piece.title}” comes off every set list it is on. This cannot be undone.`,
       [

@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { setDefaultOrganisation } from '@/api/organisations';
 import { RecentlyDeleted } from '@/components/recently-deleted';
-import { Button, Screen, Text } from '@/components/ui';
+import { Button, Screen, showAlert, Text } from '@/components/ui';
 import { useActiveOrg } from '@/hooks/use-organisations';
 import { useSession } from '@/providers/auth-provider';
 import { colors, radii, spacing } from '@/theme';
@@ -26,7 +26,7 @@ export default function SwitchOrganisation() {
       await setDefaultOrganisation(accessToken, organisationId);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['organisations'] }),
-    onError: () => Alert.alert('Could not change your default', 'Check your connection and try again.'),
+    onError: () => showAlert('Could not change your default', 'Check your connection and try again.'),
   });
 
   // A default only means something with a choice to make.

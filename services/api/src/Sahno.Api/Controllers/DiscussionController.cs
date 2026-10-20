@@ -28,6 +28,27 @@ public sealed class DiscussionController(
     OrganisationAuthorizationService authorization)
     : ControllerBase
 {
+    /// <summary>Who the caller may mention in this chat (D-112).</summary>
+    [HttpGet("mentionable")]
+    [ProducesResponseType<List<MentionableResponse>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<List<MentionableResponse>>> Mentionable(
+        Guid organisationId,
+        Guid engagementId,
+        CancellationToken cancellationToken)
+    {
+        var caller = await CallerAsync(organisationId, cancellationToken);
+        if (caller is null)
+        {
+            return NotFound();
+        }
+
+        var rows = await discussionService.MentionableAsync(caller, engagementId, cancellationToken);
+        return rows is null
+            ? NotFound()
+            : Ok(rows.Select(row => new MentionableResponse(row.UserId, row.DisplayName, row.Function)).ToList());
+    }
+
     [HttpGet]
     [ProducesResponseType<List<DiscussionMessageResponse>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -110,7 +131,8 @@ public sealed class DiscussionController(
             request.Body,
             cancellationToken,
             request.ReplyToMessageId,
-            request.ClientMessageId);
+            request.ClientMessageId,
+            request.MentionedUserIds);
 
         if (result == EngagementResult.Invalid)
         {
@@ -324,7 +346,8 @@ public sealed class DiscussionController(
                 .ToList(),
             (row.SeenBy ?? [])
                 .Select(reader => new DiscussionReaderResponse(reader.UserId, reader.DisplayName))
-                .ToList());
+                .ToList(),
+            row.Message.MentionedUserIds);
     }
 
     private async Task<Membership?> CallerAsync(

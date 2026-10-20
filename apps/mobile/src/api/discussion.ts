@@ -30,7 +30,33 @@ export type DiscussionMessage = {
   reactions?: DiscussionReaction[];
   /** Who has read up to here and no further, most recent first; never you (D-096). Absent from older APIs. */
   seenBy?: DiscussionReader[];
+  /** Who the message mentions; the body carries their "@Name" (D-112). Absent from older APIs. */
+  mentionedUserIds?: string[];
 };
+
+/** Somebody who can be mentioned in a chat (D-112). */
+export type Mentionable = {
+  userId: string;
+  displayName: string | null;
+  function: string | null;
+};
+
+function isMentionableList(value: unknown): value is Mentionable[] {
+  return (
+    Array.isArray(value) &&
+    value.every((row) => typeof row === 'object' && row !== null && typeof (row as Mentionable).userId === 'string')
+  );
+}
+
+/** Who the caller may mention in this chat (D-112). */
+export function listMentionable(
+  accessToken: string,
+  organisationId: string,
+  engagementId: string,
+  signal?: AbortSignal,
+): Promise<Mentionable[]> {
+  return getAuthorizedJson(`${base(organisationId, engagementId)}/mentionable`, accessToken, isMentionableList, signal);
+}
 
 /** A reply's quote. `body` is null once the original was removed. */
 export type DiscussionQuote = {
@@ -100,6 +126,7 @@ export function postDiscussionMessage(
   replyToMessageId?: string | null,
   clientMessageId?: string,
   signal?: AbortSignal,
+  mentionedUserIds?: string[],
 ): Promise<DiscussionMessage> {
   return postAuthorizedJson(
     base(organisationId, engagementId),
@@ -108,6 +135,7 @@ export function postDiscussionMessage(
       body,
       ...(replyToMessageId ? { replyToMessageId } : {}),
       ...(clientMessageId ? { clientMessageId } : {}),
+      ...(mentionedUserIds && mentionedUserIds.length > 0 ? { mentionedUserIds } : {}),
     },
     isMessage,
     signal,

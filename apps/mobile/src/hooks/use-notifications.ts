@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   getUnreadCount,
@@ -30,17 +30,48 @@ export function useUnreadCount() {
   });
 }
 
-export function useNotifications() {
+/** Every unread notification — what the bell is for (D-111). */
+export function useUnreadNotifications() {
   const session = useSession();
   const { active } = useActiveOrg();
 
   return useQuery({
-    queryKey: ['org', active?.id, 'notifications', 'list'],
+    queryKey: ['org', active?.id, 'notifications', 'list', 'unread'],
     queryFn: async ({ signal }) => {
       const accessToken = await session.getAccessToken();
-      return listNotifications(accessToken, active!.id, signal);
+      const rows = await listNotifications(accessToken, active!.id, signal, { state: 'unread' });
+      // An older API answers with both kinds; keep only what is unread.
+      return rows.filter((row) => !row.isRead);
     },
     enabled: active !== null && session.status === 'authenticated',
+  });
+}
+
+/** Page size of the read list; matches the API's (D-111). */
+const READ_PAGE_SIZE = 20;
+
+/**
+ * Notifications already read, twenty at a time, newest first — fetched only
+ * once someone asks to see them (D-111).
+ */
+export function useReadNotifications(enabled: boolean) {
+  const session = useSession();
+  const { active } = useActiveOrg();
+
+  return useInfiniteQuery({
+    queryKey: ['org', active?.id, 'notifications', 'list', 'read'],
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ signal, pageParam }) => {
+      const accessToken = await session.getAccessToken();
+      const rows = await listNotifications(accessToken, active!.id, signal, {
+        state: 'read',
+        before: pageParam,
+      });
+      return rows.filter((row) => row.isRead);
+    },
+    getNextPageParam: (last) =>
+      last.length < READ_PAGE_SIZE ? undefined : last[last.length - 1].createdAtUtc,
+    enabled: enabled && active !== null && session.status === 'authenticated',
   });
 }
 

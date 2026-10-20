@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import type { DiscussionMessage, DiscussionReader } from '@/api/discussion';
 import { Text } from '@/components/ui';
 import { authorName, initials, messageTime, nameColour, removedText, type ChatMessage } from '@/lib/chat';
+import { splitMentions } from '@/lib/mentions';
 import { colors, fontFamilies, radii, spacing } from '@/theme';
 
 /**
@@ -22,7 +23,13 @@ export function MessageBubble({
   onQuotePress,
   onReactionPress,
   onRetry,
+  mentionNames = [],
+  mentionsYou = false,
 }: {
+  /** Names of the people this message mentions, to pick out in the text (D-112). */
+  mentionNames?: string[];
+  /** It mentions the reader: it stands out in the thread. */
+  mentionsYou?: boolean;
   message: ChatMessage;
   startsRun: boolean;
   highlighted: boolean;
@@ -57,6 +64,7 @@ export function MessageBubble({
           styles.bubble,
           yours ? styles.bubbleYours : styles.bubbleTheirs,
           startsRun ? (yours ? styles.tailYours : styles.tailTheirs) : null,
+          mentionsYou && !yours ? styles.mentionsYou : null,
           highlighted ? styles.highlighted : null,
           failed ? styles.failed : null,
           pressed ? styles.pressed : null,
@@ -95,7 +103,17 @@ export function MessageBubble({
             </Text>
           </View>
         ) : (
-          <Text style={styles.body}>{message.body}</Text>
+          <Text style={styles.body}>
+            {splitMentions(message.body ?? '', mentionNames).map((segment, index) =>
+              segment.mention ? (
+                <Text key={index} style={styles.mention}>
+                  {segment.text}
+                </Text>
+              ) : (
+                segment.text
+              ),
+            )}
+          </Text>
         )}
 
         <View style={styles.metaRow}>
@@ -222,6 +240,15 @@ const styles = StyleSheet.create({
   },
   highlighted: {
     backgroundColor: colors.orangeSoft,
+  },
+  // A message that mentions you, among everyone else's (D-112).
+  mentionsYou: {
+    borderLeftWidth: 3,
+    borderLeftColor: colors.orange,
+  },
+  mention: {
+    fontFamily: fontFamilies.uiMedium,
+    color: colors.tealText,
   },
   pressed: {
     opacity: 0.8,

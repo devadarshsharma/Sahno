@@ -4,10 +4,16 @@ namespace Sahno.Application.Notifications;
 
 public interface INotificationStore
 {
-    /// <summary>Newest first, scoped to one person in one organisation.</summary>
+    /// <summary>
+    /// Newest first, scoped to one person in one organisation. <paramref name="read"/>
+    /// narrows to unread (false) or read (true) rows, null for both;
+    /// <paramref name="before"/> pages back from a row's time (D-111).
+    /// </summary>
     Task<IReadOnlyList<Notification>> ListForUserAsync(
         Guid organisationId,
         Guid userId,
+        bool? read,
+        DateTimeOffset? before,
         int limit,
         CancellationToken cancellationToken);
 

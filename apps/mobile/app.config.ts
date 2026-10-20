@@ -28,6 +28,14 @@ const googleServicesFile =
 const usesCleartextTraffic =
   process.env.EXPO_PUBLIC_API_URL?.startsWith('http://') ?? false;
 
+// Crash reports (D-117). The plugin uploads source maps at build time so a
+// report's stack reads as Sahno's own code; it needs SENTRY_ORG, SENTRY_PROJECT
+// and the secret SENTRY_AUTH_TOKEN in the EAS environment. Without them the
+// build is exactly as before, and the app reports nothing unless it also has
+// EXPO_PUBLIC_SENTRY_DSN.
+const sentryOrg = process.env.SENTRY_ORG;
+const sentryProject = process.env.SENTRY_PROJECT;
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: config.name ?? 'sahno',
@@ -57,5 +65,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         customScheme: 'sahno',
       },
     ],
+    ...(sentryOrg && sentryProject
+      ? [['@sentry/react-native/expo', { organization: sentryOrg, project: sentryProject }] as [string, object]]
+      : []),
   ],
 });

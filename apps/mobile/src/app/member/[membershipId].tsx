@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Switch, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Switch, View } from 'react-native';
 
 import {
   changeMemberRole,
@@ -11,7 +11,7 @@ import {
   updateOwnMembership,
   type Member,
 } from '@/api/members';
-import { Button, Card, Screen, Text, TextInput } from '@/components/ui';
+import { Button, Card, Screen, showAlert, Text, TextInput } from '@/components/ui';
 import { useMemberMutation, useMembers } from '@/hooks/use-members';
 import { useActiveOrg } from '@/hooks/use-organisations';
 import { colors, spacing } from '@/theme';
@@ -224,7 +224,7 @@ function RoleCard({
   const name = member.displayName ?? 'this member';
 
   function confirmTransfer() {
-    Alert.alert(
+    showAlert(
       'Transfer ownership?',
       `${name} becomes the Owner and you become an Admin. Only they will be able to hand it back.`,
       [
@@ -359,7 +359,7 @@ function RemoveCard({
   // Removal is confirmed rather than immediate (Slice 3): it cannot be undone
   // from here, and the person would have to be invited again.
   function confirmRemove() {
-    Alert.alert(
+    showAlert(
       `Remove ${name}?`,
       'They lose access to this organisation straight away. You can invite them again later.',
       [

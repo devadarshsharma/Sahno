@@ -81,6 +81,7 @@ We do **not** sell personal information, use it for advertising, or share it wit
 | Resend | Sending email | United States |
 | Expo, Apple and Google | Delivering push notifications | United States and [other locations] |
 | Google (Maps Platform) | Suggesting venues as you type — receives what you type in a venue field, and your country | United States and [other locations] |
+| Sentry (Functional Software) | Crash and error reports from the app: what failed, on which screen, the device and app version, and an anonymous id — no names, emails or messages | United States |
 | [DigitalOcean — when production moves there] | [Hosting, database, files] | [region] |
 
 **Other cases**: we disclose information when the law requires it, or where it is needed to protect someone's safety, or our rights, as the Privacy Act allows.
@@ -138,7 +139,7 @@ If we change this policy in a way that matters, we will update the date at the t
 - The hosting provider to name for the API, and the DigitalOcean region once production moves there (D-065). The current test API runs on a server in Sydney.
 - Log retention on each host. Section 8 currently says 30 days.
 - Locations for Resend and Expo processing.
-- If Sentry or any analytics is added (D-069 plans Sentry), add it to the table in section 5 and to section 3.
+- Sentry is in the table (D-117), project in the US region; section 6 (overseas) should mention it once switched on. Add a line to section 3 once it is switched on: crash reports with an anonymous id.
 
 **Gaps in the product that this policy depends on**
 1. **Account deletion does not exist yet.** Apple's App Store guideline 5.1.1(v) requires apps with sign-in to offer account deletion in the app. Section 8 needs a real path before an App Store release.

@@ -29,6 +29,8 @@ public sealed class NotificationsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<List<NotificationResponse>>> List(
         Guid organisationId,
+        [FromQuery] string? state,
+        [FromQuery] DateTimeOffset? before,
         CancellationToken cancellationToken)
     {
         var caller = await CallerAsync(organisationId, cancellationToken);
@@ -37,7 +39,7 @@ public sealed class NotificationsController(
             return NotFound();
         }
 
-        var rows = await notificationService.ListAsync(caller, cancellationToken);
+        var rows = await notificationService.ListAsync(caller, state, before, cancellationToken);
         return Ok(rows.Select(ToResponse).ToList());
     }
 

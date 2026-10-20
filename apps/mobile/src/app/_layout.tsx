@@ -21,7 +21,10 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SahnoSymbol } from '@/components/brand';
 import { CalendarSync } from '@/components/calendar-sync';
 import { CrashScreen } from '@/components/crash-screen';
+import { DialogHost } from '@/components/ui';
 import { installCrashHandler } from '@/lib/crash-handler';
+import { reportError, setCrashReportingUser, startCrashReporting, wrapRoot } from '@/lib/crash-reporting';
+import { useMe } from '@/hooks/use-me';
 import { AuthProvider, useSession } from '@/providers/auth-provider';
 import { LiveUpdatesProvider } from '@/providers/live-updates-provider';
 import { NotificationsProvider } from '@/providers/notifications-provider';
@@ -40,16 +43,30 @@ Appearance.setColorScheme('light');
 
 // Errors in taps and timers keep the app open and say what happened (D-110).
 installCrashHandler();
+// Crash reports, when the build has a Sentry DSN (D-117). Started after the
+// handler above, so Sentry records a fatal error and then hands it on to it.
+startCrashReporting();
 
 /**
  * Anything that fails to draw, anywhere, lands here instead of closing the app
  * (D-110). Retrying redraws from the top.
  */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  useEffect(() => reportError(error), [error]);
   return <CrashScreen error={error} onRetry={() => void retry()} />;
 }
 
-export default function RootLayout() {
+export default wrapRoot(RootLayout);
+
+/** Crash reports name the person only by an opaque id (D-117). */
+function CrashReportingUser() {
+  const me = useMe();
+  const userId = me.data?.userId ?? null;
+  useEffect(() => setCrashReportingUser(userId), [userId]);
+  return null;
+}
+
+function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     BricolageGrotesque_400Regular,
     BricolageGrotesque_500Medium,
@@ -101,6 +118,7 @@ function RootNavigator() {
   // Without this, the next sign-in briefly shows the previous account's data.
   useEffect(() => {
     if (status === 'unauthenticated') {
+      setCrashReportingUser(null);
       queryClient.clear();
       setActiveOrganisation(null);
     }
@@ -128,6 +146,7 @@ function RootNavigator() {
       <StatusBar style="dark" />
       {/* Keeps calendar entries Sahno added in line with Sahno (D-105). */}
       {isAuthenticated ? <CalendarSync /> : null}
+      {isAuthenticated ? <CrashReportingUser /> : null}
       <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="(tabs)" />
@@ -157,6 +176,8 @@ function RootNavigator() {
         <Stack.Screen name="sign-in" />
       </Stack.Protected>
       </Stack>
+      {/* Sahno's own alerts, over every screen (D-116). */}
+      <DialogHost />
     </>
   );
 }

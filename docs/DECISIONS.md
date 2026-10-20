@@ -1925,3 +1925,96 @@ On a release build an unhandled JavaScript error closes the app with no word —
 - **An error outside drawing** — a tap handler, a timer — never reaches those screens, and React Native treats it as fatal. Release builds now catch fatal errors and show them in an alert instead of closing. Non-fatal errors, and development builds, behave as before.
 - The crash screen depends on nothing but the theme, because it may be standing in for the providers that failed.
 - This keeps the app open and puts the error on screen; it does not report it anywhere. Automatic crash reports (Sentry, D-069) remain a separate decision.
+
+---
+
+## D-111 — The bell shows what is unread; read notifications wait under Earlier
+
+**Date:** 16 October 2026
+**Status:** Accepted
+
+The notifications screen listed the newest fifty of everything, read and unread together, with **Mark all as read** at the bottom — a long scroll to find what was new, and to clear it.
+
+- **Only unread notifications are listed**, newest first, all of them. Opening one reads it, and it leaves the list. **Mark all as read** sits at the top, beside the count.
+- **Read notifications wait under "Show earlier notifications"**, fetched only when asked for, twenty at a time with **Show more**, and hidden again with **Hide earlier notifications**. Nothing is deleted.
+- `GET …/notifications?state=unread` returns every unread row (up to 100); `?state=read&before=<createdAtUtc>` pages back through read ones. Without `state` the endpoint answers as before, so older app builds are unaffected.
+
+---
+
+## D-112 — Mentions in event chat
+
+**Date:** 16 October 2026
+**Status:** Accepted
+
+Every chat message already tells everyone on the event, so a question meant for one person ("can you bring the tabla?") read like everyone else's.
+
+- **Typing "@"** in a chat offers the people who can be mentioned, narrowed as you type (up to five); tapping one writes "@Name ". Only names still in the text when it is sent count. Not offered while editing a message.
+- **The mentioned person is told by name**: their bell row and push read "*Ali* mentioned you in *Saturday gig*", and on Android the push is not folded into "3 new messages". Everyone else is told as before.
+- **In the thread**, mentions are in bold teal, and a message that mentions you has an orange edge.
+- **Who can be mentioned.** Only people who can read the chat — the lineup and the organisers; anyone else is dropped from the message, not refused. An organiser is offered everyone who can read it. A Member never sees who was asked (D-021, D-108), so they are offered the organisers, people who have already written in the chat, and, once confirmed, who is going.
+- Stored as `engagement_discussion_messages.mentioned_user_ids` (uuid[], migration `AddDiscussionMentions`, additive); the body keeps "@Name" as typed, so older app builds show it as plain text. `GET …/discussion/mentionable` gives the list; posting takes `mentionedUserIds`. Removing a message clears its mentions with its text.
+
+---
+
+## D-113 — An unanswered event stays on a member's Home until answered
+
+**Date:** 16 October 2026
+**Status:** Accepted
+
+A member asked about two events never saw them on Home. Both had been confirmed while their answer was still out — which D-029 allows, with a warning to the organiser — and Home asked members to answer only while an event was Checking availability, and otherwise listed only events they *had* answered. An unanswered confirmed event appeared nowhere.
+
+- **Your availability** on a member's Home now also holds any Tentative or Confirmed event they were asked about and have not answered, first, until they answer or its day has gone. Its heading says how many: "Your availability · 2 to answer".
+- **The answer buttons** show on the card for a confirmed event not yet answered, as they do while availability is being checked. The API already accepted an answer at any stage.
+- Not changed: an organiser's Home shows the pipeline, not their own requests, so an organiser who is also on a lineup is not prompted there. Their answer is still on the event's People page.
+
+---
+
+## D-114 — Rehearsals sit on their event's card on Home
+
+**Date:** 16 October 2026
+**Status:** Accepted
+
+Home listed every upcoming rehearsal as its own card under **Rehearsals**, so two events with a few rehearsals each already pushed the bookings down, and a busy month would bury them.
+
+- The **Rehearsals** list is gone from Home. Each event card instead carries one line: "2 rehearsals · next Mon 19 Oct, 6:00 PM" — "today" or "tomorrow" when it is — and tapping it opens that event's **Set list & rehearsals** page with every rehearsal's details. The rest of the card still opens the event.
+- The calendar is unchanged: it still shows each rehearsal on its day.
+- A rehearsal shows on Home only through an event card Home already shows; one for an event Home does not list (for an organiser, one still being checked and needing no attention) is on the calendar and the event's page.
+
+---
+
+## D-115 — Organisers get the day-of reminders too
+
+**Date:** 20 October 2026
+**Status:** Accepted
+
+D-085 sent the event-day and rehearsal-day reminders to the event's expected lineup only, so an organiser running an event without being on its lineup — the usual case — was never reminded, while the members were.
+
+- **Rehearsal day and event day reminders** now go to the expected lineup **and every Owner and Admin** of the organisation, once each — except an organiser on the lineup who said they cannot make it.
+- An organiser's own unticked jobs on the event come in the same message, as for anyone else (D-085).
+- Unchanged: **booking or moving a rehearsal** still tells the expected lineup and not the organiser who made the change.
+
+---
+
+## D-116 — Sahno draws its own alerts
+
+**Date:** 20 October 2026
+**Status:** Accepted
+
+A TestFlight build crashed on iOS 26.6 inside UIKit while presenting a React Native `Alert` (`RCTAlertController` → `UIAlertController loadView` → segmentation fault). It was a native crash, below anything the crash screen (D-110) can catch, and the log does not say which of the app's twenty alerts it was.
+
+- Every alert — confirmations, "Could not…" messages, the crash handler's own — is now Sahno's own dialog (`showAlert`, `DialogHost` at the root), called exactly like `Alert.alert`: title, message, buttons with `cancel` / `destructive` styles, `cancelable` and `onDismiss`. It is plain views over the app, not a native alert or modal, so it cannot take that path.
+- It looks like the system one: centred card, Cancel first and side by side for two buttons, stacked for three or more, destructive in red. Tapping outside or Android's back button cancels, when cancelable. One at a time; later ones wait.
+
+---
+
+## D-117 — Crash reporting through Sentry, prepared and off until configured
+
+**Date:** 20 October 2026
+**Status:** Accepted (switched on once a Sentry project exists)
+
+App Store Connect counted three crashes on a build but had a log for only the one a tester chose to send; Play Console sees only Play-installed builds whose phones share diagnostics; an APK install's crashes go nowhere. D-069 already chose Sentry.
+
+- `@sentry/react-native` is in the app. It starts only in a release build with `EXPO_PUBLIC_SENTRY_DSN` set; without it, nothing is sent and nothing changes. It reports native crashes (iOS and Android), Android freezes (ANRs) and JavaScript errors, including those the crash screens catch (D-110), with the screen and the last taps and requests before each.
+- **Sent:** the error, stack, device and OS, app version, and an **opaque user id**. **Not sent:** names, emails or phone numbers, request bodies, query strings (a venue search never leaves the phone), console logs, screenshots. No performance tracing.
+- **Readable stacks:** with `SENTRY_ORG`, `SENTRY_PROJECT` and the secret `SENTRY_AUTH_TOKEN` in the EAS environment, builds upload source maps (Sentry's Expo plugin, added only when those are set; Metro adds debug ids).
+- Sentry is listed in the privacy policy draft as a service provider.

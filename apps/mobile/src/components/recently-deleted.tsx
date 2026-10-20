@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { listDeletedOrganisations, restoreOrganisation } from '@/api/organisations';
-import { Text } from '@/components/ui';
+import { showAlert, Text } from '@/components/ui';
 import { useActiveOrg } from '@/hooks/use-organisations';
 import { useSession } from '@/providers/auth-provider';
 import { colors, radii, spacing } from '@/theme';
@@ -39,7 +39,7 @@ export function RecentlyDeleted({ onRestored }: { onRestored?: () => void } = {}
       switchTo(organisationId);
       onRestored?.();
     },
-    onError: () => Alert.alert('Could not restore it', 'Check your connection and try again.'),
+    onError: () => showAlert('Could not restore it', 'Check your connection and try again.'),
   });
 
   const rows = deleted.data ?? [];

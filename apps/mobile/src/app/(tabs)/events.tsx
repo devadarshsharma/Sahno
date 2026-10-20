@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import type { Engagement, EngagementStatus } from '@/api/engagements';
 import { EngagementCalendar, type CalendarEvent, type CalendarRehearsal } from '@/components/engagement-calendar';
 import { OrgBadge } from '@/components/org-badge';
-import { Button, Screen, Text, toIsoDate } from '@/components/ui';
+import { Button, Screen, showAlert, Text, toIsoDate } from '@/components/ui';
 import {
   FILTER_LABELS,
   formatEngagementDate,
@@ -124,7 +124,7 @@ export default function Events() {
       open();
       return;
     }
-    Alert.alert(`Open in ${organisationName}?`, `This is ${organisationName}'s. Sahno switches to ${organisationName} to open it.`, [
+    showAlert(`Open in ${organisationName}?`, `This is ${organisationName}'s. Sahno switches to ${organisationName} to open it.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: `Switch to ${organisationName}`,

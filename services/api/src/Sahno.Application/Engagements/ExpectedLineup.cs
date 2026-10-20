@@ -18,6 +18,26 @@ public static class ExpectedLineup
             .Select(participant => participant.UserId)
             .ToList();
 
+    /// <summary>
+    /// Who is reminded on the day (D-085, D-115): the expected lineup and the
+    /// organisers — the people running it need the morning nudge as much as
+    /// the people playing — except an organiser on the lineup who said they
+    /// cannot make it.
+    /// </summary>
+    public static IReadOnlyList<Guid> WithOrganisers(
+        IReadOnlyCollection<EngagementParticipant> participants,
+        IEnumerable<Guid> organisers)
+    {
+        var declined = participants
+            .Where(participant => participant.IsActive && participant.Response == AvailabilityResponse.Unavailable)
+            .Select(participant => participant.UserId)
+            .ToHashSet();
+        return Of(participants)
+            .Concat(organisers.Where(userId => !declined.Contains(userId)))
+            .Distinct()
+            .ToList();
+    }
+
     /// <summary>Statuses in which an event is still going ahead, so its rehearsals are too.</summary>
     public static bool IsGoingAhead(Engagement engagement) =>
         engagement.Status is EngagementStatus.CheckingAvailability

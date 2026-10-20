@@ -252,6 +252,43 @@ public sealed class NotificationEndpointTests(SahnoApiFactory factory)
         Assert.Equal(0, await UnreadAsync(org.Members[0], org));
     }
 
+    /// <summary>
+    /// The bell lists unread and read separately (D-111): every unread row,
+    /// and read ones a page at a time, newest first, paged by time.
+    /// </summary>
+    [Fact]
+    public async Task UnreadAndReadAreListedSeparately_AndReadOnesPageBack()
+    {
+        var org = await NewOrganisationAsync("notif-pages", members: 1);
+        foreach (var title in new[] { "One", "Two", "Three" })
+        {
+            var engagement = await NewDraftAsync(org, title);
+            await RequestAvailabilityAsync(org, engagement.Id, org.MemberIds);
+        }
+
+        var all = await NotificationsAsync(org.Members[0], org);
+        Assert.Equal(3, all.Count);
+        // Read the two oldest; the newest stays unread.
+        foreach (var row in all.Skip(1))
+        {
+            (await org.Members[0].PostAsync($"{Notifications(org)}/{row.Id}/read", null)).EnsureSuccessStatusCode();
+        }
+
+        var unread = await org.Members[0].GetFromJsonAsync<List<NotificationResponse>>($"{Notifications(org)}?state=unread");
+        Assert.Equal([all[0].Id], unread!.Select(row => row.Id));
+
+        var read = await org.Members[0].GetFromJsonAsync<List<NotificationResponse>>($"{Notifications(org)}?state=read");
+        Assert.Equal([all[1].Id, all[2].Id], read!.Select(row => row.Id));
+
+        var before = Uri.EscapeDataString(read[0].CreatedAtUtc.ToString("O"));
+        var older = await org.Members[0].GetFromJsonAsync<List<NotificationResponse>>(
+            $"{Notifications(org)}?state=read&before={before}");
+        Assert.Equal([all[2].Id], older!.Select(row => row.Id));
+
+        // An older app, asking without a state, still gets everything.
+        Assert.Equal(3, (await NotificationsAsync(org.Members[0], org)).Count);
+    }
+
     [Fact]
     public async Task YouCannotMarkSomebodyElsesNotificationRead()
     {

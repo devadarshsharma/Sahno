@@ -51,6 +51,8 @@ public sealed class ReminderTests(SahnoApiFactory factory)
         Assert.Equal($"/engagement/{engagement.Id}/files", reminder.Route);
         Assert.Contains("Community Hall", reminder.Body);
         Assert.DoesNotContain(await BellAsync(org.Members[1], org), row => row.Kind == "RehearsalReminder");
+        // The organiser running it is reminded too, though not on the lineup (D-115).
+        Assert.Single(await BellAsync(org.Owner, org), row => row.Kind == "RehearsalReminder");
 
         Assert.Equal(0, await SendDueAtAsync(day, new TimeOnly(8, 10)));
     }
@@ -90,6 +92,9 @@ public sealed class ReminderTests(SahnoApiFactory factory)
 
         Assert.DoesNotContain(await BellAsync(org.Members[2], org), row =>
             row.Kind is "EngagementDayReminder" or "ResponsibilityReminder");
+
+        // The organiser, not on the lineup, gets the day reminder as well (D-115).
+        Assert.Single(await BellAsync(org.Owner, org), row => row.Kind == "EngagementDayReminder");
 
         Assert.Equal(0, await SendDueAtAsync(day, new TimeOnly(8, 10)));
     }

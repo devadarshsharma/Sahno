@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,14 +15,22 @@ import {
   removeDiscussionMessage,
   type DiscussionMessage,
 } from '@/api/discussion';
-import { Composer, type ComposerMode } from '@/components/chat/composer';
+import { Composer, type ComposerMode, type MentionOption } from '@/components/chat/composer';
 import { MessageActions, type MessageAction } from '@/components/chat/message-actions';
 import { MessageBubble } from '@/components/chat/message-bubble';
-import { Button, Text } from '@/components/ui';
-import { useChatSender, useDiscussion, useDiscussionMutation, useMarkDiscussionRead } from '@/hooks/use-discussion';
+import { Button, showAlert, Text } from '@/components/ui';
+import {
+  useChatSender,
+  useDiscussion,
+  useDiscussionMutation,
+  useMarkDiscussionRead,
+  useMentionable,
+} from '@/hooks/use-discussion';
 import { useEngagements } from '@/hooks/use-engagements';
+import { useMe } from '@/hooks/use-me';
 import { useActiveOrg } from '@/hooks/use-organisations';
 import { chatItems, type ChatItem, type ChatMessage } from '@/lib/chat';
+import { mentionsStillIn } from '@/lib/mentions';
 import { colors, fontFamilies, spacing } from '@/theme';
 
 /**
@@ -51,6 +59,39 @@ export default function Chat() {
 
   const sender = useChatSender(engagementId);
 
+  // Mentions (D-112): who can be picked after "@", who was picked while
+  // writing this message, and every name we know for picking them out.
+  const mentionable = useMentionable(engagementId);
+  const me = useMe();
+  const [picked, setPicked] = useState<Map<string, string>>(() => new Map());
+  const mentionOptions = useMemo<MentionOption[]>(
+    () =>
+      (mentionable.data ?? [])
+        .filter((person) => person.displayName)
+        .map((person) => ({ userId: person.userId, name: person.displayName!, detail: person.function })),
+    [mentionable.data],
+  );
+  const knownNames = useMemo(() => {
+    const names = new Map<string, string>();
+    for (const message of thread.data ?? []) {
+      if (message.authorDisplayName) {
+        names.set(message.authorUserId, message.authorDisplayName);
+      }
+      for (const reader of message.seenBy ?? []) {
+        if (reader.displayName) {
+          names.set(reader.userId, reader.displayName);
+        }
+      }
+    }
+    for (const option of mentionOptions) {
+      names.set(option.userId, option.name);
+    }
+    if (me.data?.displayName) {
+      names.set(me.data.userId, me.data.displayName);
+    }
+    return names;
+  }, [thread.data, mentionOptions, me.data]);
+
   // What the server has, then what this phone is still sending, in the
   // order it was written. A message the server already returned is shown
   // once, from the server.
@@ -73,6 +114,7 @@ export default function Chat() {
         editedAtUtc: null,
         replyTo: message.replyTo,
         reactions: [],
+        mentionedUserIds: message.mentionedUserIds,
         delivery: message.state,
       }));
     return chatItems([...confirmed, ...pending]);
@@ -90,7 +132,7 @@ export default function Chat() {
     reactToMessage(token, organisationId, engagementId, id, emoji),
   );
 
-  const failed = (what: string) => () => Alert.alert(`Could not ${what}`, 'Check your connection and try again.');
+  const failed = (what: string) => () => showAlert(`Could not ${what}`, 'Check your connection and try again.');
 
   const send = () => {
     const body = draft.trim();
@@ -119,7 +161,9 @@ export default function Chat() {
             isDeleted: mode.to.isDeleted,
           }
         : null,
+      mentionsStillIn(body, picked),
     );
+    setPicked(new Map());
     setDraft('');
     setMode({ kind: 'new' });
     list.current?.scrollToOffset({ offset: 0, animated: true });
@@ -128,7 +172,7 @@ export default function Chat() {
   // A message still on this phone has nothing to react to or reply to yet:
   // it can be sent again, copied, or dropped.
   const onUnsentLongPress = (message: ChatMessage) => {
-    Alert.alert(
+    showAlert(
       message.delivery === 'failed' ? 'Not sent' : 'Sending…',
       message.body ?? undefined,
       [
@@ -164,7 +208,7 @@ export default function Chat() {
         hide.mutate(message.id, { onError: failed('delete the message') });
         break;
       case 'deleteForEveryone':
-        Alert.alert(
+        showAlert(
           message.isYours ? 'Delete for everyone?' : 'Remove for everyone?',
           message.isYours
             ? 'Everyone in this chat will see that you deleted a message.'
@@ -187,7 +231,7 @@ export default function Chat() {
     (messageId: string) => {
       const index = items.findIndex((item) => item.kind === 'message' && item.message.id === messageId);
       if (index < 0) {
-        Alert.alert('Not in this chat', 'That message is no longer in your view of the chat.');
+        showAlert('Not in this chat', 'That message is no longer in your view of the chat.');
         return;
       }
       list.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
@@ -266,6 +310,10 @@ export default function Chat() {
               ) : (
                 <MessageBubble
                   message={item.message}
+                  mentionNames={(item.message.mentionedUserIds ?? [])
+                    .map((userId) => knownNames.get(userId))
+                    .filter((name): name is string => Boolean(name))}
+                  mentionsYou={Boolean(me.data && item.message.mentionedUserIds?.includes(me.data.userId))}
                   startsRun={item.startsRun}
                   highlighted={highlightedId === item.message.id}
                   onLongPress={() => {
@@ -300,6 +348,8 @@ export default function Chat() {
           }}
           onSend={send}
           sending={edit.isPending}
+          mentionOptions={mentionOptions}
+          onMention={(option) => setPicked((current) => new Map(current).set(option.userId, option.name))}
         />
       </KeyboardAvoidingView>
 

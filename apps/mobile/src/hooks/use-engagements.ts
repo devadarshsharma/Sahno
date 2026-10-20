@@ -114,7 +114,7 @@ export const TRANSITION_LABELS: Record<EngagementStatus, string> = {
   Confirmed: 'Confirm booking',
   Postponed: 'Postpone',
   Completed: 'Close event',
-  Cancelled: 'Cancel',
+  Cancelled: 'Cancel event',
 };
 
 /**

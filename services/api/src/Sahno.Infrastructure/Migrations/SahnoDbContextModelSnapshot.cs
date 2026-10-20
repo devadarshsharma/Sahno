@@ -77,6 +77,11 @@ namespace Sahno.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("engagement_id");
 
+                    b.PrimitiveCollection<Guid[]>("MentionedUserIds")
+                        .IsRequired()
+                        .HasColumnType("uuid[]")
+                        .HasColumnName("mentioned_user_ids");
+
                     b.Property<DateTimeOffset>("PostedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("posted_at_utc");

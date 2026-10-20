@@ -20,6 +20,8 @@ export type OutgoingMessage = {
   engagementId: string;
   body: string;
   replyTo: DiscussionQuote | null;
+  /** Who the "@Name"s in the body are (D-112). Absent from messages queued by older builds. */
+  mentionedUserIds?: string[];
   queuedAtUtc: string;
   state: 'sending' | 'failed';
   /**

@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import {
   discardEngagement,
@@ -12,7 +12,7 @@ import {
 } from '@/api/engagements';
 import { ApiError } from '@/api/client';
 import { BookingClashNotice } from '@/components/clash-notice';
-import { Button, Card, DateField, Text, TextInput } from '@/components/ui';
+import { Button, Card, DateField, showAlert, Text, TextInput } from '@/components/ui';
 import {
   formatEngagementDate,
   STATUS_WORDS,
@@ -123,7 +123,7 @@ export function useStatusChange(engagement: Engagement) {
    * asking a bare "are you sure" (D-029).
    */
   function warnThenConfirm(status: EngagementStatus) {
-    Alert.alert(
+    showAlert(
       'Some members have not answered',
       'You can confirm the booking anyway — it is a fact about the customer, '
         + 'not the lineup. The outstanding answers stay visible until they are in.',
@@ -183,7 +183,7 @@ export function useStatusChange(engagement: Engagement) {
 
     // Not yet · fix · Confirm anyway: left to right on Android; iOS puts the
     // cancel button last on its own.
-    Alert.alert('Before you confirm', lines.join('\n'), [
+    showAlert('Before you confirm', lines.join('\n'), [
       { text: 'Not yet', style: 'cancel' },
       ...(fix
         ? [
@@ -212,7 +212,7 @@ export function useStatusChange(engagement: Engagement) {
     // "still owed" and off the confirmed list. Say so, but let it through —
     // the organiser may know better (D-092).
     if (status === 'Completed' && !acknowledged && isStillAhead(engagement)) {
-      Alert.alert(
+      showAlert(
         'This event has not happened yet',
         `${engagement.title} is on ${formatEngagementDate(engagement)}. Close it anyway?`,
         [
@@ -282,7 +282,11 @@ export function TransitionsCard({ engagement }: { engagement: Engagement }) {
       <Text variant="subheading">What happens next</Text>
 
       {pending === null ? (
-        engagement.allowedTransitions.map((status) => (
+        // Cancelling ends the event for everyone, so it sits last, apart
+        // from the moves that keep it going.
+        [...engagement.allowedTransitions]
+          .sort((a, b) => Number(a === 'Cancelled') - Number(b === 'Cancelled'))
+          .map((status) => (
           <Button
             key={status}
             label={transitionLabel(engagement.status, status)}
@@ -309,7 +313,7 @@ export function TransitionsCard({ engagement }: { engagement: Engagement }) {
             onPress={confirm}
           />
           <Button
-            label="Cancel"
+            label="Go back"
             variant="ghost"
             onPress={() => {
               setPending(null);
@@ -401,7 +405,7 @@ export function DiscardCard({
   // Only a private Draft can be discarded; once Members have seen it, the
   // action is Cancel and the record is kept (D-034).
   function confirmDiscard() {
-    Alert.alert(
+    showAlert(
       `Discard ${engagement.title}?`,
       'Nobody else has seen this, so it will be deleted rather than kept in history.',
       [

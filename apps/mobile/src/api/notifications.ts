@@ -66,13 +66,21 @@ function base(organisationId: string): string {
   return `/api/organisations/${organisationId}/notifications`;
 }
 
+/**
+ * The bell's rows (D-111). `unread`: every unread one. `read`: twenty at a
+ * time, newest first, older than `before` (the last row's `createdAtUtc`).
+ */
 export function listNotifications(
   accessToken: string,
   organisationId: string,
   signal?: AbortSignal,
+  options?: { state: 'unread' | 'read'; before?: string },
 ): Promise<Notification[]> {
+  const query = options
+    ? `?${new URLSearchParams({ state: options.state, ...(options.before ? { before: options.before } : {}) })}`
+    : '';
   return getAuthorizedJson(
-    base(organisationId),
+    `${base(organisationId)}${query}`,
     accessToken,
     isNotificationList,
     signal,

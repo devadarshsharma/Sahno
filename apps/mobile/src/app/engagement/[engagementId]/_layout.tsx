@@ -1,6 +1,8 @@
 import { Stack, useRouter, type ErrorBoundaryProps } from 'expo-router';
+import { useEffect } from 'react';
 
 import { CrashScreen } from '@/components/crash-screen';
+import { reportError } from '@/lib/crash-reporting';
 
 /**
  * The event workspace as a small stack: an overview that indexes the sections
@@ -17,6 +19,7 @@ export default function EngagementLayout() {
  */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   const router = useRouter();
+  useEffect(() => reportError(error), [error]);
   return (
     <CrashScreen
       error={error}

@@ -24,6 +24,7 @@ public sealed class ReminderService(
     IOrganisationStore organisations,
     IEngagementStore engagements,
     IEngagementParticipantStore participants,
+    IMembershipStore memberships,
     IRehearsalStore rehearsals,
     IResponsibilityStore responsibilities,
     IReminderLogStore log,
@@ -63,6 +64,12 @@ public sealed class ReminderService(
 
         var all = await engagements.ListForOrganisationAsync(organisation.Id, cancellationToken);
 
+        // Organisers are reminded too (D-115), whether or not they are on the lineup.
+        var organisers = (await memberships.ListForOrganisationAsync(organisation.Id, cancellationToken))
+            .Where(row => OrganisationAuthorizationService.IsOrganiser(row.Membership))
+            .Select(row => row.Membership.UserId)
+            .ToList();
+
         // The day of a confirmed event.
         foreach (var engagement in all.Where(engagement =>
                      engagement.Status == EngagementStatus.Confirmed
@@ -75,8 +82,9 @@ public sealed class ReminderService(
                 continue;
             }
 
-            var lineup = ExpectedLineup.Of(
-                await participants.ListForEngagementAsync(engagement.Id, cancellationToken));
+            var lineup = ExpectedLineup.WithOrganisers(
+                await participants.ListForEngagementAsync(engagement.Id, cancellationToken),
+                organisers);
             var expected = lineup.ToHashSet();
 
             var openJobs = (await responsibilities.ListForEngagementAsync(engagement.Id, cancellationToken))
@@ -118,8 +126,9 @@ public sealed class ReminderService(
             }
 
             var engagement = goingAhead[rehearsal.EngagementId];
-            var lineup = ExpectedLineup.Of(
-                await participants.ListForEngagementAsync(engagement.Id, cancellationToken));
+            var lineup = ExpectedLineup.WithOrganisers(
+                await participants.ListForEngagementAsync(engagement.Id, cancellationToken),
+                organisers);
 
             await notifier.RehearsalReminderAsync(engagement, rehearsal, lineup, cancellationToken);
             log.Stage(ReminderLog.Sent(ReminderKind.RehearsalDay, rehearsal.Id, today, utcNow));

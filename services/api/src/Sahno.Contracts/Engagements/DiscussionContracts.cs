@@ -27,7 +27,12 @@ public sealed record DiscussionMessageResponse(
     /// Who has read up to here and no further, most recent first (D-096). The
     /// caller is never in it.
     /// </summary>
-    IReadOnlyList<DiscussionReaderResponse>? SeenBy = null);
+    IReadOnlyList<DiscussionReaderResponse>? SeenBy = null,
+    /// <summary>Who the message mentions (D-112); the body carries their "@Name".</summary>
+    IReadOnlyList<Guid>? MentionedUserIds = null);
+
+/// <summary>Somebody who can be mentioned in a chat (D-112).</summary>
+public sealed record MentionableResponse(Guid UserId, string? DisplayName, string? Function);
 
 /// <summary>Somebody who has seen a message: enough for their initial and colour.</summary>
 public sealed record DiscussionReaderResponse(Guid UserId, string? DisplayName);
@@ -57,7 +62,9 @@ public sealed record SetReactionRequest(string Emoji);
 public sealed record PostDiscussionMessageRequest(
     string Body,
     Guid? ReplyToMessageId = null,
-    Guid? ClientMessageId = null);
+    Guid? ClientMessageId = null,
+    /// <summary>Who the "@Name"s in the body are (D-112). Anyone who cannot read the chat is dropped.</summary>
+    IReadOnlyList<Guid>? MentionedUserIds = null);
 
 /// <summary>The author's own rewrite. Nobody else can reach it.</summary>
 public sealed record EditDiscussionMessageRequest(string Body);

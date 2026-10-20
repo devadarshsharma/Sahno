@@ -22,8 +22,7 @@ import type { UpcomingRehearsal } from '@/api/upcoming-rehearsals';
 import { dismissSetupChecklist } from '@/api/organisations';
 import { SahnoSymbol } from '@/components/brand';
 import { EngagementCard } from '@/components/engagement-card';
-import { RehearsalList } from '@/components/rehearsal-list';
-import { Button, Card, Screen, Text } from '@/components/ui';
+import { Button, Card, Screen, Text, toIsoDate } from '@/components/ui';
 import { firstNameOf, useMe, useNeedsDisplayName } from '@/hooks/use-me';
 import {
   needsAttention,
@@ -120,12 +119,19 @@ export default function Index() {
     rehearsalsQuery.refetch();
   }
 
-  const upcomingRehearsals = rehearsalsQuery.data ?? [];
+  // Rehearsals sit on their event's card as one line, not a card each, so
+  // a busy month does not bury Home (D-114). Soonest first within each event.
+  const rehearsalsByEvent = new Map<string, UpcomingRehearsal[]>();
+  for (const rehearsal of [...(rehearsalsQuery.data ?? [])].sort((a, b) =>
+    `${a.date} ${a.startTime ?? ''}`.localeCompare(`${b.date} ${b.startTime ?? ''}`),
+  )) {
+    rehearsalsByEvent.set(rehearsal.engagementId, [...(rehearsalsByEvent.get(rehearsal.engagementId) ?? []), rehearsal]);
+  }
   // A rehearsal lives on its event's "Set list & rehearsals" page.
-  const openRehearsal = (rehearsal: UpcomingRehearsal) =>
+  const openRehearsals = (engagementId: string) =>
     router.push({
       pathname: '/engagement/[engagementId]/files',
-      params: { engagementId: rehearsal.engagementId },
+      params: { engagementId },
     });
 
   const openEngagement = (engagementId: string) =>
@@ -179,9 +185,23 @@ export default function Index() {
   // list. An answer is given on the card, so the card must stay where it is:
   // moving an answered event to another section — or off Home — reads as the
   // answer having vanished. The card itself says whether it has been sent.
-  const yourAvailability = engagements.filter(
-    (engagement) => engagement.status === 'CheckingAvailability',
+  //
+  // Plus anything you were asked about and never answered, whatever has
+  // happened since (D-113): an organiser may confirm with answers still out
+  // (D-029), and an unanswered event that dropped off Home was simply missed.
+  // Those come first, and leave once answered or once the day has gone.
+  const today = toIsoDate(new Date());
+  const unanswered = engagements.filter(
+    (engagement) =>
+      engagement.yourResponse === null &&
+      (engagement.status === 'Tentative' || engagement.status === 'Confirmed') &&
+      (engagement.endDate ?? engagement.startDate ?? today) >= today,
   );
+  const yourAvailability = [
+    ...unanswered,
+    ...engagements.filter((engagement) => engagement.status === 'CheckingAvailability'),
+  ].sort((a, b) => Number(a.yourResponse !== null) - Number(b.yourResponse !== null));
+  const toAnswer = yourAvailability.filter((engagement) => engagement.yourResponse === null).length;
 
   // What a member has already replied to and is still on.
   const yourEvents = engagements.filter(
@@ -398,15 +418,18 @@ export default function Index() {
                 engagements={confirmed}
                 isOrganiser={isOrganiser}
                 onOpen={openEngagement}
+                rehearsalsFor={(id) => rehearsalsByEvent.get(id) ?? []}
+                onOpenRehearsals={openRehearsals}
               />
 
-              <RehearsalList rehearsals={upcomingRehearsals} onOpen={openRehearsal} />
 
               <EngagementList
                 title="Tentative bookings"
                 engagements={tentative}
                 isOrganiser={isOrganiser}
                 onOpen={openEngagement}
+                rehearsalsFor={(id) => rehearsalsByEvent.get(id) ?? []}
+                onOpenRehearsals={openRehearsals}
               />
 
               <EngagementList
@@ -414,6 +437,8 @@ export default function Index() {
                 engagements={enquiries}
                 isOrganiser={isOrganiser}
                 onOpen={openEngagement}
+                rehearsalsFor={(id) => rehearsalsByEvent.get(id) ?? []}
+                onOpenRehearsals={openRehearsals}
               />
 
               <RecentJoins
@@ -432,35 +457,48 @@ export default function Index() {
 
               {/* D-040 order: what must I do, then where do I need to be. */}
               <EngagementList
-                title="Your availability"
+                title={
+                  toAnswer === 0
+                    ? 'Your availability'
+                    : `Your availability · ${toAnswer} to answer`
+                }
                 engagements={yourAvailability}
                 isOrganiser={isOrganiser}
                 onOpen={openEngagement}
+                rehearsalsFor={(id) => rehearsalsByEvent.get(id) ?? []}
+                onOpenRehearsals={openRehearsals}
               />
               <EngagementList
                 title="Next confirmed event"
                 engagements={nextConfirmed}
                 isOrganiser={isOrganiser}
                 onOpen={openEngagement}
+                rehearsalsFor={(id) => rehearsalsByEvent.get(id) ?? []}
+                onOpenRehearsals={openRehearsals}
               />
-              <RehearsalList rehearsals={upcomingRehearsals} onOpen={openRehearsal} />
               <EngagementList
                 title="Tentative events"
                 engagements={yourTentative}
                 isOrganiser={isOrganiser}
                 onOpen={openEngagement}
+                rehearsalsFor={(id) => rehearsalsByEvent.get(id) ?? []}
+                onOpenRehearsals={openRehearsals}
               />
               <EngagementList
                 title="Later events"
                 engagements={laterEvents}
                 isOrganiser={isOrganiser}
                 onOpen={openEngagement}
+                rehearsalsFor={(id) => rehearsalsByEvent.get(id) ?? []}
+                onOpenRehearsals={openRehearsals}
               />
               <EngagementList
                 title="Postponed"
                 engagements={yourPostponed}
                 isOrganiser={isOrganiser}
                 onOpen={openEngagement}
+                rehearsalsFor={(id) => rehearsalsByEvent.get(id) ?? []}
+                onOpenRehearsals={openRehearsals}
               />
             </>
           )}
@@ -592,11 +630,15 @@ function EngagementList({
   engagements,
   isOrganiser,
   onOpen,
+  rehearsalsFor,
+  onOpenRehearsals,
 }: {
   title: string;
   engagements: Engagement[];
   isOrganiser: boolean;
   onOpen: (engagementId: string) => void;
+  rehearsalsFor?: (engagementId: string) => UpcomingRehearsal[];
+  onOpenRehearsals?: (engagementId: string) => void;
 }) {
   // A section with nothing in it says nothing. Home is read at a glance, and
   // five "nothing yet" cards make the one that does matter harder to find.
@@ -614,6 +656,8 @@ function EngagementList({
             engagement={engagement}
             isOrganiser={isOrganiser}
             onPress={() => onOpen(engagement.id)}
+            rehearsals={rehearsalsFor?.(engagement.id)}
+            onOpenRehearsals={() => onOpenRehearsals?.(engagement.id)}
           />
         ))}
       </View>

@@ -1,5 +1,6 @@
-import { ActivityIndicator, Alert, Pressable, StyleSheet } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 
+import { showAlert } from './dialog';
 import { Text, type TextColor } from './text';
 import { colors } from '@/theme';
 
@@ -33,7 +34,7 @@ export function TextAction({
       onPress();
       return;
     }
-    Alert.alert(confirm.title, confirm.message, [
+    showAlert(confirm.title, confirm.message, [
       { text: 'Cancel', style: 'cancel' },
       { text: confirm.action ?? label, style: 'destructive', onPress },
     ]);

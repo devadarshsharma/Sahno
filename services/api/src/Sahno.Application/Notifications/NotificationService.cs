@@ -17,14 +17,36 @@ public sealed class NotificationService(
 
     public const int PageSize = 50;
 
+    public const int UnreadLimit = 100;
+
+    public const int ReadPageSize = 20;
+
+    /// <summary>
+    /// The bell (D-111). With no state, the newest <see cref="PageSize"/> of
+    /// both kinds, as older apps expect. "unread": every unread row, up to
+    /// <see cref="UnreadLimit"/>, so nothing new hides on a later page.
+    /// "read": <see cref="ReadPageSize"/> at a time, newest first, older than
+    /// <paramref name="before"/>.
+    /// </summary>
     public Task<IReadOnlyList<Notification>> ListAsync(
         Membership actor,
+        string? state,
+        DateTimeOffset? before,
         CancellationToken cancellationToken)
     {
+        var (read, limit) = state?.ToLowerInvariant() switch
+        {
+            "unread" => ((bool?)false, UnreadLimit),
+            "read" => (true, ReadPageSize),
+            _ => ((bool?)null, PageSize),
+        };
+
         return notifications.ListForUserAsync(
             actor.OrganisationId,
             actor.UserId,
-            PageSize,
+            read,
+            before,
+            limit,
             cancellationToken);
     }
 

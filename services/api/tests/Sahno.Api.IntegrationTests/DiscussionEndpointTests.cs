@@ -286,6 +286,60 @@ public sealed class DiscussionEndpointTests(SahnoApiFactory factory)
         Assert.Equal("Gone for me.", owners.LastMessagePreview);
     }
 
+    /// <summary>
+    /// A mention (D-112) is kept with the message, tells that person by name,
+    /// and only reaches people who can read the chat.
+    /// </summary>
+    [Fact]
+    public async Task AMention_TellsThatPersonByName_AndOnlyReachesReaders()
+    {
+        var org = await NewOrganisationAsync("chat-mention", members: 3);
+        var engagement = await NewDraftAsync(org, "Mentions");
+        await RequestAvailabilityAsync(org, engagement.Id, [org.MemberIds[0], org.MemberIds[1]]);
+
+        // Member 2 is not on the event: mentioning them is dropped, not refused.
+        var response = await org.Owner.PostAsJsonAsync(
+            Discussion(org, engagement.Id),
+            new PostDiscussionMessageRequest(
+                "@Zara can you bring the tabla?",
+                MentionedUserIds: [org.MemberIds[0], org.MemberIds[2]]));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var posted = await response.Content.ReadFromJsonAsync<DiscussionMessageResponse>();
+        Assert.Equal([org.MemberIds[0]], posted!.MentionedUserIds);
+
+        var mentioned = await org.Members[0].GetFromJsonAsync<List<NotificationResponse>>($"/api/organisations/{org.Id}/notifications");
+        Assert.Contains(mentioned!, row => row.Kind == "DiscussionMessage" && row.Title.Contains("mentioned you"));
+        var other = await org.Members[1].GetFromJsonAsync<List<NotificationResponse>>($"/api/organisations/{org.Id}/notifications");
+        var plain = Assert.Single(other!, row => row.Kind == "DiscussionMessage");
+        Assert.DoesNotContain("mentioned you", plain.Title);
+        Assert.Empty(await org.Members[2].GetFromJsonAsync<List<NotificationResponse>>($"/api/organisations/{org.Id}/notifications") ?? []);
+    }
+
+    /// <summary>
+    /// Who can be mentioned (D-112): an organiser, anyone on the event; a
+    /// Member, never who was merely asked — only organisers and people who
+    /// have written in the chat.
+    /// </summary>
+    [Fact]
+    public async Task AMemberCanMentionOrganisersAndPeopleInTheChat_NotTheWholeLineup()
+    {
+        var org = await NewOrganisationAsync("chat-mentionable", members: 2);
+        var engagement = await NewDraftAsync(org, "Who to mention");
+        await RequestAvailabilityAsync(org, engagement.Id, org.MemberIds);
+        var mentionable = $"{Discussion(org, engagement.Id)}/mentionable";
+
+        var organisers = await org.Owner.GetFromJsonAsync<List<MentionableResponse>>(mentionable);
+        Assert.Equal(org.MemberIds.Order(), organisers!.Select(row => row.UserId).Order());
+
+        var before = await org.Members[0].GetFromJsonAsync<List<MentionableResponse>>(mentionable);
+        Assert.DoesNotContain(before!, row => row.UserId == org.MemberIds[1]);
+        Assert.Single(before!); // the Owner
+
+        await PostAsync(org.Members[1], org, engagement.Id, "I can make it.");
+        var after = await org.Members[0].GetFromJsonAsync<List<MentionableResponse>>(mentionable);
+        Assert.Contains(after!, row => row.UserId == org.MemberIds[1]);
+    }
+
     private static async Task<List<ChatInboxEntryResponse>> InboxAsync(HttpClient client, TestOrganisation org)
     {
         var inbox = await client.GetFromJsonAsync<List<ChatInboxEntryResponse>>(

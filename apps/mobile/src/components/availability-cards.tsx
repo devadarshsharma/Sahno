@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import {
   ANSWER_LABELS,
@@ -10,7 +10,7 @@ import {
   type Participant,
 } from '@/api/availability';
 import { YourClashNotice } from '@/components/clash-notice';
-import { Button, Card, Text } from '@/components/ui';
+import { Button, Card, showAlert, Text } from '@/components/ui';
 import {
   useAvailability,
   useAvailabilityMutation,
@@ -156,7 +156,7 @@ export function LineupCard({
 
   function confirmRemove(participant: Participant) {
     const name = participant.displayName ?? 'this member';
-    Alert.alert(
+    showAlert(
       `Take ${name} off this event?`,
       'They lose access to it. Their answer stays on your record.',
       [

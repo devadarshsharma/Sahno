@@ -13,6 +13,9 @@ public sealed class DiscussionMessage
 {
     public const int BodyMaxLength = 4000;
 
+    /// <summary>More than this many people mentioned in one message is a roll call, not a mention.</summary>
+    public const int MaxMentions = 20;
+
     private DiscussionMessage(
         Guid id,
         Guid engagementId,
@@ -72,6 +75,13 @@ public sealed class DiscussionMessage
     /// </summary>
     public Guid? ReplyToMessageId { get; }
 
+    /// <summary>
+    /// The people this message calls out by name (D-112). The body carries the
+    /// "@Name" as typed; this is who it means, so they are told by name and the
+    /// app can pick it out. Never the author.
+    /// </summary>
+    public Guid[] MentionedUserIds { get; private set; } = [];
+
     public bool IsDeleted => DeletedAtUtc is not null;
 
     public bool IsEdited => EditedAtUtc is not null;
@@ -88,7 +98,8 @@ public sealed class DiscussionMessage
         Guid authorUserId,
         string body,
         Guid? replyToMessageId = null,
-        Guid? id = null)
+        Guid? id = null,
+        IEnumerable<Guid>? mentionedUserIds = null)
     {
         if (engagementId == Guid.Empty)
         {
@@ -108,7 +119,14 @@ public sealed class DiscussionMessage
             editedAtUtc: null,
             deletedAtUtc: null,
             deletedByUserId: null,
-            replyToMessageId);
+            replyToMessageId)
+        {
+            MentionedUserIds = (mentionedUserIds ?? [])
+                .Where(userId => userId != Guid.Empty && userId != authorUserId)
+                .Distinct()
+                .Take(MaxMentions)
+                .ToArray(),
+        };
     }
 
     /// <summary>
@@ -140,6 +158,7 @@ public sealed class DiscussionMessage
         }
 
         Body = null;
+        MentionedUserIds = [];
         DeletedAtUtc = DateTimeOffset.UtcNow;
         DeletedByUserId = removedByUserId;
     }

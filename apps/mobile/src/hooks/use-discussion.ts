@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { ApiError } from '@/api/client';
 import {
   listDiscussion,
+  listMentionable,
   markDiscussionRead,
   postDiscussionMessage,
   type DiscussionMessage,
@@ -36,6 +37,23 @@ export function useDiscussion(engagementId: string) {
     // made "there is a message, but the chat does not have it".
     staleTime: 0,
     refetchOnMount: 'always',
+  });
+}
+
+/** Who the caller may mention in this chat (D-112). */
+export function useMentionable(engagementId: string) {
+  const session = useSession();
+  const { active } = useActiveOrg();
+
+  return useQuery({
+    queryKey: ['org', active?.id, 'engagements', engagementId, 'discussion', 'mentionable'],
+    queryFn: async ({ signal }) => {
+      const accessToken = await session.getAccessToken();
+      return listMentionable(accessToken, active!.id, engagementId, signal);
+    },
+    enabled: active !== null && session.status === 'authenticated',
+    // Who is on an event changes rarely; a stale list only means a name is missing for a minute.
+    staleTime: 60_000,
   });
 }
 
@@ -119,6 +137,7 @@ export function useChatSender(engagementId: string) {
             message.replyTo?.id ?? null,
             message.clientId,
             timeout.signal,
+            message.mentionedUserIds,
           );
 
           const key = ['org', message.organisationId, 'engagements', message.engagementId, 'discussion'];
@@ -145,7 +164,7 @@ export function useChatSender(engagementId: string) {
   );
 
   const send = useCallback(
-    (body: string, replyTo: DiscussionQuote | null) => {
+    (body: string, replyTo: DiscussionQuote | null, mentionedUserIds: string[] = []) => {
       if (organisationId === null) {
         return;
       }
@@ -156,6 +175,7 @@ export function useChatSender(engagementId: string) {
         engagementId,
         body,
         replyTo,
+        mentionedUserIds,
         queuedAtUtc: new Date().toISOString(),
         state: 'sending',
         retryable: true,

@@ -10,14 +10,28 @@ public sealed class NotificationStore(SahnoDbContext dbContext) : INotificationS
     public async Task<IReadOnlyList<Notification>> ListForUserAsync(
         Guid organisationId,
         Guid userId,
+        bool? read,
+        DateTimeOffset? before,
         int limit,
         CancellationToken cancellationToken)
     {
-        return await dbContext.Notifications
+        var rows = dbContext.Notifications
             .AsNoTracking()
             .Where(notification =>
                 notification.OrganisationId == organisationId
-                && notification.RecipientUserId == userId)
+                && notification.RecipientUserId == userId);
+        if (read is { } wantRead)
+        {
+            rows = wantRead
+                ? rows.Where(notification => notification.ReadAtUtc != null)
+                : rows.Where(notification => notification.ReadAtUtc == null);
+        }
+        if (before is { } cursor)
+        {
+            rows = rows.Where(notification => notification.CreatedAtUtc < cursor);
+        }
+
+        return await rows
             .OrderByDescending(notification => notification.CreatedAtUtc)
             .Take(limit)
             .ToListAsync(cancellationToken);

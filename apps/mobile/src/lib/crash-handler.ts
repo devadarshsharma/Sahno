@@ -1,5 +1,4 @@
-import { Alert } from 'react-native';
-
+import { showAlert } from '@/components/ui/dialog';
 import { describeError } from '@/components/crash-screen';
 
 type GlobalHandler = (error: unknown, isFatal?: boolean) => void;
@@ -39,7 +38,7 @@ export function installCrashHandler(): void {
       return;
     }
     showing = true;
-    Alert.alert(
+    showAlert(
       'Something went wrong',
       `That did not work. If it keeps happening, take a screenshot of this and send it to us.\n\n${describeError(error).slice(0, 600)}`,
       [{ text: 'OK', onPress: () => (showing = false) }],

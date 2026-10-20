@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import {
   createInvitation,
@@ -7,7 +7,7 @@ import {
   revokeInvitation,
   type Invitation,
 } from '@/api/organisations';
-import { Button, Card, Screen, Text } from '@/components/ui';
+import { Button, Card, Screen, showAlert, Text } from '@/components/ui';
 import { useActiveOrg } from '@/hooks/use-organisations';
 import { formatInviteCode, shareInvite } from '@/lib/invite';
 import { useSession } from '@/providers/auth-provider';
@@ -66,7 +66,7 @@ export default function Invitations() {
   const hasCodes = activeInvitations.length > 0;
 
   function confirmRevoke(invitation: Invitation) {
-    Alert.alert(
+    showAlert(
       'Revoke this code?',
       'Anyone still holding it will not be able to join. People who already joined stay members.',
       [

@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import type { Engagement } from '@/api/engagements';
-import { Button, Card, Text } from '@/components/ui';
+import { Button, Card, showAlert, Text } from '@/components/ui';
 import {
   addToPersonalCalendar,
   canAddToPersonalCalendar,
@@ -43,7 +43,7 @@ export function AddToCalendarCard({
     setBusy(false);
 
     if (result.ok) {
-      Alert.alert(
+      showAlert(
         'Added to your calendar',
         result.tentative
           ? `Saved as "${personalCalendarTitle(engagement)}". If it is confirmed, moves, or is called off, Sahno updates the entry the next time you open the app.`

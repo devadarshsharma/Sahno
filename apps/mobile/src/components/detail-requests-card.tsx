@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { DETAIL_LABELS, type AskableDetail } from '@/api/detail-requests';
-import { Button, Card, Text } from '@/components/ui';
+import { Button, Card, showAlert, Text } from '@/components/ui';
 import { useAskForDetails, useDetailRequests } from '@/hooks/use-detail-requests';
 import { colors, fontFamilies, radii, spacing } from '@/theme';
 
@@ -33,7 +33,7 @@ export function DetailRequestsCard({ engagementId }: { engagementId: string }) {
 
   const send = (items: AskableDetail[]) =>
     ask.mutate(items, {
-      onError: () => Alert.alert('Could not ask', 'Check your connection and try again.'),
+      onError: () => showAlert('Could not ask', 'Check your connection and try again.'),
     });
 
   return (

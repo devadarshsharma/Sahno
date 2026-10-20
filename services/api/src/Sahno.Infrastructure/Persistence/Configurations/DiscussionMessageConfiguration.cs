@@ -49,6 +49,11 @@ public sealed class DiscussionMessageConfiguration
         builder.Property(message => message.ReplyToMessageId)
             .HasColumnName("reply_to_message_id");
 
+        // A uuid[]: read and written with the message, never queried by.
+        builder.Property(message => message.MentionedUserIds)
+            .HasColumnName("mentioned_user_ids")
+            .IsRequired();
+
         builder.HasIndex(message =>
             new { message.EngagementId, message.PostedAtUtc });
     }

@@ -445,7 +445,8 @@ public sealed class Notifier(
         IReadOnlyList<Guid> participantUserIds,
         Guid authorUserId,
         string preview,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<Guid>? mentionedUserIds = null)
     {
         var people = await DirectoryAsync(engagement.OrganisationId, cancellationToken);
         var name = NameOf(people, authorUserId);
@@ -506,10 +507,26 @@ public sealed class Notifier(
             return ($"{engagement.Title} · {waiting.Count + 1} new messages", string.Join("\n", lines));
         }
 
+        // Somebody mentioned by name hears it by name (D-112): their row and
+        // their push say so, unbundled, so it is not lost among "3 new messages".
+        var mentioned = (mentionedUserIds ?? []).Where(audience.Contains).ToHashSet();
+        if (mentioned.Count > 0)
+        {
+            await StageAsync(
+                engagement.OrganisationId,
+                engagement.Id,
+                mentioned,
+                NotificationKind.DiscussionMessage,
+                $"{name} mentioned you in {engagement.Title}",
+                body,
+                emailBody: null,
+                cancellationToken);
+        }
+
         await StageAsync(
             engagement.OrganisationId,
             engagement.Id,
-            audience,
+            audience.Where(userId => !mentioned.Contains(userId)),
             NotificationKind.DiscussionMessage,
             title,
             body,
