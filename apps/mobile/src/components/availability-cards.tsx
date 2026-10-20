@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
@@ -9,8 +10,9 @@ import {
   type AvailabilityAnswer,
   type Participant,
 } from '@/api/availability';
+import { ApiError } from '@/api/client';
 import { YourClashNotice } from '@/components/clash-notice';
-import { Button, Card, showAlert, Text } from '@/components/ui';
+import { Button, Card, showAlert, showToast, Text, TextAction } from '@/components/ui';
 import {
   useAvailability,
   useAvailabilityMutation,
@@ -18,7 +20,7 @@ import {
   useOwnAvailability,
 } from '@/hooks/use-availability';
 import { useEngagements } from '@/hooks/use-engagements';
-import { colors, radii, spacing } from '@/theme';
+import { colors, fontFamilies, radii, spacing } from '@/theme';
 
 const ANSWERS: AvailabilityAnswer[] = ['Available', 'Maybe', 'Unavailable'];
 
@@ -231,38 +233,35 @@ export function LineupCard({
                     {participant.response
                       ? ANSWER_LABELS[participant.response]
                       : participant.remindedAtUtc
-                        ? 'No answer yet · reminded'
+                        ? `No answer yet · reminded ${remindedAgo(participant.remindedAtUtc)}`
                         : 'No answer yet'}
                   </Text>
                 </View>
 
                 {participant.response === null ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Remind ${participant.displayName ?? 'member'}`}
-                    disabled={remind.isPending}
-                    onPress={() =>
+                  <RemindButton
+                    name={participant.displayName ?? 'Member'}
+                    remindedAtUtc={participant.remindedAtUtc}
+                    busy={remind.isPending && remind.variables === participant.userId}
+                    onPress={() => {
+                      const name = participant.displayName ?? 'them';
                       remind.mutate(participant.userId, {
-                        onError: () => setError('Could not send that reminder.'),
-                      })
-                    }
-                  >
-                    <Text variant="caption" color="accent">
-                      Remind
-                    </Text>
-                  </Pressable>
+                        onSuccess: () => showToast(`Reminder sent to ${name}`),
+                        onError: (failure) =>
+                          failure instanceof ApiError && failure.status === 429
+                            ? showToast(`${name} was reminded less than an hour ago`, 'info')
+                            : setError('Could not send that reminder.'),
+                      });
+                    }}
+                  />
                 ) : null}
 
-                <Pressable
-                  accessibilityRole="button"
+                <TextAction
+                  label="Remove"
                   accessibilityLabel={`Remove ${participant.displayName ?? 'member'}`}
-                  disabled={remove.isPending}
+                  busy={remove.isPending && remove.variables === participant.userId}
                   onPress={() => confirmRemove(participant)}
-                >
-                  <Text variant="caption" color="muted">
-                    Remove
-                  </Text>
-                </Pressable>
+                />
               </View>
             ))}
           </View>
@@ -361,6 +360,74 @@ export function GoingCard({ engagementId }: { engagementId: string }) {
   );
 }
 
+/** "just now", "25 min ago", "3 h ago", or the day. */
+function remindedAgo(iso: string): string {
+  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (minutes < 1) {
+    return 'just now';
+  }
+  if (minutes < 60) {
+    return `${minutes} min ago`;
+  }
+  if (minutes < 24 * 60) {
+    return `${Math.floor(minutes / 60)} h ago`;
+  }
+  return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+
+/** The API holds a second manual reminder back for this long (D-123). */
+const REMIND_COOLDOWN_MS = 60 * 60 * 1000;
+
+/**
+ * Remind as a button, not a word (D-123): it shows it is sending, the toast
+ * says it went, and within the hour after it reads "Reminded" and rests, so
+ * an impatient second tap is not a second push and email.
+ */
+function RemindButton({
+  name,
+  remindedAtUtc,
+  busy,
+  onPress,
+}: {
+  name: string;
+  remindedAtUtc: string | null;
+  busy: boolean;
+  onPress: () => void;
+}) {
+  // The time the row was shown: a reminder sent since reads as recent too.
+  const [shownAt] = useState(() => Date.now());
+  const recent = remindedAtUtc !== null && shownAt - new Date(remindedAtUtc).getTime() < REMIND_COOLDOWN_MS;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={recent ? `${name} was reminded recently` : `Remind ${name}`}
+      accessibilityState={{ disabled: recent || busy, busy }}
+      disabled={recent || busy}
+      onPress={onPress}
+      hitSlop={6}
+      style={({ pressed }) => [
+        styles.remind,
+        recent ? styles.remindDone : null,
+        pressed ? styles.remindPressed : null,
+      ]}
+    >
+      {busy ? (
+        <ActivityIndicator size="small" color={colors.tealText} />
+      ) : (
+        <Ionicons
+          name={recent ? 'checkmark' : 'notifications-outline'}
+          size={14}
+          color={recent ? colors.text.muted : colors.tealText}
+        />
+      )}
+      <Text variant="caption" style={recent ? styles.remindTextDone : styles.remindText}>
+        {recent ? 'Reminded' : 'Remind'}
+      </Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   goingRow: {
     flexDirection: 'row',
@@ -386,6 +453,29 @@ const styles = StyleSheet.create({
   card: {
     gap: spacing.md,
     marginBottom: spacing.lg,
+  },
+  remind: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    minHeight: 32,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.tealText,
+  },
+  remindDone: {
+    borderColor: colors.border.default,
+  },
+  remindPressed: {
+    backgroundColor: colors.tealSoft,
+  },
+  remindText: {
+    fontFamily: fontFamilies.uiMedium,
+    color: colors.tealText,
+  },
+  remindTextDone: {
+    color: colors.text.muted,
   },
   // Still to answer: it stands out on the page, as on Home.
   cardToAnswer: {

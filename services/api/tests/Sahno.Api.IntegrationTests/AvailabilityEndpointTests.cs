@@ -259,6 +259,12 @@ public sealed class AvailabilityEndpointTests(SahnoApiFactory factory)
         var after = await AvailabilityAsync(org, engagement.Id);
         Assert.NotNull(after.Participants.Single(p => p.UserId == silent.UserId).RemindedAtUtc);
 
+        // A second tap within the hour sends nothing (D-123).
+        var again = await org.Owner.PostAsync(
+            $"{Availability(org, engagement.Id)}/{silent.UserId}/reminders",
+            content: null);
+        Assert.Equal(HttpStatusCode.TooManyRequests, again.StatusCode);
+
         // Someone who already answered has nothing to be chased about.
         var pointless = await org.Owner.PostAsync(
             $"{Availability(org, engagement.Id)}/{org.MemberIds[0]}/reminders",

@@ -230,6 +230,7 @@ public sealed class AvailabilityController(
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Remind(
         Guid organisationId,
         Guid engagementId,
@@ -248,7 +249,10 @@ public sealed class AvailabilityController(
             userId,
             cancellationToken);
 
-        return FromResult(result);
+        // Reminded within the hour already (D-123): say so, and nothing is sent.
+        return result == EngagementResult.TooSoon
+            ? StatusCode(StatusCodes.Status429TooManyRequests, new { message = "Reminded less than an hour ago." })
+            : FromResult(result);
     }
 
     /// <summary>

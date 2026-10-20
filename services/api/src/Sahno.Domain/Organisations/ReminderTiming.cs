@@ -21,6 +21,21 @@ public static class ReminderTiming
 
     public const string Off = "off";
 
+    /// <summary>
+    /// A custom lead time (D-124): "before:" and a number of minutes, from
+    /// <see cref="MinCustomMinutes"/> to <see cref="MaxCustomMinutes"/> —
+    /// "before:360" is six hours before, "before:2880" two days before.
+    /// </summary>
+    public const string CustomPrefix = "before:";
+
+    public const int MinCustomMinutes = 15;
+
+    /// <summary>Two weeks: further ahead than that is a calendar entry, not a reminder.</summary>
+    public const int MaxCustomMinutes = 14 * 24 * 60;
+
+    /// <summary>How many days ahead the scheduler looks, so a custom lead time is never missed.</summary>
+    public const int MaxLeadDays = 15;
+
     public const int MaxLength = 16;
 
     public static readonly IReadOnlyList<string> All =
@@ -32,7 +47,17 @@ public static class ReminderTiming
 
     public static readonly TimeOnly EveningBeforeSendTime = new(18, 0);
 
-    public static bool IsValid(string? timing) => timing is not null && All.Contains(timing);
+    public static bool IsValid(string? timing) =>
+        timing is not null && (All.Contains(timing) || CustomMinutes(timing) is not null);
+
+    /// <summary>The minutes of a custom lead time, or null when it is not one (or out of range).</summary>
+    public static int? CustomMinutes(string? timing) =>
+        timing is not null
+        && timing.StartsWith(CustomPrefix, StringComparison.Ordinal)
+        && int.TryParse(timing.AsSpan(CustomPrefix.Length), System.Globalization.NumberStyles.None, null, out var minutes)
+        && minutes is >= MinCustomMinutes and <= MaxCustomMinutes
+            ? minutes
+            : null;
 
     /// <summary>
     /// The local moment a reminder for something on <paramref name="day"/> at
@@ -42,6 +67,21 @@ public static class ReminderTiming
     /// </summary>
     public static DateTime? DueAt(string timing, DateOnly day, TimeOnly? at)
     {
+        if (CustomMinutes(timing) is { } minutes)
+        {
+            if (at is { } time)
+            {
+                return day.ToDateTime(time).AddMinutes(-minutes);
+            }
+
+            // No time to count back from: hours before is the morning of the
+            // day; days before is 08:00 that many days earlier.
+            var wholeDays = minutes / (24 * 60);
+            return wholeDays == 0
+                ? day.ToDateTime(MorningSendTimeFor(null))
+                : day.AddDays(-wholeDays).ToDateTime(MorningSendTime);
+        }
+
         return timing switch
         {
             Off => null,

@@ -233,3 +233,13 @@ Each person subscribes once to a private link, and their Sahno events stay corre
 - Tentative events are marked in the title; cancelled ones disappear.
 - Open question: whether **Needs response** events appear too (marked "?"), or only Tentative and Confirmed, as INFORMATION_ARCHITECTURE.md says.
 - No Google Calendar API or OAuth: calendar write scopes need Google's security review, and a feed works with every calendar app.
+
+## Next — more flexible reminders
+
+Parked on 20 October 2026. D-118 and D-120 shipped fixed choices (morning of, 1–3 hours before, the day before at 6 pm, off; nudges after 1 or 2 days). Wanted next, to be confirmed with the user:
+
+- **More than one reminder per event or rehearsal**, e.g. the day before *and* 2 hours before.
+- ~~**Any lead time**~~ — done in D-124 (hours or days). Still open: a chosen time for "the day before".
+- **Per event or rehearsal**, overriding the organisation's default.
+- **Per person**: a member choosing their own reminder times, or muting them.
+- **Nudge cadence**: how many nudges, how far apart, and the last call's time.

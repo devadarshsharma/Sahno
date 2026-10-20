@@ -58,8 +58,8 @@ public sealed class ReminderService(
         var zone = ZoneOf(organisation);
         var localNow = TimeZoneInfo.ConvertTime(utcNow, zone).DateTime;
         var today = DateOnly.FromDateTime(localNow);
-        // "The day before" reminds about tomorrow's, so tomorrow is looked at too (D-118).
-        var tomorrow = today.AddDays(1);
+        // Reminders can go days ahead (D-118, D-124), so look that far.
+        var horizon = today.AddDays(ReminderTiming.MaxLeadDays);
         var sent = 0;
 
         var all = await engagements.ListForOrganisationAsync(organisation.Id, cancellationToken);
@@ -73,7 +73,7 @@ public sealed class ReminderService(
         // The day of a confirmed event, at the time the organisation chose (D-118).
         foreach (var engagement in all.Where(engagement =>
                      engagement.Status == EngagementStatus.Confirmed
-                     && (engagement.StartDate == today || engagement.StartDate == tomorrow)))
+                     && engagement.StartDate is { } start && start >= today && start <= horizon))
         {
             var day = engagement.StartDate!.Value;
             var arrival = engagement.CallTime ?? engagement.StartTime;
@@ -95,7 +95,7 @@ public sealed class ReminderService(
                     group => group.Key,
                     group => (IReadOnlyList<string>)group.Select(job => job.Title).ToList());
 
-            await notifier.EngagementDayReminderAsync(engagement, lineup, openJobs, cancellationToken, tomorrow: day != today);
+            await notifier.EngagementDayReminderAsync(engagement, lineup, openJobs, cancellationToken, WhenWord(day, today));
             // Logged against the event's day, so it goes once whatever the timing.
             log.Stage(ReminderLog.Sent(ReminderKind.EngagementDay, engagement.Id, day, utcNow));
             await log.SaveAsync(cancellationToken);
@@ -107,7 +107,7 @@ public sealed class ReminderService(
             .Where(ExpectedLineup.IsGoingAhead)
             .ToDictionary(engagement => engagement.Id);
         var soon = (await rehearsals.ListFromDateAsync(goingAhead.Keys, today, cancellationToken))
-            .Where(rehearsal => rehearsal.Date == today || rehearsal.Date == tomorrow);
+            .Where(rehearsal => rehearsal.Date <= horizon);
 
         foreach (var rehearsal in soon)
         {
@@ -130,7 +130,7 @@ public sealed class ReminderService(
                 await participants.ListForEngagementAsync(engagement.Id, cancellationToken),
                 organisers);
 
-            await notifier.RehearsalReminderAsync(engagement, rehearsal, lineup, cancellationToken, tomorrow: rehearsal.Date != today);
+            await notifier.RehearsalReminderAsync(engagement, rehearsal, lineup, cancellationToken, WhenWord(rehearsal.Date, today));
             log.Stage(ReminderLog.Sent(ReminderKind.RehearsalDay, rehearsal.Id, rehearsal.Date, utcNow));
             await log.SaveAsync(cancellationToken);
             sent++;
@@ -222,6 +222,12 @@ public sealed class ReminderService(
 
         return sent;
     }
+
+    /// <summary>"Today", "Tomorrow", or "Sat 24 Oct" for a reminder sent further ahead.</summary>
+    private static string WhenWord(DateOnly day, DateOnly today) =>
+        day == today ? "Today"
+        : day == today.AddDays(1) ? "Tomorrow"
+        : day.ToString("ddd d MMM", System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>
     /// When the reminder became due, if it is due now: its time has come and

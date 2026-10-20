@@ -45,6 +45,9 @@ public enum EngagementResult
     /// once the organiser has said they know (D-029).
     /// </summary>
     OutstandingAcknowledgementRequired,
+
+    /// <summary>Done too recently to do again yet — a second reminder within the hour (D-123).</summary>
+    TooSoon,
 }
 
 /// <summary>

@@ -2086,3 +2086,31 @@ On an event's **Set list & rehearsals** page, notes and links were a line of sma
 - The card's summary says what is there: "1 note · 2 links", not "3 attached".
 - **Each rehearsal is its own tile**, with a date block (19 / OCT) as on Home, then its title, time, venue (tap for maps) and notes.
 - **Remove** stays the confirmed, easy-to-hit action (the TextAction from the earlier fix) in each tile's corner; "Not shown to members" still marks organiser-only notes.
+
+---
+
+## D-123 — Remind is a button that says it worked, at most once an hour
+
+**Date:** 20 October 2026
+**Status:** Accepted
+
+On the lineup, **Remind** was a small word with no feedback: nothing showed while it sent or once it had, so organisers tapped again — and every tap was another push and email to the same person.
+
+- **Remind is a pill button** with a bell; it shows a spinner while sending, then a toast — **"Reminder sent to Adarsh"** — and the row reads "No answer yet · reminded just now". For the hour after, the button reads **Reminded** and rests.
+- **The API allows one manual reminder per person per event per hour.** A second within the hour sends nothing and answers 429; the app says "Adarsh was reminded less than an hour ago". The automatic nudges (D-120) are separate and unaffected.
+- **Toasts** (`showToast`) are new: a short line at the bottom of the screen that goes by itself after a few seconds and never blocks a tap. For something that happened; questions stay in dialogs (D-116).
+- The lineup's **Remove** is the larger, easier-to-hit action used elsewhere; it still asks first.
+
+---
+
+## D-124 — Reminders can be any number of hours or days before
+
+**Date:** 20 October 2026
+**Status:** Accepted
+
+The reminder choices (D-118) were a fixed list. Organisers wanted 4, 6 or 8 hours before, or a couple of days.
+
+- **Custom…** beside the presets, for events and for rehearsals: a number and **Hours** or **Days** — 1 to 336 hours, or 1 to 14 days — then **Set**. Shown as "Custom: 6 hours before".
+- **Counted back from the start** (an event's arrival: call time, else start). Days before is the same time of day that many days earlier. Something with no time set: hours before goes at 8:00 on the day, days before at 8:00 that many days earlier.
+- **Titled for when it is:** "Today: …", "Tomorrow: …", or the day — "Sat 24 Oct: …" — when further off.
+- Stored as `before:<minutes>` in the same columns (15 minutes to 14 days; anything else refused). The scheduler now looks up to fifteen days ahead. Still one reminder per event or rehearsal, and none once it has begun.

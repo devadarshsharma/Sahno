@@ -31,7 +31,7 @@ export type Organisation = {
 export type AvailabilityNudge = '2d' | '1d' | 'off';
 
 /** When an organisation's reminders go out (D-118). */
-export type ReminderTiming = 'morning' | '1h' | '2h' | '3h' | 'day-before' | 'off';
+export type ReminderTiming = 'morning' | '1h' | '2h' | '3h' | 'day-before' | 'off' | `before:${number}`;
 
 /** Organisers only. */
 export function setReminders(

@@ -21,7 +21,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SahnoSymbol } from '@/components/brand';
 import { CalendarSync } from '@/components/calendar-sync';
 import { CrashScreen } from '@/components/crash-screen';
-import { DialogHost } from '@/components/ui';
+import { DialogHost, ToastHost } from '@/components/ui';
 import { installCrashHandler } from '@/lib/crash-handler';
 import { reportError, setCrashReportingUser, startCrashReporting, wrapRoot } from '@/lib/crash-reporting';
 import { useMe } from '@/hooks/use-me';
@@ -179,6 +179,8 @@ function RootNavigator() {
       </Stack>
       {/* Sahno's own alerts, over every screen (D-116). */}
       <DialogHost />
+      {/* Short confirmations that go by themselves (D-123). */}
+      <ToastHost />
     </>
   );
 }

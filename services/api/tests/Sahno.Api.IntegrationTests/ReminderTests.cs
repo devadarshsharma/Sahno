@@ -287,6 +287,51 @@ public sealed class ReminderTests(SahnoApiFactory factory)
         Assert.DoesNotContain(await BellAsync(org.Members[0], org), row => row.Kind == "AvailabilityReminder");
     }
 
+    /// <summary>
+    /// A custom lead time (D-124): six hours before a 19:00 rehearsal is 13:00;
+    /// two days before a 19:00 event is 19:00 two days earlier, titled with its day.
+    /// </summary>
+    [Fact]
+    public async Task RemindersCanBeAnyNumberOfHoursOrDaysBefore()
+    {
+        var org = await NewOrganisationAsync("remind-custom", members: 1);
+        await SetRemindersAsync(org.Owner, org, "before:2880", "before:360");
+
+        var eventDay = LocalToday().AddDays(5);
+        var engagement = await NewDraftAsync(org, "Qawwali night", eventDay, new TimeOnly(19, 0));
+        await RequestAvailabilityAsync(org, engagement.Id, org.MemberIds);
+        await RespondAsync(org, org.Members[0], engagement.Id, "Available");
+        foreach (var status in new[] { "Tentative", "Confirmed" })
+        {
+            (await org.Owner.PostAsJsonAsync(
+                $"{Engagements(org)}/{engagement.Id}/transition",
+                new TransitionEngagementRequest(status, null))).EnsureSuccessStatusCode();
+        }
+        var rehearsalDay = LocalToday().AddDays(1);
+        (await org.Owner.PostAsJsonAsync(
+            $"{Engagements(org)}/{engagement.Id}/rehearsals",
+            new SaveRehearsalRequest(null, rehearsalDay, new TimeOnly(19, 0), null, null, null))).EnsureSuccessStatusCode();
+
+        await SendDueAtAsync(rehearsalDay, new TimeOnly(12, 55));
+        Assert.DoesNotContain(await BellAsync(org.Members[0], org), row => row.Kind == "RehearsalReminder");
+        await SendDueAtAsync(rehearsalDay, new TimeOnly(13, 5));
+        Assert.Single(await BellAsync(org.Members[0], org), row => row.Kind == "RehearsalReminder");
+
+        await SendDueAtAsync(eventDay.AddDays(-2), new TimeOnly(18, 55));
+        Assert.DoesNotContain(await BellAsync(org.Members[0], org), row => row.Kind == "EngagementDayReminder");
+        await SendDueAtAsync(eventDay.AddDays(-2), new TimeOnly(19, 5));
+        var reminder = Assert.Single(await BellAsync(org.Members[0], org), row => row.Kind == "EngagementDayReminder");
+        Assert.StartsWith(eventDay.ToString("ddd d MMM", System.Globalization.CultureInfo.InvariantCulture), reminder.Title);
+
+        // Out of range is refused: under 15 minutes, over two weeks, or not a number.
+        foreach (var bad in new[] { "before:5", "before:30000", "before:abc" })
+        {
+            var refused = await org.Owner.PutAsJsonAsync(
+                $"/api/organisations/{org.Id}/reminders", new SetRemindersRequest(bad, "morning"));
+            Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
+        }
+    }
+
     private static async Task SetRemindersAsync(HttpClient owner, TestOrganisation org, string events, string rehearsals)
     {
         var response = await owner.PutAsJsonAsync(

@@ -187,6 +187,13 @@ public sealed class AvailabilityService(
         return EngagementResult.Success;
     }
 
+    /// <summary>
+    /// How long before the same person can be reminded about the same event by
+    /// hand again (D-123). Every reminder is a push and an email; a button
+    /// tapped twice should not be two of each.
+    /// </summary>
+    public static readonly TimeSpan ManualReminderCooldown = TimeSpan.FromHours(1);
+
     /// <summary>Chases someone who has not answered.</summary>
     public async Task<EngagementResult> RemindAsync(
         Membership actor,
@@ -215,6 +222,11 @@ public sealed class AvailabilityService(
         if (participant is null)
         {
             return EngagementResult.NotFound;
+        }
+
+        if (participant.RemindedAtUtc is { } last && DateTimeOffset.UtcNow - last < ManualReminderCooldown)
+        {
+            return EngagementResult.TooSoon;
         }
 
         try
