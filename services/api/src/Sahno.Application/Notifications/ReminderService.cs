@@ -158,7 +158,7 @@ public sealed class ReminderService(
         CancellationToken cancellationToken)
     {
         var nudge = organisation.AvailabilityNudge;
-        if (nudge == AvailabilityNudge.Off)
+        if (nudge == AvailabilityNudge.Off || !AvailabilityNudge.IsSendingHour(localNow))
         {
             return 0;
         }

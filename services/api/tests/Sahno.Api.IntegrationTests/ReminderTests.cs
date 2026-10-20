@@ -250,6 +250,10 @@ public sealed class ReminderTests(SahnoApiFactory factory)
         await SendDueAtAsync(LocalToday().AddDays(1), new TimeOnly(12, 0));
         Assert.Equal(0, Nudges(await BellAsync(org.Members[0], org)));
 
+        // Overdue at night still waits for the morning.
+        await SendDueAtAsync(LocalToday().AddDays(3), new TimeOnly(23, 0));
+        Assert.Equal(0, Nudges(await BellAsync(org.Members[0], org)));
+
         await SendDueAtAsync(LocalToday().AddDays(3), new TimeOnly(12, 0));
         Assert.Equal(1, Nudges(await BellAsync(org.Members[0], org)));
         await SendDueAtAsync(LocalToday().AddDays(4), new TimeOnly(12, 0));

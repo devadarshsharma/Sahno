@@ -2056,7 +2056,7 @@ A member asked about an event that was then confirmed could not find where to an
 Nothing chased an unanswered request unless an organiser pressed **Remind**. A member asked on the 15th had still not answered when the event was confirmed.
 
 - **A first nudge** some days after the person was asked — **2 days** by default, or 1 — then **a last call at 10:00 the day before the event**, "Tomorrow: can you do …?". Only while they have not answered, the event is still ahead and still going ahead (checking, tentative or confirmed), and they are still on its lineup.
-- **Never overnight:** a first nudge falling before 9:00 waits until 9:00; at 20:00 or later it goes at 9:00 the next day.
+- **Never overnight:** a first nudge falling before 9:00 waits until 9:00; at 20:00 or later it goes at 9:00 the next day. And nudges are only ever *sent* between 9:00 and 20:00, so one long overdue — the first pass after this shipped, or after the server was down — waits for the morning too.
 - **No doubling:** each goes once per person per event; a first nudge not yet sent when the last call comes is folded into it; somebody asked after the last call would have been due is not chased on top of the request; and an organiser's own **Remind** within a day of the first nudge counts as it.
 - **More → Reminders → Unanswered availability:** 2 days after asking (default), 1 day after asking, or Off. `organisations.availability_nudge`, in migration `AddReminderSettings` with D-118's settings; the default turns nudges on for existing organisations.
 - Same notification as **Remind** (in-app, push and email, D-049), and it opens the event, where the answer is.

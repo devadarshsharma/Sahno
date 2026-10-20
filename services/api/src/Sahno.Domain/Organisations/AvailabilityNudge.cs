@@ -31,6 +31,18 @@ public static class AvailabilityNudge
     public static bool IsValid(string? nudge) => nudge is not null && All.Contains(nudge);
 
     /// <summary>
+    /// Whether a nudge may go now. Not only is each one *due* inside the day,
+    /// it is only ever *sent* inside it: one long overdue — the first pass
+    /// after nudges are switched on, or after the server was down — waits for
+    /// the morning rather than going out at 23:00.
+    /// </summary>
+    public static bool IsSendingHour(DateTime localNow)
+    {
+        var time = TimeOnly.FromDateTime(localNow);
+        return time >= EarliestSend && time < LatestSend;
+    }
+
+    /// <summary>
     /// When the first nudge is due, in local time, for somebody asked at
     /// <paramref name="askedLocal"/>; null when nudges are off.
     /// </summary>
