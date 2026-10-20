@@ -85,6 +85,7 @@ export default function Events() {
     ...engagement,
     organisationId: active?.id,
     organisationName: active?.name ?? null,
+    isOrganiser,
   }));
   const elsewhere: ListEvent[] = filter
     ? []
@@ -100,14 +101,22 @@ export default function Events() {
   const scoped = filter ? listed : scope === 'past' ? past : scope === 'upcoming' ? upcoming : listed;
   const scopeCounts: Record<TimeScope, number> = { upcoming: upcoming.length, past: past.length, all: listed.length };
   // History reads by when, not by pipeline stage.
+  // Asked and not yet answered goes first, whatever its status — a confirmed
+  // event still needs the answer, and filed under "Confirmed" it looked like
+  // one already given (D-119).
+  const toAnswer = scope === 'past' && !filter ? [] : scoped.filter(needsYourAnswer);
+  const rest = scoped.filter((event) => !toAnswer.includes(event));
   const groups =
     !filter && scope === 'past'
       ? groupByMonth(scoped).map((group) => ({ key: group.key, heading: group.label, items: group.items }))
-      : groupByStatus(scoped).map((group) => ({
-          key: group.status,
-          heading: isOrganiser ? STATUS_LABELS[group.status] : MEMBER_STATUS_LABELS[group.status],
-          items: group.items,
-        }));
+      : [
+          ...(toAnswer.length > 0 ? [{ key: 'to-answer', heading: 'Needs your answer', items: toAnswer }] : []),
+          ...groupByStatus(rest).map((group) => ({
+            key: group.status,
+            heading: isOrganiser ? STATUS_LABELS[group.status] : MEMBER_STATUS_LABELS[group.status],
+            items: group.items,
+          })),
+        ];
 
   // This organisation's bookings as the list has them (the filter applies),
   // then everything the person has with other organisations. Every entry says
@@ -324,7 +333,20 @@ const SCOPE_LABELS: Record<TimeScope, string> = {
 type ListEvent = Pick<
   Engagement,
   'id' | 'title' | 'status' | 'startDate' | 'endDate' | 'venue' | 'outstandingCount' | 'yourResponse'
-> & { organisationId?: string; organisationName?: string | null };
+> & { organisationId?: string; organisationName?: string | null; isOrganiser?: boolean };
+
+/**
+ * You were asked and have not answered, and it is still ahead (D-119). Only
+ * as a member: an organiser's own lineup place is not told apart from not
+ * being on it, so for them this would be guesswork.
+ */
+function needsYourAnswer(event: ListEvent): boolean {
+  return (
+    !event.isOrganiser &&
+    event.yourResponse === null &&
+    (event.status === 'CheckingAvailability' || event.status === 'Tentative' || event.status === 'Confirmed')
+  );
+}
 
 /** Soonest first; undated last, as they have no day to sort by. */
 function byDate(a: ListEvent, b: ListEvent): number {
@@ -371,6 +393,13 @@ function EngagementRow({
           {formatEngagementDate(engagement)}
         </Text>
         <View style={styles.rowMeta}>
+          {needsYourAnswer(engagement) ? (
+            <View style={[styles.chip, styles.chipWaiting]}>
+              <Text variant="caption" style={styles.chipText}>
+                Needs your answer
+              </Text>
+            </View>
+          ) : null}
           <StatusChip engagement={engagement} />
           {engagement.venue ? (
             <Text variant="caption" color="muted" numberOfLines={1}>

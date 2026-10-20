@@ -28,6 +28,7 @@ import {
   TimeField,
   formatIsoDate,
   formatTime,
+  parseIsoDate,
   TextAction,
 } from '@/components/ui';
 import { VenueField } from '@/components/venue-field';
@@ -40,7 +41,7 @@ import {
   useResources,
   useResponsibilities,
 } from '@/hooks/use-preparation';
-import { colors, radii, spacing } from '@/theme';
+import { colors, fontFamilies, radii, spacing } from '@/theme';
 
 /**
  * Who is doing or bringing what (D-047 §3).
@@ -449,37 +450,46 @@ export function RehearsalsCard({
 
       {rehearsals.length > 0 ? (
         <View style={styles.rows}>
-          {rehearsals.map((rehearsal) => (
-            <View key={rehearsal.id} style={styles.row}>
-              <View style={styles.rowBody}>
-                <Text variant="bodySmall">
-                  {rehearsal.title ?? 'Rehearsal'}
-                </Text>
-                <Text variant="caption" color="secondary">
-                  {describeRehearsal(rehearsal)}
-                </Text>
-                {rehearsal.venue ? <VenueLink venue={rehearsal.venue} size="caption" /> : null}
-                {rehearsal.notes ? (
-                  <Text variant="caption" color="muted">
-                    {rehearsal.notes}
+          {rehearsals.map((rehearsal) => {
+            const day = parseIsoDate(rehearsal.date);
+            return (
+              <View key={rehearsal.id} style={styles.tile}>
+                <View style={styles.dateBlock}>
+                  <Text style={styles.dateDay}>{day.getDate()}</Text>
+                  <Text style={styles.dateMonth}>
+                    {day.toLocaleDateString(undefined, { month: 'short' }).toUpperCase()}
                   </Text>
+                </View>
+                <View style={styles.tileBody}>
+                  <Text variant="bodySmall" style={styles.tileTitle}>
+                    {rehearsal.title ?? 'Rehearsal'}
+                  </Text>
+                  <Text variant="caption" color="secondary">
+                    {describeRehearsal(rehearsal)}
+                  </Text>
+                  {rehearsal.venue ? <VenueLink venue={rehearsal.venue} size="caption" /> : null}
+                  {rehearsal.notes ? (
+                    <Text variant="caption" color="muted">
+                      {rehearsal.notes}
+                    </Text>
+                  ) : null}
+                </View>
+                {isOrganiser ? (
+                  <TextAction
+                    label="Remove"
+                    accessibilityLabel={`Remove ${rehearsal.title ?? 'rehearsal'}, ${describeRehearsal(rehearsal)}`}
+                    busy={remove.isPending && remove.variables === rehearsal.id}
+                    confirm={{ title: 'Remove this rehearsal?', message: describeRehearsal(rehearsal) }}
+                    onPress={() =>
+                      remove.mutate(rehearsal.id, {
+                        onError: () => setError('Could not remove that.'),
+                      })
+                    }
+                  />
                 ) : null}
               </View>
-              {isOrganiser ? (
-                <TextAction
-                  label="Remove"
-                  accessibilityLabel={`Remove ${rehearsal.title ?? 'rehearsal'}, ${describeRehearsal(rehearsal)}`}
-                  busy={remove.isPending && remove.variables === rehearsal.id}
-                  confirm={{ title: 'Remove this rehearsal?', message: describeRehearsal(rehearsal) }}
-                  onPress={() =>
-                    remove.mutate(rehearsal.id, {
-                      onError: () => setError('Could not remove that.'),
-                    })
-                  }
-                />
-              ) : null}
-            </View>
-          ))}
+            );
+          })}
         </View>
       ) : null}
 
@@ -629,9 +639,7 @@ export function ResourcesCard({
     <Card style={styles.card}>
       <Text variant="subheading">Notes & links</Text>
       <Text color="secondary" variant="bodySmall">
-        {resources.length === 0
-          ? 'Nothing attached yet.'
-          : `${resources.length} attached.`}
+        {resources.length === 0 ? 'Nothing attached yet.' : resourceSummary(resources)}
       </Text>
 
       {resources.length > 0 ? (
@@ -684,6 +692,31 @@ export function ResourcesCard({
   );
 }
 
+/** "1 note · 2 links" — what is attached, not just how much. */
+function resourceSummary(resources: EngagementResource[]): string {
+  const notes = resources.filter((resource) => resource.kind === 'Note').length;
+  const links = resources.length - notes;
+  return [
+    notes > 0 ? `${notes} ${notes === 1 ? 'note' : 'notes'}` : null,
+    links > 0 ? `${links} ${links === 1 ? 'link' : 'links'}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/** A note long enough that its preview is cut short. */
+const NOTE_PREVIEW_CHARS = 140;
+
+/** Where a link goes, as people say it: "drive.google.com". */
+function hostOf(url: string): string {
+  return url.replace(/^[a-z]+:\/\//i, '').split(/[/?#]/)[0];
+}
+
+/**
+ * One note or link as a tile of its own (D-122): an icon that says which it
+ * is, and the whole tile to tap — a link opens, a note opens out to its full
+ * text. Too small a target and nobody found the note at all.
+ */
 function ResourceRow({
   resource,
   canRemove,
@@ -696,41 +729,54 @@ function ResourceRow({
   onRemove: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const isLink = resource.kind === 'Link' && Boolean(resource.url);
+  const long = (resource.body?.length ?? 0) > NOTE_PREVIEW_CHARS || (resource.body?.split('\n').length ?? 0) > 3;
 
   return (
-    <View style={styles.row}>
-      <View style={styles.rowBody}>
-        <Pressable
-          accessibilityRole={resource.kind === 'Link' ? 'link' : 'button'}
-          onPress={() => {
-            if (resource.kind === 'Link' && resource.url) {
-              Linking.openURL(resource.url);
-              return;
-            }
-            setExpanded((value) => !value);
-          }}
-        >
-          <Text variant="bodySmall" color={resource.kind === 'Link' ? 'accent' : 'primary'}>
-            {resource.kind === 'Link' ? '↗ ' : ''}
-            {resource.title}
-          </Text>
-        </Pressable>
+    <Pressable
+      accessibilityRole={isLink ? 'link' : 'button'}
+      accessibilityLabel={isLink ? `${resource.title}, link. Open.` : `${resource.title}, note.${long ? (expanded ? ' Show less.' : ' Show more.') : ''}`}
+      onPress={() => {
+        if (isLink) {
+          void Linking.openURL(resource.url!);
+        } else if (long) {
+          setExpanded((value) => !value);
+        }
+      }}
+      style={({ pressed }) => [styles.tile, pressed && (isLink || long) ? styles.tilePressed : null]}
+    >
+      <View style={styles.tileIcon}>
+        <Ionicons name={isLink ? 'link-outline' : 'document-text-outline'} size={20} color={colors.tealText} />
+      </View>
 
-        {resource.kind === 'Link' && resource.url ? (
-          <Text variant="caption" color="muted" numberOfLines={1}>
-            {resource.url}
-          </Text>
-        ) : null}
+      <View style={styles.tileBody}>
+        <Text variant="bodySmall" style={styles.tileTitle} numberOfLines={2}>
+          {resource.title}
+        </Text>
 
-        {resource.kind === 'Note' && resource.body ? (
-          <Text
-            variant="caption"
-            color="secondary"
-            numberOfLines={expanded ? undefined : 2}
-          >
-            {resource.body}
+        {isLink ? (
+          <View style={styles.linkLine}>
+            <Text variant="caption" color="accent" numberOfLines={1} style={styles.linkHost}>
+              {hostOf(resource.url!)}
+            </Text>
+            <Ionicons name="open-outline" size={13} color={colors.tealText} />
+          </View>
+        ) : resource.body ? (
+          <>
+            <Text variant="bodySmall" color="secondary" numberOfLines={expanded ? undefined : 3}>
+              {resource.body}
+            </Text>
+            {long ? (
+              <Text variant="caption" color="accent">
+                {expanded ? 'Show less' : 'Show more'}
+              </Text>
+            ) : null}
+          </>
+        ) : (
+          <Text variant="caption" color="muted">
+            Note
           </Text>
-        ) : null}
+        )}
 
         {resource.audience === 'AdminsOnly' ? (
           <View style={styles.badge}>
@@ -750,7 +796,7 @@ function ResourceRow({
           onPress={onRemove}
         />
       ) : null}
-    </View>
+    </Pressable>
   );
 }
 
@@ -919,6 +965,63 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.md,
+  },
+  // A rehearsal, a note or a link: each its own tile (D-122).
+  tile: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    minHeight: 64,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border.default,
+    backgroundColor: colors.surface.canvas,
+  },
+  tilePressed: {
+    backgroundColor: colors.surface.subtle,
+  },
+  tileIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.md,
+    backgroundColor: colors.tealSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tileBody: {
+    flex: 1,
+    gap: 4,
+  },
+  tileTitle: {
+    fontFamily: fontFamilies.uiMedium,
+    color: colors.text.primary,
+  },
+  linkLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  linkHost: {
+    flexShrink: 1,
+  },
+  dateBlock: {
+    width: 48,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.md,
+    backgroundColor: colors.tealSoft,
+    alignItems: 'center',
+  },
+  dateDay: {
+    fontFamily: fontFamilies.uiMedium,
+    fontSize: 20,
+    lineHeight: 24,
+    color: colors.tealText,
+  },
+  dateMonth: {
+    fontFamily: fontFamilies.uiMedium,
+    fontSize: 11,
+    color: colors.tealText,
   },
   rowGroup: {
     gap: spacing.xs,

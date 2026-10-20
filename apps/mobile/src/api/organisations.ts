@@ -19,7 +19,28 @@ export type Organisation = {
   memberCount: number;
   /** The organisation the app opens in (D-099). Absent from older APIs. */
   isDefault?: boolean;
+  /** When event reminders go out (D-118). Absent from older APIs, which mean "morning". */
+  eventReminder?: ReminderTiming;
+  /** When rehearsal reminders go out (D-118). */
+  rehearsalReminder?: ReminderTiming;
+  /** How soon unanswered availability is nudged (D-120). Absent from older APIs. */
+  availabilityNudge?: AvailabilityNudge;
 };
+
+/** Automatic nudges for unanswered availability (D-120). */
+export type AvailabilityNudge = '2d' | '1d' | 'off';
+
+/** When an organisation's reminders go out (D-118). */
+export type ReminderTiming = 'morning' | '1h' | '2h' | '3h' | 'day-before' | 'off';
+
+/** Organisers only. */
+export function setReminders(
+  accessToken: string,
+  organisationId: string,
+  timings: { eventReminder: ReminderTiming; rehearsalReminder: ReminderTiming; availabilityNudge?: AvailabilityNudge },
+): Promise<void> {
+  return sendAuthorizedJson(`/api/organisations/${organisationId}/reminders`, accessToken, 'PUT', timings);
+}
 
 export type Invitation = {
   id: string;

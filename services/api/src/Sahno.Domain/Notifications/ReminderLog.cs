@@ -13,6 +13,12 @@ public enum ReminderKind
 
     /// <summary>The day of a rehearsal. Subject: the rehearsal.</summary>
     RehearsalDay = 2,
+
+    /// <summary>An unanswered request, some days on (D-120). Subject: the participant; occasion: the event's day.</summary>
+    AvailabilityNudge = 3,
+
+    /// <summary>Still unanswered the day before the event (D-120). Subject: the participant.</summary>
+    AvailabilityLastCall = 4,
 }
 
 /// <summary>

@@ -1056,6 +1056,14 @@ namespace Sahno.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("AvailabilityNudge")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("2d")
+                        .HasColumnName("availability_nudge");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
@@ -1067,6 +1075,14 @@ namespace Sahno.Infrastructure.Migrations
                     b.Property<Guid?>("DeletedByUserId")
                         .HasColumnType("uuid")
                         .HasColumnName("deleted_by_user_id");
+
+                    b.Property<string>("EventReminder")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("morning")
+                        .HasColumnName("event_reminder");
 
                     b.Property<string>("GroupType")
                         .HasMaxLength(60)
@@ -1083,6 +1099,14 @@ namespace Sahno.Infrastructure.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)")
                         .HasColumnName("name");
+
+                    b.Property<string>("RehearsalReminder")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("morning")
+                        .HasColumnName("rehearsal_reminder");
 
                     b.Property<string>("TimeZoneId")
                         .IsRequired()

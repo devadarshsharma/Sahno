@@ -45,5 +45,23 @@ public sealed class OrganisationConfiguration : IEntityTypeConfiguration<Organis
             .HasColumnName("deleted_by_user_id");
 
         builder.Ignore(organisation => organisation.PurgeAfterUtc);
+
+        builder.Property(organisation => organisation.EventReminder)
+            .HasColumnName("event_reminder")
+            .HasMaxLength(ReminderTiming.MaxLength)
+            .HasDefaultValue(ReminderTiming.Morning)
+            .IsRequired();
+
+        builder.Property(organisation => organisation.RehearsalReminder)
+            .HasColumnName("rehearsal_reminder")
+            .HasMaxLength(ReminderTiming.MaxLength)
+            .HasDefaultValue(ReminderTiming.Morning)
+            .IsRequired();
+
+        builder.Property(organisation => organisation.AvailabilityNudge)
+            .HasColumnName("availability_nudge")
+            .HasMaxLength(AvailabilityNudge.MaxLength)
+            .HasDefaultValue(AvailabilityNudge.Default)
+            .IsRequired();
     }
 }

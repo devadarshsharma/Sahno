@@ -169,7 +169,7 @@ export function formatEngagementDate(engagement: Pick<Engagement, 'startDate' | 
  */
 export const MEMBER_STATUS_LABELS: Record<EngagementStatus, string> = {
   Draft: 'Not yet shared',
-  CheckingAvailability: 'Needs your response',
+  CheckingAvailability: 'Being decided',
   Tentative: 'Tentative',
   Confirmed: 'Confirmed',
   Postponed: 'Postponed',

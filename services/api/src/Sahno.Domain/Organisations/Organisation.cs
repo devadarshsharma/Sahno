@@ -54,6 +54,28 @@ public sealed class Organisation
 
     public Guid? DeletedByUserId { get; private set; }
 
+    /// <summary>When event-day reminders go out (D-118); a <see cref="ReminderTiming"/> code.</summary>
+    public string EventReminder { get; private set; } = ReminderTiming.Morning;
+
+    /// <summary>When rehearsal reminders go out (D-118); a <see cref="ReminderTiming"/> code.</summary>
+    public string RehearsalReminder { get; private set; } = ReminderTiming.Morning;
+
+    /// <summary>How soon unanswered availability is nudged, or off (D-120); an <see cref="AvailabilityNudge"/> code.</summary>
+    public string AvailabilityNudge { get; private set; } = Organisations.AvailabilityNudge.Default;
+
+    public void SetReminders(string eventReminder, string rehearsalReminder, string? availabilityNudge = null)
+    {
+        if (!ReminderTiming.IsValid(eventReminder) || !ReminderTiming.IsValid(rehearsalReminder)
+            || (availabilityNudge is not null && !Organisations.AvailabilityNudge.IsValid(availabilityNudge)))
+        {
+            throw new ArgumentException("Unknown reminder timing.");
+        }
+
+        EventReminder = eventReminder;
+        RehearsalReminder = rehearsalReminder;
+        AvailabilityNudge = availabilityNudge ?? AvailabilityNudge;
+    }
+
     /// <summary>When it goes for good, if it is deleted.</summary>
     public DateTimeOffset? PurgeAfterUtc => DeletedAtUtc + RestoreWindow;
 

@@ -84,6 +84,16 @@ export default function More() {
 
       {isOrganiser ? (
         <Card style={styles.card}>
+          <Text variant="subheading">Reminders</Text>
+          <Text color="secondary" variant="bodySmall">
+            When everybody is reminded about events and rehearsals.
+          </Text>
+          <Button label="Reminder times" variant="secondary" onPress={() => router.push('/reminders')} />
+        </Card>
+      ) : null}
+
+      {isOrganiser ? (
+        <Card style={styles.card}>
           <Text variant="subheading">Customers</Text>
           <Text color="secondary" variant="bodySmall">
             Everyone who has booked you, and how often. Members never see this.

@@ -21,7 +21,19 @@ public sealed record OrganisationResponse(
     bool ShowSetupChecklist,
     int MemberCount,
     /// <summary>The organisation the app opens in for the caller (D-099).</summary>
-    bool IsDefault = false);
+    bool IsDefault = false,
+    /// <summary>When event reminders go out: morning, 1h, 2h, 3h, day-before or off (D-118).</summary>
+    string EventReminder = "morning",
+    /// <summary>When rehearsal reminders go out, from the same choices (D-118).</summary>
+    string RehearsalReminder = "morning",
+    /// <summary>How soon unanswered availability is nudged: 2d, 1d or off (D-120).</summary>
+    string AvailabilityNudge = "2d");
+
+/// <summary>
+/// Changes when the organisation's reminders go out (D-118, D-120). Owner and
+/// Admins only. Without <c>AvailabilityNudge</c> the nudge setting is kept.
+/// </summary>
+public sealed record SetRemindersRequest(string EventReminder, string RehearsalReminder, string? AvailabilityNudge = null);
 
 public sealed record CreateInvitationRequest(DateTimeOffset? ExpiresAtUtc);
 

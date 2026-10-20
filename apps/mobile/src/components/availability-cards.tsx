@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import {
   ANSWER_LABELS,
@@ -31,21 +31,47 @@ export function MyAvailabilityCard({ engagementId }: { engagementId: string }) {
   const ownQuery = useOwnAvailability(engagementId);
   const engagement = useEngagements().data?.find((row) => row.id === engagementId);
 
-  if (!ownQuery.isSuccess || !ownQuery.data.isSelected) {
+  // Never silently nothing (D-119): a member looking for where to answer
+  // must see it is coming, or that it could not load, not an empty page.
+  if (ownQuery.isPending) {
+    return (
+      <Card style={styles.card}>
+        <Text variant="subheading">Your availability</Text>
+        <ActivityIndicator color={colors.tealText} style={styles.loading} />
+      </Card>
+    );
+  }
+
+  if (ownQuery.isError) {
+    return (
+      <Card style={styles.card}>
+        <Text variant="subheading">Your availability</Text>
+        <Text color="secondary" variant="bodySmall">
+          Could not load your answer.
+        </Text>
+        <Button label="Try again" variant="secondary" onPress={() => void ownQuery.refetch()} />
+      </Card>
+    );
+  }
+
+  if (!ownQuery.data.isSelected) {
     return null;
   }
 
   const current = ownQuery.data.response;
+  const alreadyConfirmed = engagement?.status === 'Confirmed';
 
   return (
-    <Card style={styles.card}>
+    <Card style={[styles.card, current ? null : styles.cardToAnswer]}>
       <Text variant="subheading">
         {current ? 'Your answer' : 'Are you available?'}
       </Text>
       <Text color="secondary" variant="bodySmall">
         {current
           ? 'You can change this while the organiser is still deciding.'
-          : 'Only the organisers see your answer.'}
+          : alreadyConfirmed
+            ? 'Already confirmed — the organisers still need your answer. Only they see it.'
+            : 'Only the organisers see your answer.'}
       </Text>
 
       {engagement ? <YourClashNotice day={engagement} /> : null}
@@ -360,6 +386,14 @@ const styles = StyleSheet.create({
   card: {
     gap: spacing.md,
     marginBottom: spacing.lg,
+  },
+  // Still to answer: it stands out on the page, as on Home.
+  cardToAnswer: {
+    borderWidth: 2,
+    borderColor: colors.orange,
+  },
+  loading: {
+    alignSelf: 'flex-start',
   },
   answerGroup: {
     gap: spacing.sm,

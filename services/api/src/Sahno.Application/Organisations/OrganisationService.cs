@@ -11,6 +11,14 @@ public enum OrganisationDeleteResult
     NameMismatch,
 }
 
+public enum OrganisationSettingResult
+{
+    Saved,
+    NotFound,
+    NotOrganiser,
+    Invalid,
+}
+
 public enum OrganisationRestoreResult
 {
     Restored,
@@ -103,6 +111,43 @@ public sealed class OrganisationService(
             cancellationToken);
         await organisations.SaveAsync(organisation, cancellationToken);
         return OrganisationRestoreResult.Restored;
+    }
+
+    /// <summary>
+    /// When the organisation's event and rehearsal reminders go out (D-118).
+    /// Owner and Admins: they run the events the reminders are about.
+    /// </summary>
+    public async Task<OrganisationSettingResult> SetRemindersAsync(
+        Guid organisationId,
+        Guid userId,
+        string? eventReminder,
+        string? rehearsalReminder,
+        string? availabilityNudge,
+        CancellationToken cancellationToken)
+    {
+        var membership = await memberships.FindAsync(organisationId, userId, cancellationToken);
+        var organisation = membership is null
+            ? null
+            : await organisations.FindByIdAsync(organisationId, cancellationToken);
+        if (membership is null || organisation is null)
+        {
+            return OrganisationSettingResult.NotFound;
+        }
+
+        if (!OrganisationAuthorizationService.IsOrganiser(membership))
+        {
+            return OrganisationSettingResult.NotOrganiser;
+        }
+
+        if (!ReminderTiming.IsValid(eventReminder) || !ReminderTiming.IsValid(rehearsalReminder)
+            || (availabilityNudge is not null && !AvailabilityNudge.IsValid(availabilityNudge)))
+        {
+            return OrganisationSettingResult.Invalid;
+        }
+
+        organisation.SetReminders(eventReminder!, rehearsalReminder!, availabilityNudge);
+        await organisations.SaveAsync(organisation, cancellationToken);
+        return OrganisationSettingResult.Saved;
     }
 
     /// <summary>What this person deleted and can still restore (D-101).</summary>

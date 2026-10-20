@@ -183,6 +183,33 @@ public sealed class OrganisationsController(
         };
     }
 
+    /// <summary>When the organisation's reminders go out (D-118). Owner and Admins only.</summary>
+    [HttpPut("{id:guid}/reminders")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetReminders(
+        Guid id,
+        SetRemindersRequest request,
+        CancellationToken cancellationToken)
+    {
+        var user = await CurrentUserAsync(cancellationToken);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        return await organisationService.SetRemindersAsync(
+                id, user.Id, request.EventReminder, request.RehearsalReminder, request.AvailabilityNudge, cancellationToken) switch
+        {
+            OrganisationSettingResult.Saved => NoContent(),
+            OrganisationSettingResult.NotOrganiser => Forbid(),
+            OrganisationSettingResult.Invalid => BadRequest(new { message = "Unknown reminder timing." }),
+            _ => NotFound(),
+        };
+    }
+
     [HttpPost("{id:guid}/setup-checklist/dismiss")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -335,7 +362,10 @@ public sealed class OrganisationsController(
                 row.Membership.Role == MembershipRole.Owner
                 && row.Membership.SetupChecklistDismissedAtUtc is null,
             row.MemberCount,
-            row.Membership.IsDefault);
+            row.Membership.IsDefault,
+            row.Organisation.EventReminder,
+            row.Organisation.RehearsalReminder,
+            row.Organisation.AvailabilityNudge);
     }
 
     private static InvitationResponse ToResponse(Invitation invitation)

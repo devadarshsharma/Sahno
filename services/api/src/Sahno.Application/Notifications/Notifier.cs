@@ -49,17 +49,21 @@ public sealed class Notifier(
     public async Task AvailabilityReminderAsync(
         Engagement engagement,
         Guid userId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool lastCall = false)
     {
         var people = await DirectoryAsync(engagement.OrganisationId, cancellationToken);
 
+        // The day-before nudge (D-120) says it is the last chance to say.
         await TellAsync(
             engagement,
             [userId],
             people,
             NotificationKind.AvailabilityReminder,
-            $"Reminder: can you do {engagement.Title}?",
-            $"{When(engagement)}. The organiser is still waiting on your answer.",
+            lastCall ? $"Tomorrow: can you do {engagement.Title}?" : $"Reminder: can you do {engagement.Title}?",
+            lastCall
+                ? $"{When(engagement)}. You have not answered yet — the organisers need to know."
+                : $"{When(engagement)}. The organiser is still waiting on your answer.",
             email: true,
             cancellationToken);
     }
@@ -370,7 +374,8 @@ public sealed class Notifier(
         Engagement engagement,
         Rehearsal rehearsal,
         IReadOnlyList<Guid> lineup,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool tomorrow = false)
     {
         if (lineup.Count == 0)
         {
@@ -384,7 +389,7 @@ public sealed class Notifier(
             lineup,
             people,
             NotificationKind.RehearsalReminder,
-            $"Today: {RehearsalName(rehearsal, engagement)}",
+            $"{(tomorrow ? "Tomorrow" : "Today")}: {RehearsalName(rehearsal, engagement)}",
             DescribeRehearsal(rehearsal),
             email: false,
             cancellationToken);
@@ -399,16 +404,18 @@ public sealed class Notifier(
         Engagement engagement,
         IReadOnlyList<Guid> lineup,
         IReadOnlyDictionary<Guid, IReadOnlyList<string>> openJobsByUser,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool tomorrow = false)
     {
         if (lineup.Count == 0)
         {
             return;
         }
 
+        // "Tomorrow" when the organisation reminds the evening before (D-118).
         var people = await DirectoryAsync(engagement.OrganisationId, cancellationToken);
-        var title = $"Today: {engagement.Title}";
-        var day = DescribeDay(engagement);
+        var title = $"{(tomorrow ? "Tomorrow" : "Today")}: {engagement.Title}";
+        var day = DescribeDay(engagement, tomorrow);
 
         var plain = lineup.Where(userId => !openJobsByUser.ContainsKey(userId)).ToList();
         if (plain.Count > 0)
@@ -835,7 +842,7 @@ public sealed class Notifier(
     }
 
     /// <summary>"Arrive by 6:30 PM at Dural Hall." — only what is known.</summary>
-    private static string DescribeDay(Engagement engagement)
+    private static string DescribeDay(Engagement engagement, bool tomorrow = false)
     {
         var parts = new List<string>();
         if (engagement.CallTime is { } call)
@@ -852,7 +859,7 @@ public sealed class Notifier(
             parts.Add(parts.Count == 0 ? $"At {engagement.Venue}" : $"at {engagement.Venue}");
         }
 
-        return parts.Count == 0 ? "It is today." : $"{string.Join(" ", parts)}.";
+        return parts.Count == 0 ? (tomorrow ? "It is tomorrow." : "It is today.") : $"{string.Join(" ", parts)}.";
     }
 
     private static string When(Engagement engagement)

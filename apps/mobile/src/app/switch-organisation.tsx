@@ -69,29 +69,51 @@ export default function SwitchOrganisation() {
                 ) : null}
               </Pressable>
 
-              {choosing ? (
-                isDefault ? (
-                  <View style={styles.default} accessibilityLabel="Opens in this organisation">
-                    <Ionicons name="star" size={14} color={colors.orange} />
-                    <Text variant="caption" color="secondary">
-                      Default
-                    </Text>
-                  </View>
-                ) : (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Open the app in ${organisation.name} from now on`}
-                    disabled={makeDefault.isPending}
-                    onPress={() => makeDefault.mutate(organisation.id)}
-                    hitSlop={8}
-                    style={({ pressed }) => [styles.default, pressed ? styles.pressed : null]}
-                  >
-                    <Ionicons name="star-outline" size={14} color={colors.text.muted} />
-                    <Text variant="caption" color="muted">
-                      Make default
-                    </Text>
-                  </Pressable>
-                )
+              {choosing || organisation.role === 'Owner' ? (
+                <View style={styles.rowActions}>
+                {choosing ? (
+                  isDefault ? (
+                    <View style={styles.default} accessibilityLabel="Opens in this organisation">
+                      <Ionicons name="star" size={14} color={colors.orange} />
+                      <Text variant="caption" color="secondary">
+                        Default
+                      </Text>
+                    </View>
+                  ) : (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Open the app in ${organisation.name} from now on`}
+                      disabled={makeDefault.isPending}
+                      onPress={() => makeDefault.mutate(organisation.id)}
+                      hitSlop={8}
+                      style={({ pressed }) => [styles.default, pressed ? styles.pressed : null]}
+                    >
+                      <Ionicons name="star-outline" size={14} color={colors.text.muted} />
+                      <Text variant="caption" color="muted">
+                        Make default
+                      </Text>
+                    </Pressable>
+                  )
+                ) : null}
+                  {/* Only on what you own, and only a way in: the delete page
+                      itself asks for the name (D-101, D-121). */}
+                  {organisation.role === 'Owner' ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Delete ${organisation.name}`}
+                      onPress={() =>
+                        router.push({ pathname: '/delete-organisation', params: { organisationId: organisation.id } })
+                      }
+                      hitSlop={8}
+                      style={({ pressed }) => [styles.delete, pressed ? styles.pressed : null]}
+                    >
+                      <Ionicons name="trash-outline" size={14} color={colors.text.error} />
+                      <Text variant="caption" color="error">
+                        Delete
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
               ) : null}
             </View>
           );
@@ -114,26 +136,6 @@ export default function SwitchOrganisation() {
         variant="ghost"
         onPress={() => router.push('/create-organisation')}
       />
-
-      {/* Out of the way at the bottom, and only for what the person owns (D-101). */}
-      {organisations
-        .filter((organisation) => organisation.role === 'Owner')
-        .map((organisation) => (
-          <Pressable
-            key={organisation.id}
-            accessibilityRole="button"
-            onPress={() =>
-              router.push({ pathname: '/delete-organisation', params: { organisationId: organisation.id } })
-            }
-            hitSlop={8}
-            style={({ pressed }) => [styles.danger, pressed ? styles.pressed : null]}
-          >
-            <Ionicons name="trash-outline" size={16} color={colors.text.error} />
-            <Text variant="bodySmall" color="error">
-              Delete {organisation.name}
-            </Text>
-          </Pressable>
-        ))}
 
       <RecentlyDeleted />
     </Screen>
@@ -182,12 +184,17 @@ const styles = StyleSheet.create({
   hint: {
     marginBottom: spacing.xl,
   },
-  danger: {
+  rowActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    minHeight: 44,
-    marginTop: spacing.md,
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  delete: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 2,
+    marginLeft: 'auto',
   },
 });

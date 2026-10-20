@@ -2018,3 +2018,71 @@ App Store Connect counted three crashes on a build but had a log for only the on
 - **Sent:** the error, stack, device and OS, app version, and an **opaque user id**. **Not sent:** names, emails or phone numbers, request bodies, query strings (a venue search never leaves the phone), console logs, screenshots. No performance tracing.
 - **Readable stacks:** with `SENTRY_ORG`, `SENTRY_PROJECT` and the secret `SENTRY_AUTH_TOKEN` in the EAS environment, builds upload source maps (Sentry's Expo plugin, added only when those are set; Metro adds debug ids).
 - Sentry is listed in the privacy policy draft as a service provider.
+
+---
+
+## D-118 — Organisers choose when reminders go out
+
+**Date:** 20 October 2026
+**Status:** Accepted
+
+Reminders went out at a fixed time (D-085): 8:00 on the day, or two hours before when something started earlier. Groups wanted the evening before, or a nudge closer to the time.
+
+- **Per organisation, separately for events and rehearsals** (More → Reminders, Owner and Admins): **Morning of** (the D-085 rule, and the default), **1, 2 or 3 hours before**, **The day before at 6:00 pm**, or **Off**.
+- "Hours before" counts back from an event's arrival (call time, else start) or a rehearsal's start; something with no time set is reminded at 8:00 on the day instead. "The day before" reminders read "Tomorrow: …".
+- Unchanged: who is reminded (expected lineup and organisers, D-115); nothing is reminded about once it has begun; a rehearsal booked after its reminder was due gets only its booking notification; and **each event or rehearsal is reminded once** — the log is keyed on its own day, so changing the setting never sends a second reminder.
+- `organisations.event_reminder` / `rehearsal_reminder` (migration `AddReminderSettings`, additive, default `morning`); `PUT /api/organisations/{id}/reminders`; the organisation response carries both.
+
+---
+
+## D-119 — An unanswered request can always be found and answered
+
+**Date:** 20 October 2026
+**Status:** Accepted
+
+A member asked about an event that was then confirmed could not find where to answer. Home had dropped it (fixed by D-113); the Events tab filed it under "Confirmed" beside events he had answered, with no answer buttons; and on the event page the answer card rendered nothing at all while it loaded or if its request failed.
+
+- **Events tab:** for a member, every event they were asked about and have not answered — checking, tentative or confirmed — comes first under **Needs your answer**, each row with an orange "Needs your answer" chip. The old "Needs your response" heading for events being checked becomes "Being decided", since it now holds only answered ones.
+- **Event page:** the answer card shows a spinner while loading, and "Could not load your answer" with **Try again** on failure, never an empty gap. Unanswered, it has an orange edge; on a confirmed event it says "Already confirmed — the organisers still need your answer."
+- Not changed: organisers are not given this, since the list does not tell their own lineup place apart from not being on it.
+
+---
+
+## D-120 — Unanswered availability is nudged automatically
+
+**Date:** 20 October 2026
+**Status:** Accepted
+
+Nothing chased an unanswered request unless an organiser pressed **Remind**. A member asked on the 15th had still not answered when the event was confirmed.
+
+- **A first nudge** some days after the person was asked — **2 days** by default, or 1 — then **a last call at 10:00 the day before the event**, "Tomorrow: can you do …?". Only while they have not answered, the event is still ahead and still going ahead (checking, tentative or confirmed), and they are still on its lineup.
+- **Never overnight:** a first nudge falling before 9:00 waits until 9:00; at 20:00 or later it goes at 9:00 the next day.
+- **No doubling:** each goes once per person per event; a first nudge not yet sent when the last call comes is folded into it; somebody asked after the last call would have been due is not chased on top of the request; and an organiser's own **Remind** within a day of the first nudge counts as it.
+- **More → Reminders → Unanswered availability:** 2 days after asking (default), 1 day after asking, or Off. `organisations.availability_nudge`, in migration `AddReminderSettings` with D-118's settings; the default turns nudges on for existing organisations.
+- Same notification as **Remind** (in-app, push and email, D-049), and it opens the event, where the answer is.
+
+---
+
+## D-121 — Delete sits on its organisation's row
+
+**Date:** 20 October 2026
+**Status:** Accepted
+
+**Your organisations** listed a "Delete *name*" link at the bottom for every organisation the person owns — ten organisations, ten red links in a stack, apart from the rows they belong to.
+
+- Each owned organisation's row now carries a small **Delete** on the right of its action line, beside **Make default** (or **★ Default**). Rows of organisations you do not own have none.
+- It is only the way in: the delete page itself (D-101) still lists what goes, asks for the name typed out, and offers restore for 30 days.
+
+---
+
+## D-122 — Notes, links and rehearsals are tiles
+
+**Date:** 20 October 2026
+**Status:** Accepted
+
+On an event's **Set list & rehearsals** page, notes and links were a line of small text — the tap target was the title alone, a note looked like a link, and nothing said a note was there to read. Rehearsals were plain text rows.
+
+- **Each note or link is its own tile**, with an icon (document for a note, link for a link) and its title. A link shows where it goes ("drive.google.com ↗") and the whole tile opens it. A note shows its first three lines, and the whole tile opens it out, with **Show more** / **Show less** when there is more.
+- The card's summary says what is there: "1 note · 2 links", not "3 attached".
+- **Each rehearsal is its own tile**, with a date block (19 / OCT) as on Home, then its title, time, venue (tap for maps) and notes.
+- **Remove** stays the confirmed, easy-to-hit action (the TextAction from the earlier fix) in each tile's corner; "Not shown to members" still marks organiser-only notes.
