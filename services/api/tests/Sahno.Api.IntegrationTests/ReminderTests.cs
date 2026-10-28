@@ -332,6 +332,38 @@ public sealed class ReminderTests(SahnoApiFactory factory)
         }
     }
 
+    /// <summary>
+    /// The morning after an event nobody closed (D-125), its organisers are
+    /// asked to close it — at 10:00, once, and members are not.
+    /// </summary>
+    [Fact]
+    public async Task TheMorningAfter_OrganisersAreAskedToCloseTheEvent()
+    {
+        var org = await NewOrganisationAsync("wrapup", members: 1);
+        var day = LocalToday().AddDays(2);
+        var engagement = await NewDraftAsync(org, "Sufi night", day, new TimeOnly(19, 0));
+        await RequestAvailabilityAsync(org, engagement.Id, org.MemberIds);
+        await RespondAsync(org, org.Members[0], engagement.Id, "Available");
+        foreach (var status in new[] { "Tentative", "Confirmed" })
+        {
+            (await org.Owner.PostAsJsonAsync(
+                $"{Engagements(org)}/{engagement.Id}/transition",
+                new TransitionEngagementRequest(status, null))).EnsureSuccessStatusCode();
+        }
+
+        await SendDueAtAsync(day.AddDays(1), new TimeOnly(9, 55));
+        Assert.DoesNotContain(await BellAsync(org.Owner, org), row => row.Kind == "EngagementWrapUp");
+
+        await SendDueAtAsync(day.AddDays(1), new TimeOnly(10, 5));
+        var ask = Assert.Single(await BellAsync(org.Owner, org), row => row.Kind == "EngagementWrapUp");
+        Assert.Equal($"/engagement/{engagement.Id}/status", ask.Route);
+        Assert.Contains("performers", ask.Body);
+        Assert.DoesNotContain(await BellAsync(org.Members[0], org), row => row.Kind == "EngagementWrapUp");
+
+        await SendDueAtAsync(day.AddDays(2), new TimeOnly(10, 5));
+        Assert.Single(await BellAsync(org.Owner, org), row => row.Kind == "EngagementWrapUp");
+    }
+
     private static async Task SetRemindersAsync(HttpClient owner, TestOrganisation org, string events, string rehearsals)
     {
         var response = await owner.PutAsJsonAsync(

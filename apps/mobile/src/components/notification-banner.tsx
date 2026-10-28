@@ -111,6 +111,8 @@ function iconFor(kind: NotificationKind): React.ComponentProps<typeof Ionicons>[
       return 'alert-circle-outline';
     case 'EngagementConfirmed':
       return 'checkmark-circle-outline';
+    case 'EngagementWrapUp':
+      return 'flag-outline';
     case 'OrganiserAnnouncement':
       return 'megaphone-outline';
     case 'MemberJoined':

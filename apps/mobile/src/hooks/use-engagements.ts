@@ -188,7 +188,34 @@ export const MEMBER_STATUS_LABELS: Record<EngagementStatus, string> = {
  * Shared by Home's attention list and the Bookings filter, so the tile, the
  * list, and the page it opens can never disagree.
  */
+/** Today, as a calendar date on this phone ("2026-10-28"). */
+function todayIso(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${`${now.getMonth() + 1}`.padStart(2, '0')}-${`${now.getDate()}`.padStart(2, '0')}`;
+}
+
+/**
+ * Its day has gone but nobody closed it (D-125): still Confirmed or
+ * Tentative, last day before today. It is not upcoming any more — it is an
+ * organiser's loose end.
+ */
+export function hasHappened(
+  engagement: Pick<Engagement, 'status' | 'startDate' | 'endDate'>,
+  today: string = todayIso(),
+): boolean {
+  const lastDay = engagement.endDate ?? engagement.startDate;
+  return (
+    (engagement.status === 'Confirmed' || engagement.status === 'Tentative') &&
+    lastDay !== null &&
+    lastDay < today
+  );
+}
+
 export function needsAttention(engagement: Engagement): boolean {
+  // Over but still open: close it (D-125).
+  if (hasHappened(engagement)) {
+    return true;
+  }
   if (engagement.status === 'Completed') {
     return (engagement.financeOutstanding ?? 0) > 0;
   }

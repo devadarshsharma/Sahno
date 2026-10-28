@@ -180,6 +180,8 @@ function kindLabel(kind: NotificationKind): string {
       return 'Back on';
     case 'EngagementUnconfirmed':
       return 'No longer confirmed';
+    case 'EngagementWrapUp':
+      return 'Wrap up';
     case 'EngagementDateChanged':
       return 'New date';
     case 'EngagementDetailsChanged':

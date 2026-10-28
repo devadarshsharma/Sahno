@@ -121,6 +121,8 @@ export function AvailabilityAnswerButtons({
               onPress={() => {
                 setError(null);
                 respond.mutate(answer, {
+                  // Said out loud: on Home the event moves down as this lands (D-127).
+                  onSuccess: () => showToast(`Answer sent: ${ANSWER_LABELS[answer]}`),
                   onError: () => setError('Could not save your answer. Try again.'),
                 });
               }}

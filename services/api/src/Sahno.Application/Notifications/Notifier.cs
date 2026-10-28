@@ -69,6 +69,52 @@ public sealed class Notifier(
     }
 
     /// <summary>
+    /// The morning after an event that is still open (D-125): organisers are
+    /// asked to close it. Those who handle money are also asked to record what
+    /// performers were paid; everyone else is not told about money (D-016).
+    /// </summary>
+    public async Task EngagementWrapUpAsync(
+        Engagement engagement,
+        DateOnly lastDay,
+        CancellationToken cancellationToken)
+    {
+        var people = await DirectoryAsync(engagement.OrganisationId, cancellationToken);
+        var organisers = people
+            .Where(row => OrganisationAuthorizationService.IsOrganiser(row.Membership))
+            .ToList();
+        var title = $"{engagement.Title} was on {lastDay.ToString("ddd d MMM", System.Globalization.CultureInfo.InvariantCulture)}";
+
+        var withMoney = organisers.Where(row => row.Membership.HasFinancialAccess).Select(row => row.Membership.UserId).ToList();
+        var withoutMoney = organisers.Where(row => !row.Membership.HasFinancialAccess).Select(row => row.Membership.UserId).ToList();
+
+        if (withMoney.Count > 0)
+        {
+            await TellAsync(
+                engagement,
+                withMoney,
+                people,
+                NotificationKind.EngagementWrapUp,
+                title,
+                "Mark it completed, and record what performers were paid. It stays in your bookings until you do.",
+                email: false,
+                cancellationToken);
+        }
+
+        if (withoutMoney.Count > 0)
+        {
+            await TellAsync(
+                engagement,
+                withoutMoney,
+                people,
+                NotificationKind.EngagementWrapUp,
+                title,
+                "Mark it completed, so it moves to Past. It stays in your bookings until you do.",
+                email: false,
+                cancellationToken);
+        }
+    }
+
+    /// <summary>
     /// Organisers hear that somebody answered. In-app only — it is useful to
     /// know, not urgent enough to interrupt an inbox for.
     /// </summary>

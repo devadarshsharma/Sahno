@@ -10,6 +10,7 @@ export type NotificationKind =
   | 'EngagementCancelled'
   | 'EngagementReopened'
   | 'EngagementUnconfirmed'
+  | 'EngagementWrapUp'
   | 'EngagementDateChanged'
   | 'EngagementDetailsChanged'
   | 'EngagementDayReminder'

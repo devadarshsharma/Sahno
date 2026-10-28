@@ -2114,3 +2114,52 @@ The reminder choices (D-118) were a fixed list. Organisers wanted 4, 6 or 8 hour
 - **Counted back from the start** (an event's arrival: call time, else start). Days before is the same time of day that many days earlier. Something with no time set: hours before goes at 8:00 on the day, days before at 8:00 that many days earlier.
 - **Titled for when it is:** "Today: …", "Tomorrow: …", or the day — "Sat 24 Oct: …" — when further off.
 - Stored as `before:<minutes>` in the same columns (15 minutes to 14 days; anything else refused). The scheduler now looks up to fifteen days ahead. Still one reminder per event or rehearsal, and none once it has begun.
+
+---
+
+## D-125 — An event whose day has gone is a loose end, not "next"
+
+**Date:** 28 October 2026
+**Status:** Accepted
+
+Sufi sama was on 24 October, but nobody marked it completed, so it stayed Confirmed — and Home, treating every confirmed event as upcoming, kept showing it as a member's **Next confirmed event**, hiding the 31 October one behind it. Nothing told the organisers it was still open.
+
+- **Home's upcoming lists are upcoming.** A Confirmed or Tentative event whose last day is before today leaves a member's Next / Later / Tentative events and an organiser's Upcoming confirmed and Tentative bookings.
+- **For organisers it is Needs attention**: "Was on Sat 24 Oct — close it", first, before anything else about that booking; it opens the event, whose Status page closes it. The Home tile and the Bookings "Needs attention" filter count it the same way.
+- **The morning after, at 10:00**, organisers get "*Sufi sama* was on Sat 24 Oct": "Mark it completed, and record what performers were paid", or, for organisers without financial access (D-016), "Mark it completed, so it moves to Past". In-app and push, no email; it opens the Status page. Once per event, and only for events whose last day was in the past week, so it does not dredge up every booking nobody ever closed (`EngagementWrapUp`; reminder log kind `EngagementWrapUp`; no migration).
+- Not changed: nothing is closed automatically — whether it happened, and what is still owed, is the organiser's to say (D-032).
+
+---
+
+## D-126 — Asking about an event with no date says why it cannot
+
+**Date:** 29 October 2026
+**Status:** Accepted
+
+An organiser created an enquiry without a date and tried to ask four people: the API refused (a request is a question about a date — D-025), and the app said only "Could not send those requests.", four times.
+
+- **Who do you need?** now checks first: an event with no date shows **Set a date first** — "People are asked whether they can make a date, so this needs one" — with **Set the date** (to the event's Details), and **Ask** stays off until there is one. A closed event keeps Ask off too (D-097).
+- **When the API still refuses,** the message says which reason: no date yet, the event is closed, or somebody picked has left the group. A failure that is not a refusal says to check the connection.
+
+---
+
+## D-127 — Once answered, an event moves down a member's Home
+
+**Date:** 29 October 2026
+**Status:** Accepted
+
+**Your availability**, first on a member's Home, held every event still being decided — answered or not — so an answer given left the event at the top, above the **Next confirmed event** the member actually needs to see.
+
+- **Your availability** now holds only what still needs the member's answer (as D-113, with the count). An event answered and still being decided moves to a new **Waiting on organisers** section below **Tentative events**, with the answer showing on its card.
+- Order: Your availability → Next confirmed event → Tentative events → Waiting on organisers → Later events → Postponed.
+- **It moves at once, and says so:** every answer given — on Home, the Events tab or the event page — shows a toast, "Answer sent: Available", so the card leaving the top reads as the answer landing, not vanishing. The whole breakdown stays on the Events tab.
+
+---
+
+## D-128 — The Events list can be narrowed to a month
+
+**Date:** 29 October 2026
+**Status:** Accepted
+
+- Under **Upcoming · Past · All**, a row of month chips — **All dates**, then each month that has events in the chosen scope ("Oct 2026", "Nov 2026"…) — scrolls sideways; tapping one shows only that month's events, in the same groups. Shown only when the list spans more than one month.
+- Undated events appear under **All dates** only. A month chosen that the new scope has no events in falls back to all dates rather than an empty list. The calendar view is unchanged.

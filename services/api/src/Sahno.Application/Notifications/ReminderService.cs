@@ -137,6 +137,53 @@ public sealed class ReminderService(
         }
 
         sent += await NudgeUnansweredAsync(organisation, all, zone, localNow, utcNow, cancellationToken);
+        sent += await AskToWrapUpAsync(all, localNow, utcNow, cancellationToken);
+
+        return sent;
+    }
+
+    /// <summary>How far back an open event is still worth asking about: older ones were simply missed.</summary>
+    public static readonly int WrapUpLookbackDays = 7;
+
+    /// <summary>The morning after: 10:00, inside the hours nudges keep to (D-120).</summary>
+    public static readonly TimeOnly WrapUpSendTime = new(10, 0);
+
+    /// <summary>
+    /// The morning after an event that is still Confirmed or Tentative (D-125):
+    /// its organisers are asked to close it. Once per event, for events whose
+    /// last day was in the past week — switching this on does not dredge up
+    /// every old booking nobody closed.
+    /// </summary>
+    private async Task<int> AskToWrapUpAsync(
+        IReadOnlyList<Engagement> all,
+        DateTime localNow,
+        DateTimeOffset utcNow,
+        CancellationToken cancellationToken)
+    {
+        var today = DateOnly.FromDateTime(localNow);
+        if (TimeOnly.FromDateTime(localNow) < WrapUpSendTime || !AvailabilityNudge.IsSendingHour(localNow))
+        {
+            return 0;
+        }
+
+        var sent = 0;
+        foreach (var engagement in all.Where(engagement =>
+                     engagement.Status is EngagementStatus.Confirmed or EngagementStatus.Tentative
+                     && (engagement.EndDate ?? engagement.StartDate) is { } last
+                     && last < today
+                     && last >= today.AddDays(-WrapUpLookbackDays)))
+        {
+            var lastDay = (engagement.EndDate ?? engagement.StartDate)!.Value;
+            if (await log.WasSentAsync(ReminderKind.EngagementWrapUp, engagement.Id, lastDay, cancellationToken))
+            {
+                continue;
+            }
+
+            await notifier.EngagementWrapUpAsync(engagement, lastDay, cancellationToken);
+            log.Stage(ReminderLog.Sent(ReminderKind.EngagementWrapUp, engagement.Id, lastDay, utcNow));
+            await log.SaveAsync(cancellationToken);
+            sent++;
+        }
 
         return sent;
     }

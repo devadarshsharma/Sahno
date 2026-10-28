@@ -19,6 +19,9 @@ public enum ReminderKind
 
     /// <summary>Still unanswered the day before the event (D-120). Subject: the participant.</summary>
     AvailabilityLastCall = 4,
+
+    /// <summary>The morning after an event that is still open (D-125). Subject: the engagement; occasion: its last day.</summary>
+    EngagementWrapUp = 5,
 }
 
 /// <summary>

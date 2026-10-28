@@ -41,6 +41,9 @@ public enum NotificationKind
     /// <summary>A confirmed event went back to tentative or to checking availability (D-109).</summary>
     EngagementUnconfirmed = 18,
 
+    /// <summary>An event's day has passed and it is still open: close it, settle what is owed (D-125). Organisers only.</summary>
+    EngagementWrapUp = 19,
+
     /// <summary>A job on an event has been given to you.</summary>
     ResponsibilityAssigned = 20,
 

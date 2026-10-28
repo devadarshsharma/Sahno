@@ -25,9 +25,10 @@ import { EngagementCard } from '@/components/engagement-card';
 import { Button, Card, Screen, Text, toIsoDate } from '@/components/ui';
 import { firstNameOf, useMe, useNeedsDisplayName } from '@/hooks/use-me';
 import {
+  type BookingsFilter,
+  hasHappened,
   needsAttention,
   useEngagements,
-  type BookingsFilter,
 } from '@/hooks/use-engagements';
 import { useMembers } from '@/hooks/use-members';
 import { useUnreadCount } from '@/hooks/use-notifications';
@@ -156,8 +157,9 @@ export default function Index() {
   const byStatus = (status: Engagement['status']) =>
     engagements.filter((engagement) => engagement.status === status);
 
-  const confirmed = byStatus('Confirmed');
-  const tentative = byStatus('Tentative');
+  // Upcoming only: one whose day has gone is in Needs attention, to close (D-125).
+  const confirmed = byStatus('Confirmed').filter((engagement) => !hasHappened(engagement));
+  const tentative = byStatus('Tentative').filter((engagement) => !hasHappened(engagement));
   const enquiries = byStatus('Draft');
   // Unresolved work, which D-041 puts first. Four things qualify:
   //   - somebody has still to answer;
@@ -197,19 +199,31 @@ export default function Index() {
       (engagement.status === 'Tentative' || engagement.status === 'Confirmed') &&
       (engagement.endDate ?? engagement.startDate ?? today) >= today,
   );
+  // Only what still needs your answer sits at the top (D-127). The moment it
+  // is answered it moves down — a toast says the answer went — to Waiting on
+  // organisers, or among your events once decided.
+  const stillBeingDecided = engagements.filter((engagement) => engagement.status === 'CheckingAvailability');
   const yourAvailability = [
     ...unanswered,
-    ...engagements.filter((engagement) => engagement.status === 'CheckingAvailability'),
-  ].sort((a, b) => Number(a.yourResponse !== null) - Number(b.yourResponse !== null));
-  const toAnswer = yourAvailability.filter((engagement) => engagement.yourResponse === null).length;
+    ...stillBeingDecided.filter((engagement) => engagement.yourResponse === null),
+  ];
+  const toAnswer = yourAvailability.length;
+  const inAvailability = new Set(yourAvailability.map((engagement) => engagement.id));
+  // Answered, and the organisers are still deciding.
+  const waitingOnOrganisers = stillBeingDecided.filter(
+    (engagement) => engagement.yourResponse !== null && !inAvailability.has(engagement.id),
+  );
 
   // What a member has already replied to and is still on.
   const yourEvents = engagements.filter(
     (engagement) =>
       engagement.yourResponse !== null &&
+      !inAvailability.has(engagement.id) &&
       ['CheckingAvailability', 'Tentative', 'Confirmed'].includes(
         engagement.status,
-      ),
+      ) &&
+      // Over is not "next": an event nobody closed stays off a member's diary (D-125).
+      !hasHappened(engagement),
   );
 
   // A member's own diary, in D-040's order. "Next confirmed" is deliberately
@@ -485,6 +499,14 @@ export default function Index() {
                 onOpenRehearsals={openRehearsals}
               />
               <EngagementList
+                title="Waiting on organisers"
+                engagements={waitingOnOrganisers}
+                isOrganiser={isOrganiser}
+                onOpen={openEngagement}
+                rehearsalsFor={(id) => rehearsalsByEvent.get(id) ?? []}
+                onOpenRehearsals={openRehearsals}
+              />
+              <EngagementList
                 title="Later events"
                 engagements={laterEvents}
                 isOrganiser={isOrganiser}
@@ -536,6 +558,16 @@ const MISSING_ACTIONS: Record<ReadinessItem, { action: string; icon: AttentionIc
  * says what each booking is.
  */
 function attentionAction(engagement: Engagement): { action: string; icon: AttentionIcon } {
+  // Over but never closed (D-125): that comes before anything else about it.
+  if (hasHappened(engagement)) {
+    const day = new Date(`${engagement.endDate ?? engagement.startDate}T00:00:00`).toLocaleDateString(undefined, {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    });
+    return { action: `Was on ${day} — close it`, icon: 'flag-outline' };
+  }
+
   const waiting = engagement.outstandingCount ?? 0;
   if (waiting > 0) {
     return {

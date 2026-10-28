@@ -36,6 +36,8 @@ public static class NotificationRoutes
             NotificationKind.AvailabilityAnswered => $"{engagement}/people",
             // Asked for a detail: straight to where it is filled in.
             NotificationKind.DetailsRequested => $"{engagement}/details",
+            // Closing it is a status change; that page is where it is done.
+            NotificationKind.EngagementWrapUp => $"{engagement}/status",
             NotificationKind.ResponsibilityAssigned
                 or NotificationKind.ResponsibilityReminder => $"{engagement}/jobs",
             NotificationKind.RehearsalScheduled

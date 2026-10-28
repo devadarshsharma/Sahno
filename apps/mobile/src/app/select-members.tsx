@@ -3,8 +3,10 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { requestAvailability } from '@/api/availability';
+import { ApiError } from '@/api/client';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { useAvailability, useAvailabilityMutation } from '@/hooks/use-availability';
+import { useEngagements } from '@/hooks/use-engagements';
 import { sortedForDisplay, useMembers } from '@/hooks/use-members';
 import { colors, radii, spacing } from '@/theme';
 
@@ -19,6 +21,11 @@ export default function SelectMembers() {
   const router = useRouter();
   const membersQuery = useMembers();
   const availabilityQuery = useAvailability(engagementId);
+  const engagement = useEngagements().data?.find((row) => row.id === engagementId);
+  // Availability is a question about a date: with none, there is nothing to
+  // ask, and the API refuses (D-126). Say so before anyone picks a name.
+  const needsDate = engagement !== undefined && engagement.startDate === null;
+  const closed = engagement?.status === 'Completed' || engagement?.status === 'Cancelled';
   const [chosen, setChosen] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,6 +72,23 @@ export default function SelectMembers() {
       }}
     >
 
+      {needsDate ? (
+        <Card style={[styles.card, styles.notice]}>
+          <Text variant="subheading">Set a date first</Text>
+          <Text color="secondary" variant="bodySmall">
+            People are asked whether they can make a date, so this needs one. Set the proposed date, then come
+            back to ask.
+          </Text>
+          <Button
+            label="Set the date"
+            variant="secondary"
+            onPress={() =>
+              router.replace({ pathname: '/engagement/[engagementId]/details', params: { engagementId } })
+            }
+          />
+        </Card>
+      ) : null}
+
       <Card style={styles.card}>
         {candidates.map((member) => {
           const already = onLineup.has(member.userId);
@@ -109,12 +133,22 @@ export default function SelectMembers() {
             ? 'Choose someone to ask'
             : `Ask ${chosen.length} ${chosen.length === 1 ? 'person' : 'people'}`
         }
-        disabled={chosen.length === 0}
+        disabled={chosen.length === 0 || needsDate || closed}
         loading={ask.isPending}
         onPress={() =>
           ask.mutate(chosen, {
             onSuccess: () => router.back(),
-            onError: () => setError('Could not send those requests.'),
+            // The API says no only for a reason: say which (D-126).
+            onError: (failure) =>
+              setError(
+                failure instanceof ApiError && failure.status === 400
+                  ? needsDate
+                    ? 'Set a date first — there is nothing to ask about yet.'
+                    : closed
+                      ? 'This event is closed, so nobody new can be asked.'
+                      : 'Somebody picked is no longer in the group. Refresh and try again.'
+                  : 'Could not send those requests. Check your connection and try again.',
+              ),
           })
         }
       />
@@ -129,6 +163,11 @@ export default function SelectMembers() {
 }
 
 const styles = StyleSheet.create({
+  notice: {
+    gap: spacing.sm,
+    borderWidth: 2,
+    borderColor: colors.orange,
+  },
   centered: {
     flex: 1,
     alignItems: 'center',

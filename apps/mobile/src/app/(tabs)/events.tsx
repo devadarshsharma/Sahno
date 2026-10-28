@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import type { Engagement, EngagementStatus } from '@/api/engagements';
 import { EngagementCalendar, type CalendarEvent, type CalendarRehearsal } from '@/components/engagement-calendar';
@@ -36,6 +36,8 @@ export default function Events() {
   const [view, setView] = useState<'list' | 'calendar'>('list');
   // The list opens on what is coming up; Past is the bookings' history (D-100).
   const [scope, setScope] = useState<TimeScope>('upcoming');
+  // One month at a time, or every date (D-128). "2026-11", or null for all.
+  const [month, setMonth] = useState<string | null>(null);
 
   // Arrived from a Home tile: show only what that tile counted. Clearing it
   // is one tap, and the param goes with it so a re-tap from Home still works.
@@ -98,7 +100,12 @@ export default function Events() {
   const today = toIsoDate(new Date());
   const past = listed.filter((event) => isPast(event, today));
   const upcoming = listed.filter((event) => !isPast(event, today));
-  const scoped = filter ? listed : scope === 'past' ? past : scope === 'upcoming' ? upcoming : listed;
+  const inScope = filter ? listed : scope === 'past' ? past : scope === 'upcoming' ? upcoming : listed;
+  // The months the scope has events in, in its own order; a month chosen
+  // that this scope does not have shows everything rather than nothing.
+  const months = [...new Set(inScope.map((event) => event.startDate?.slice(0, 7)).filter((key): key is string => Boolean(key)))];
+  const activeMonth = month !== null && months.includes(month) ? month : null;
+  const scoped = activeMonth === null ? inScope : inScope.filter((event) => event.startDate?.startsWith(activeMonth));
   const scopeCounts: Record<TimeScope, number> = { upcoming: upcoming.length, past: past.length, all: listed.length };
   // History reads by when, not by pipeline stage.
   // Asked and not yet answered goes first, whatever its status — a confirmed
@@ -231,6 +238,34 @@ export default function Events() {
             );
           })}
         </View>
+      ) : null}
+
+      {view === 'list' && months.length > 1 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.monthRow}
+          style={styles.monthScroll}
+        >
+          {[null, ...months].map((key) => {
+            const selected = key === activeMonth;
+            return (
+              <Pressable
+                key={key ?? 'all'}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => setMonth(key)}
+                style={[styles.monthChip, selected ? styles.monthChipOn : null]}
+              >
+                <Text variant="caption" color={selected ? 'inverse' : 'secondary'}>
+                  {key === null
+                    ? 'All dates'
+                    : new Date(`${key}-01T00:00:00`).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       ) : null}
 
       {view === 'calendar' ? (
@@ -485,6 +520,23 @@ const styles = StyleSheet.create({
   filterName: {
     fontFamily: fontFamilies.uiMedium,
     color: colors.text.primary,
+  },
+  monthScroll: {
+    marginBottom: spacing.lg,
+    flexGrow: 0,
+  },
+  monthRow: {
+    gap: spacing.sm,
+  },
+  monthChip: {
+    minHeight: 30,
+    paddingHorizontal: spacing.md,
+    justifyContent: 'center',
+    borderRadius: radii.full,
+    backgroundColor: colors.surface.subtle,
+  },
+  monthChipOn: {
+    backgroundColor: colors.interactive.primary,
   },
   scopeRow: {
     flexDirection: 'row',
