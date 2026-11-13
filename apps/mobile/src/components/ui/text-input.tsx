@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   TextInput as RNTextInput,
   StyleSheet,
+  useWindowDimensions,
   View,
   type TextInputProps as RNTextInputProps,
 } from 'react-native';
@@ -29,6 +30,15 @@ export function TextInput({
   ...rest
 }: TextInputProps) {
   const [focused, setFocused] = useState(false);
+  const { height: windowHeight } = useWindowDimensions();
+
+  // A long multi-line field scrolls inside itself rather than growing past
+  // the screen. Taller than the space above the keyboard, nothing can lift it
+  // into view, and the line being typed sits behind the keyboard. A third of
+  // the window always fits above it, on the smallest phones too.
+  const multilineCap = rest.multiline
+    ? { maxHeight: Math.max(160, Math.round(windowHeight * 0.33)) }
+    : null;
 
   const borderColor = error
     ? colors.border.error
@@ -65,8 +75,10 @@ export function TextInput({
               : colors.surface.raised,
             color: disabled ? colors.text.muted : colors.text.primary,
           },
+          multilineCap,
           style,
         ]}
+        scrollEnabled={rest.multiline ? true : rest.scrollEnabled}
       />
       {error ? (
         <Text variant="bodySmall" color="error" accessibilityLiveRegion="polite">
