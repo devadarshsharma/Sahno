@@ -1,4 +1,5 @@
-import { getAuthorizedJson, sendAuthorized, sendAuthorizedJson } from '@/api/client';
+import { ApiError, getAuthorizedJson, sendAuthorized, sendAuthorizedJson } from '@/api/client';
+import { environment } from '@/config/environment';
 
 export type NotificationKind =
   | 'AvailabilityRequested'
@@ -155,13 +156,16 @@ export function registerPushDevice(
   return sendAuthorizedJson('/api/me/push-devices', accessToken, 'PUT', input);
 }
 
-/** Signing out: this phone stops receiving this person's news. */
-export function unregisterPushDevice(accessToken: string, token: string): Promise<void> {
-  return sendAuthorized(
-    `/api/me/push-devices/${encodeURIComponent(token)}`,
-    accessToken,
-    'DELETE',
-  );
+/**
+ * A signed-out phone asking not to be pushed to any more (D-133). No sign-in:
+ * the token is the proof, and the one this phone had may have run out.
+ */
+export async function forgetPushDevice(token: string): Promise<void> {
+  const path = `/api/push-devices/${encodeURIComponent(token)}`;
+  const response = await fetch(`${environment.apiUrl}${path}`, { method: 'DELETE' });
+  if (!response.ok) {
+    throw new ApiError(path, response.status);
+  }
 }
 
 /** An organiser writing to everybody in the organisation (D-080). */

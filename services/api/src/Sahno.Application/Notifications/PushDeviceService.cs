@@ -58,6 +58,20 @@ public sealed class PushDeviceService(IPushDeviceStore devices)
         await devices.RemoveAsync(existing.Id, cancellationToken);
     }
 
+    /// <summary>
+    /// A phone that is signed out asking to be left alone (D-133), whoever it
+    /// last belonged to. Possessing the token is the proof: only that phone
+    /// has it. Nothing to forget is not an error.
+    /// </summary>
+    public async Task ForgetAsync(string token, CancellationToken cancellationToken)
+    {
+        var existing = await devices.FindByTokenAsync(token.Trim(), cancellationToken);
+        if (existing is not null)
+        {
+            await devices.RemoveAsync(existing.Id, cancellationToken);
+        }
+    }
+
     public Task<IReadOnlyList<PushDevice>> ListAsync(Guid userId, CancellationToken cancellationToken)
     {
         return devices.ListActiveForUserAsync(userId, cancellationToken);

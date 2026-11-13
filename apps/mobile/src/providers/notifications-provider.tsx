@@ -20,7 +20,7 @@ import { isChatAction } from '@/notifications/chat-actions';
 import { markShown, wasShown } from '@/notifications/dedupe';
 import { installForegroundHandler, payloadOf, registerForPush } from '@/notifications/push';
 import { useSession } from '@/providers/auth-provider';
-import { usePushToken } from '@/stores/push-token';
+import { forgetThisPhone, usePushToken } from '@/stores/push-token';
 
 type NotificationsContextValue = {
   /**
@@ -67,6 +67,15 @@ export function NotificationsProvider({ children }: PropsWithChildren) {
   const activeId = active?.id ?? null;
 
   // ---- Token registration ---------------------------------------------
+
+  // Signed out by any route — Sign out, or a sign-in that ran out — the
+  // phone stops being pushed to (D-133). Nothing to do if it never was.
+  const signedOut = session.status === 'unauthenticated';
+  useEffect(() => {
+    if (signedOut) {
+      void forgetThisPhone();
+    }
+  }, [signedOut]);
 
   useEffect(() => {
     if (!authenticated) {

@@ -2211,3 +2211,14 @@ An organiser created an enquiry without a date and tried to ask four people: the
 
 - The sign-in screen offers Google and the emailed code only. Nobody had signed in with Apple, and an Apple sign-in with Hide My Email can never be linked to an account (D-131), so it was the likeliest way to end up with a second, empty account.
 - Only the button is gone: `ContinueWithAppleButton`, `session.continueWithApple` and the Auth0 connection stay, so bringing it back is one line. Before an App Store release, check guideline 4.8 (an app offering Google sign-in must also offer Apple or an equivalent private option).
+
+---
+
+## D-133 — A signed-out phone stops getting notifications
+
+**Date:** 13 November 2026
+**Status:** Accepted
+
+- A phone that was signed out still got chat notifications. The phone was only removed from the push list by tapping Sign out, and only if its sign-in still worked at that moment; a sign-in that ran out (as after weeks away) never went through Sign out at all, and the app forgot its push token on every launch, so it could not try again.
+- The API now takes `DELETE /api/push-devices/{token}` **without sign-in**: having the token is the proof, since only that phone has it. Rate-limited by address. Unknown tokens are not an error.
+- The app remembers the token it registered. Whenever it finds itself signed out — by Sign out or by a sign-in running out — it asks the API to forget the phone, keeping the token until the API has heard. A phone from before this, which never saved its token, asks the phone for it (only if notification permission was already given; it never prompts).

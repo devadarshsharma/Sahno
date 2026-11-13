@@ -25,6 +25,15 @@ public static class RateLimitPolicies
 
     public const int PlaceSuggestionsPerMinute = 60;
 
+    /// <summary>
+    /// A signed-out phone asking not to be pushed to any more (D-133). No
+    /// sign-in, so the address is the partition; the token itself is the
+    /// proof, and is far too long to guess at this rate.
+    /// </summary>
+    public const string ForgetPushDevice = "forget-push-device";
+
+    public const int ForgetPushDevicePerMinute = 60;
+
     public static IServiceCollection AddSahnoRateLimiting(this IServiceCollection services)
     {
         return services.AddRateLimiter(options =>
@@ -53,6 +62,16 @@ public static class RateLimitPolicies
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = PlaceSuggestionsPerMinute,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                    }));
+
+            options.AddPolicy(ForgetPushDevice, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = ForgetPushDevicePerMinute,
                         Window = TimeSpan.FromMinutes(1),
                         QueueLimit = 0,
                     }));

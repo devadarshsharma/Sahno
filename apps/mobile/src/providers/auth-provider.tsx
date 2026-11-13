@@ -8,9 +8,8 @@ import {
 } from 'react';
 import { Auth0Provider, useAuth0 } from 'react-native-auth0';
 
-import { unregisterPushDevice } from '@/api/notifications';
 import { environment } from '@/config/environment';
-import { usePushToken } from '@/stores/push-token';
+import { forgetThisPhone } from '@/stores/push-token';
 
 export type SessionStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -172,19 +171,10 @@ function Auth0SessionBridge({
   );
 
   const signOut = useCallback(async () => {
-    // This phone stops being this person's before the credentials go, while
-    // there is still an access token to say so with (D-080). Best effort:
-    // a failure here must not keep somebody signed in.
-    const pushToken = usePushToken.getState().token;
-    if (pushToken) {
-      try {
-        const credentials = await getCredentials();
-        await unregisterPushDevice(credentials.accessToken, pushToken);
-      } catch {
-        // The API being away, or the token already gone: nothing to do.
-      }
-      usePushToken.getState().setToken(null);
-    }
+    // This phone stops being this person's (D-080). It needs no sign-in
+    // (D-133), so an expired one cannot leave the phone still pushed to; if
+    // the API is away, the signed-out app tries again until it hears.
+    await forgetThisPhone();
 
     try {
       // Clears the Auth0 browser session and stored credentials.
@@ -194,7 +184,7 @@ function Auth0SessionBridge({
       // still be cleared so the app returns to a signed-out state.
       await clearCredentials();
     }
-  }, [clearSession, clearCredentials, getCredentials]);
+  }, [clearSession, clearCredentials]);
 
   const getAccessToken = useCallback(async () => {
     const credentials = await getCredentials();

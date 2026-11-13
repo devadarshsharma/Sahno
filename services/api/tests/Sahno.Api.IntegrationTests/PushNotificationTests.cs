@@ -44,6 +44,25 @@ public sealed class PushNotificationTests(SahnoApiFactory factory)
     }
 
     [Fact]
+    public async Task ASignedOutPhone_CanStopItsOwnPushes_WithoutSigningIn()
+    {
+        var org = await NewOrganisationAsync("push-forget");
+        await RegisterAsync(org.Owner, Token("forget-me"), "ios", "iPhone");
+        await RegisterAsync(org.Owner, Token("keep-me"), "android", "Pixel");
+
+        // Its sign-in ran out: no Authorization at all (D-133).
+        using var signedOut = factory.CreateClient();
+        var forgotten = await signedOut.DeleteAsync($"/api/push-devices/{Uri.EscapeDataString(Token("forget-me"))}");
+        Assert.Equal(HttpStatusCode.NoContent, forgotten.StatusCode);
+
+        var remaining = await org.Owner.GetFromJsonAsync<List<PushDeviceResponse>>("/api/me/push-devices");
+        Assert.Equal(Token("keep-me"), Assert.Single(remaining!).Token);
+
+        // Asking again, or about a phone never seen, is not an error.
+        Assert.Equal(HttpStatusCode.NoContent, (await signedOut.DeleteAsync($"/api/push-devices/{Uri.EscapeDataString(Token("forget-me"))}")).StatusCode);
+    }
+
+    [Fact]
     public async Task AJobAssignmentPushesTheAssigneeOnEveryPhoneWithARoute()
     {
         var org = await NewOrganisationAsync("push-job", members: 1);

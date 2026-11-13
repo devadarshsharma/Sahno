@@ -54,6 +54,28 @@ export type PushRegistration =
  * this phone's Expo push token. Every failure is a status, not a throw:
  * push is a convenience and the app must be exactly as usable without it.
  */
+/**
+ * This phone's push token if it already has permission — never asks (D-133).
+ * For a signed-out phone that registered before its token was remembered:
+ * asking for permission just to switch notifications off would be absurd.
+ */
+export async function existingPushToken(): Promise<string | null> {
+  if (!Device.isDevice || (Platform.OS !== 'ios' && Platform.OS !== 'android')) {
+    return null;
+  }
+  const { status } = await Notifications.getPermissionsAsync();
+  const projectId =
+    Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+  if (status !== 'granted' || !projectId) {
+    return null;
+  }
+  try {
+    return (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+  } catch {
+    return null;
+  }
+}
+
 export async function registerForPush(): Promise<PushRegistration> {
   if (!Device.isDevice) {
     return { status: 'unavailable', reason: 'Push needs a physical device.' };
