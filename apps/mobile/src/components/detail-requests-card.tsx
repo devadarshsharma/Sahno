@@ -118,6 +118,7 @@ export function DetailAskersCard({ engagementId }: { engagementId: string }) {
 const styles = StyleSheet.create({
   card: {
     gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
   waiting: {
     borderWidth: 1,
