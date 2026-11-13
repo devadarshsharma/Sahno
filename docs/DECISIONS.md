@@ -2222,3 +2222,15 @@ An organiser created an enquiry without a date and tried to ask four people: the
 - A phone that was signed out still got chat notifications. The phone was only removed from the push list by tapping Sign out, and only if its sign-in still worked at that moment; a sign-in that ran out (as after weeks away) never went through Sign out at all, and the app forgot its push token on every launch, so it could not try again.
 - The API now takes `DELETE /api/push-devices/{token}` **without sign-in**: having the token is the proof, since only that phone has it. Rate-limited by address. Unknown tokens are not an error.
 - The app remembers the token it registered. Whenever it finds itself signed out — by Sign out or by a sign-in running out — it asks the API to forget the phone, keeping the token until the API has heard. A phone from before this, which never saved its token, asks the phone for it (only if notification permission was already given; it never prompts).
+
+---
+
+## D-134 — Registering for notifications once, not in a loop
+
+**Date:** 13 November 2026
+**Status:** Accepted
+
+- Testers found the app slow — chat stuck on "Updating…" — whenever several people had it open. The database showed why: about 3 million push-device registrations since 9 October, from eleven phones, against some 31,000 event reads.
+- The cause was the push-token listener (D-080). Expo fires it whenever the token is fetched, not only when it changes, and registering fetches the token — so every open app re-registered in an endless loop, keeping its own phone and the shared API busy.
+- The app now re-registers only when the device token differs from the last one it saw.
+- The API now accepts at most six registrations a minute per account (429 beyond that), so builds from before this fix, still on testers' phones until they update, are turned away before they reach the database.

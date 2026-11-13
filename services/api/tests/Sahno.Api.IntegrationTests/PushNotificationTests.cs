@@ -44,6 +44,21 @@ public sealed class PushNotificationTests(SahnoApiFactory factory)
     }
 
     [Fact]
+    public async Task APhoneRegisteringInALoop_IsTurnedAway()
+    {
+        // Builds before D-134 registered over and over while open.
+        var org = await NewOrganisationAsync("push-loop");
+        var statuses = new List<HttpStatusCode>();
+        for (var i = 0; i < 10; i++)
+        {
+            statuses.Add((await RegisterAsync(org.Owner, Token("loop"), "ios", "iPhone")).StatusCode);
+        }
+
+        Assert.All(statuses.Take(6), status => Assert.Equal(HttpStatusCode.NoContent, status));
+        Assert.Equal(HttpStatusCode.TooManyRequests, statuses.Last());
+    }
+
+    [Fact]
     public async Task ASignedOutPhone_CanStopItsOwnPushes_WithoutSigningIn()
     {
         var org = await NewOrganisationAsync("push-forget");

@@ -34,6 +34,16 @@ public static class RateLimitPolicies
 
     public const int ForgetPushDevicePerMinute = 60;
 
+    /// <summary>
+    /// A phone registering for notifications. The app does it once a sign-in
+    /// and when the token rotates; builds before D-134 did it in a loop, many
+    /// times a second, for as long as they were open. This turns those away
+    /// before they reach the database.
+    /// </summary>
+    public const string RegisterPushDevice = "register-push-device";
+
+    public const int RegisterPushDevicePerMinute = 6;
+
     public static IServiceCollection AddSahnoRateLimiting(this IServiceCollection services)
     {
         return services.AddRateLimiter(options =>
@@ -62,6 +72,18 @@ public static class RateLimitPolicies
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = PlaceSuggestionsPerMinute,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                    }));
+
+            options.AddPolicy(RegisterPushDevice, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    context.User.FindFirst("sub")?.Value
+                        ?? context.Connection.RemoteIpAddress?.ToString()
+                        ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = RegisterPushDevicePerMinute,
                         Window = TimeSpan.FromMinutes(1),
                         QueueLimit = 0,
                     }));

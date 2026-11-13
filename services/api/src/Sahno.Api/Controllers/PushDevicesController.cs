@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Sahno.Api.RateLimiting;
 using Sahno.Api.Authentication;
 using Sahno.Application.Notifications;
 using Sahno.Application.Users;
@@ -47,7 +49,9 @@ public sealed class PushDevicesController(
     /// every sign-in and whenever the token changes.
     /// </summary>
     [HttpPut]
+    [EnableRateLimiting(RateLimitPolicies.RegisterPushDevice)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Register(

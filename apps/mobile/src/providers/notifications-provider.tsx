@@ -115,9 +115,21 @@ export function NotificationsProvider({ children }: PropsWithChildren) {
     void register();
 
     // Expo rotates tokens rarely, but when it does the old one goes dead and
-    // Expo tells the app the new one here.
-    const rotation = Notifications.addPushTokenListener(() => {
-      void register();
+    // Expo tells the app the new one here. It also fires every time the token
+    // is merely fetched — which registering does — so reacting to every event
+    // registered in an endless loop, hundreds of times a minute on every open
+    // phone (D-134). Only a token different from the last one counts.
+    let lastDeviceToken: string | null = null;
+    const rotation = Notifications.addPushTokenListener((devicePushToken) => {
+      const value =
+        typeof devicePushToken.data === 'string' ? devicePushToken.data : JSON.stringify(devicePushToken.data);
+      const first = lastDeviceToken === null;
+      const changed = value !== lastDeviceToken;
+      lastDeviceToken = value;
+      // The first one is the token just registered, fetched by register().
+      if (!first && changed) {
+        void register();
+      }
     });
 
     return () => {
