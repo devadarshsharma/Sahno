@@ -17,16 +17,13 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import {
-  ContinueWithAppleButton,
-  ContinueWithGoogleButton,
-} from '@/components/auth/provider-buttons';
+import { ContinueWithGoogleButton } from '@/components/auth/provider-buttons';
 import { SahnoSymbol } from '@/components/brand';
 import { Button, Text } from '@/components/ui';
 import { useSession } from '@/providers/auth-provider';
 import { colors, fontFamilies, radii, spacing } from '@/theme';
 
-type PendingAction = 'google' | 'apple' | 'send-code' | 'verify-code' | null;
+type PendingAction = 'google' | 'send-code' | 'verify-code' | null;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -172,12 +169,9 @@ export default function SignIn() {
             loading={pending === 'google'}
             disabled={busy}
           />
-          <ContinueWithAppleButton
-            onDark
-            onPress={() => run('apple', session.continueWithApple)}
-            loading={pending === 'apple'}
-            disabled={busy}
-          />
+          {/* Apple is off for now (D-132): its private relay addresses
+              never link to an account, and nobody was using it. The
+              button and session.continueWithApple are kept for its return. */}
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />

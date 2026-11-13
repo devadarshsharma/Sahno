@@ -2201,3 +2201,13 @@ An organiser created an enquiry without a date and tried to ask four people: the
 - Done in Sahno (`user_identities`), not with Auth0 account linking, which needs custom dashboard scripting; ours is covered by the integration tests.
 - The emailed code's "name" is the address; on a linked account it never replaces the real name.
 - Duplicates made before this, empty ones only (in no organisation, ever), were folded into the older account by the migration. Two accounts that both have groups are left as they are, to be looked at by hand.
+
+---
+
+## D-132 — Sign in with Apple is off for now
+
+**Date:** 13 November 2026
+**Status:** Accepted
+
+- The sign-in screen offers Google and the emailed code only. Nobody had signed in with Apple, and an Apple sign-in with Hide My Email can never be linked to an account (D-131), so it was the likeliest way to end up with a second, empty account.
+- Only the button is gone: `ContinueWithAppleButton`, `session.continueWithApple` and the Auth0 connection stay, so bringing it back is one line. Before an App Store release, check guideline 4.8 (an app offering Google sign-in must also offer Apple or an equivalent private option).
