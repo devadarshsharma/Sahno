@@ -28,6 +28,7 @@ import {
   type BookingsFilter,
   hasHappened,
   needsAttention,
+  type EngagementFocus,
   useEngagements,
 } from '@/hooks/use-engagements';
 import { useMembers } from '@/hooks/use-members';
@@ -135,10 +136,10 @@ export default function Index() {
       params: { engagementId },
     });
 
-  const openEngagement = (engagementId: string) =>
+  const openEngagement = (engagementId: string, focus?: EngagementFocus) =>
     router.push({
       pathname: '/engagement/[engagementId]',
-      params: { engagementId },
+      params: focus ? { engagementId, focus } : { engagementId },
     });
 
   // A tile is a count; tapping it opens the list it counts.
@@ -411,7 +412,7 @@ export default function Index() {
                     <AttentionRow
                       key={engagement.id}
                       engagement={engagement}
-                      onPress={() => openEngagement(engagement.id)}
+                      onPress={(focus) => openEngagement(engagement.id, focus)}
                     />
                   ))}
                 </View>
@@ -538,17 +539,18 @@ export default function Index() {
  */
 
 type AttentionIcon = ComponentProps<typeof Ionicons>['name'];
+type AttentionAction = { action: string; icon: AttentionIcon; focus?: EngagementFocus };
 
 /** What is missing, said as the thing to do, with the icon that kind of thing gets. */
-const MISSING_ACTIONS: Record<ReadinessItem, { action: string; icon: AttentionIcon }> = {
-  Lineup: { action: 'Lineup not settled', icon: 'people-outline' },
-  Venue: { action: 'Venue not set', icon: 'location-outline' },
-  CallTime: { action: 'Sound-check time not set', icon: 'mic-outline' },
-  StartTime: { action: 'Start time not set', icon: 'time-outline' },
-  Responsibilities: { action: 'Jobs not handed out', icon: 'clipboard-outline' },
-  Dress: { action: 'Dress not decided', icon: 'shirt-outline' },
-  Rehearsal: { action: 'No rehearsal booked', icon: 'musical-notes-outline' },
-  Resources: { action: 'Nothing attached yet', icon: 'folder-open-outline' },
+const MISSING_ACTIONS: Record<ReadinessItem, AttentionAction> = {
+  Lineup: { action: 'Lineup not settled', icon: 'people-outline', focus: 'people' },
+  Venue: { action: 'Venue not set', icon: 'location-outline', focus: 'details' },
+  CallTime: { action: 'Sound-check time not set', icon: 'mic-outline', focus: 'details' },
+  StartTime: { action: 'Start time not set', icon: 'time-outline', focus: 'details' },
+  Responsibilities: { action: 'Jobs not handed out', icon: 'clipboard-outline', focus: 'jobs' },
+  Dress: { action: 'Dress not decided', icon: 'shirt-outline', focus: 'details' },
+  Rehearsal: { action: 'No rehearsal booked', icon: 'musical-notes-outline', focus: 'files' },
+  Resources: { action: 'Nothing attached yet', icon: 'folder-open-outline', focus: 'files' },
 };
 
 /**
@@ -557,7 +559,7 @@ const MISSING_ACTIONS: Record<ReadinessItem, { action: string; icon: AttentionIc
  * description, because this list is a to-do list; the diary below already
  * says what each booking is.
  */
-function attentionAction(engagement: Engagement): { action: string; icon: AttentionIcon } {
+function attentionAction(engagement: Engagement): AttentionAction {
   // Over but never closed (D-125): that comes before anything else about it.
   if (hasHappened(engagement)) {
     const day = new Date(`${engagement.endDate ?? engagement.startDate}T00:00:00`).toLocaleDateString(undefined, {
@@ -565,7 +567,12 @@ function attentionAction(engagement: Engagement): { action: string; icon: Attent
       day: 'numeric',
       month: 'short',
     });
-    return { action: `Was on ${day} — close it`, icon: 'flag-outline' };
+    return {
+      action: `Was on ${day} — close it`,
+      icon: 'flag-outline',
+      // A confirmed one has the Mark completed button on the overview itself.
+      focus: engagement.status === 'Confirmed' ? 'next' : 'status',
+    };
   }
 
   const waiting = engagement.outstandingCount ?? 0;
@@ -573,17 +580,18 @@ function attentionAction(engagement: Engagement): { action: string; icon: Attent
     return {
       action: waiting === 1 ? "1 member hasn't responded" : `${waiting} members haven't responded`,
       icon: 'people-outline',
+      focus: 'people',
     };
   }
 
   if (engagement.status === 'CheckingAvailability') {
-    return { action: 'Everyone answered — decide the lineup', icon: 'checkmark-circle-outline' };
+    return { action: 'Everyone answered — decide the lineup', icon: 'checkmark-circle-outline', focus: 'people' };
   }
 
   if (engagement.status === 'Postponed') {
     return engagement.startDate === null
-      ? { action: 'New date needed', icon: 'calendar-outline' }
-      : { action: 'Resume when ready', icon: 'play-circle-outline' };
+      ? { action: 'New date needed', icon: 'calendar-outline', focus: 'details' }
+      : { action: 'Resume when ready', icon: 'play-circle-outline', focus: 'status' };
   }
 
   const owed = engagement.financeOutstanding ?? 0;
@@ -591,6 +599,7 @@ function attentionAction(engagement: Engagement): { action: string; icon: Attent
     return {
       action: owed === 1 ? '1 payment still owed' : `${owed} payments still owed`,
       icon: 'cash-outline',
+      focus: 'money',
     };
   }
 
@@ -600,6 +609,7 @@ function attentionAction(engagement: Engagement): { action: string; icon: Attent
     return {
       action: missing.length === 1 ? first.action : `${first.action} · ${missing.length - 1} more`,
       icon: first.icon,
+      focus: first.focus,
     };
   }
 
@@ -616,16 +626,16 @@ function AttentionRow({
   onPress,
 }: {
   engagement: Engagement;
-  onPress: () => void;
+  onPress: (focus?: EngagementFocus) => void;
 }) {
-  const { action, icon } = attentionAction(engagement);
+  const { action, icon, focus } = attentionAction(engagement);
   const where = `${engagement.title} (${shortDate(engagement)})`;
 
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${action}. ${where}.`}
-      onPress={onPress}
+      onPress={() => onPress(focus)}
       style={({ pressed }) => [
         styles.attentionRow,
         pressed ? styles.attentionRowPressed : null,
@@ -638,8 +648,14 @@ function AttentionRow({
         <Text numberOfLines={1} style={styles.attentionTitle}>
           {action}
         </Text>
-        <Text variant="bodySmall" color="secondary" numberOfLines={1}>
-          {where}
+        {/* Which event, said clearly enough to tell at a glance (D-130). */}
+        <Text variant="bodySmall" numberOfLines={1}>
+          <Text variant="bodySmall" style={styles.attentionEvent}>
+            {engagement.title}
+          </Text>
+          <Text variant="bodySmall" color="muted">
+            {`  ·  ${shortDate(engagement)}`}
+          </Text>
         </Text>
       </View>
       <Ionicons name="chevron-forward" size={18} color={colors.text.muted} />
@@ -1045,6 +1061,10 @@ const styles = StyleSheet.create({
   },
   attentionTitle: {
     fontFamily: fontFamilies.uiMedium,
+  },
+  attentionEvent: {
+    fontFamily: fontFamilies.uiMedium,
+    color: colors.tealText,
   },
   section: {
     gap: spacing.sm,

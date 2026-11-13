@@ -305,3 +305,9 @@ export function groupByMonth<T extends Pick<Engagement, 'startDate'>>(
 export function matchesFilter(engagement: Engagement, filter: BookingsFilter): boolean {
   return filter === 'attention' ? needsAttention(engagement) : engagement.status === filter;
 }
+
+/**
+ * The part of an event's overview to light up when it is opened from Needs
+ * your attention (D-130): the next-step button, or one of the section rows.
+ */
+export type EngagementFocus = 'next' | 'status' | 'details' | 'people' | 'jobs' | 'files' | 'readiness' | 'money';

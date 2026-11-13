@@ -2,12 +2,11 @@ namespace Sahno.Domain.Users;
 
 /// <summary>
 /// A Sahno account. <see cref="Id"/> is Sahno's own stable identifier;
-/// <see cref="ExternalSubject"/> is an opaque reference to the canonical
-/// identity asserted by the external identity provider. The identity provider
-/// collapses linked login methods into one canonical subject, so a single
-/// subject per user is sufficient (documented assumption; explicit account
-/// linking and duplicate-user merging are a later slice). Email and display
-/// name are optional profile hints — never identity keys.
+/// <see cref="ExternalSubject"/> is the identity provider's subject for the
+/// first sign-in that created it. An account can be opened by several
+/// sign-ins — each a <see cref="UserIdentity"/>, this first one included —
+/// joined when a new method arrives with a verified email the account already
+/// has (D-131). Email and display name are otherwise profile hints only.
 /// The subject also retains the sign-in method: Auth0 subjects are prefixed
 /// with the connection ("google-oauth2|…", "apple|…", "email|…"), which is
 /// enough to later show "Signed in with Google/Apple/Email" in account
@@ -91,7 +90,13 @@ public sealed class User
         }
 
         var normalizedName = NormalizeOptional(displayName);
-        if (normalizedName is not null && normalizedName != DisplayName)
+        // An emailed-code sign-in's "name" is the address itself; on an
+        // account that also signs in with Google it must not replace the real
+        // name Google gave (D-131).
+        var onlyAnAddress = normalizedName is not null
+            && (EchoesEmail(normalizedName) || normalizedName.Contains('@'));
+        if (normalizedName is not null && normalizedName != DisplayName
+            && !(onlyAnAddress && DisplayName is not null && !EchoesEmail(DisplayName)))
         {
             DisplayName = normalizedName;
             changed = true;

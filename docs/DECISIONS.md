@@ -2163,3 +2163,41 @@ An organiser created an enquiry without a date and tried to ask four people: the
 
 - Under **Upcoming · Past · All**, a row of month chips — **All dates**, then each month that has events in the chosen scope ("Oct 2026", "Nov 2026"…) — scrolls sideways; tapping one shows only that month's events, in the same groups. Shown only when the list spans more than one month.
 - Undated events appear under **All dates** only. A month chosen that the new scope has no events in falls back to all dates rather than an empty list. The calendar view is unchanged.
+
+---
+
+## D-129 — Profile photos
+
+**Date:** 29 October 2026
+**Status:** Accepted
+
+- Anyone can add a photo on **More → Account**: take one or choose one, cropped square on the phone, then shrunk to 256 × 256 JPEG (about 25 KB) before it is sent. **Remove photo** takes it away. Until there is one — or if it will not load — the initials show on the person's colour, as in chat.
+- **Who sees it:** only people you share an organisation with (and you). Anyone else asking gets "not found", not even told there is a photo.
+- **Stored in the database** (`user_avatars`, one row per person, deleted with the account), not a file store: at this size and group count it is the simplest thing that backs up with everything else. The API accepts only JPEG, PNG or WebP — checked from the file's own bytes, not its name — and at most 300 KB.
+- **Caching:** each photo has a version (when it was last changed). The app asks once per organisation for who has a photo and which version; the photo address carries the version, so it is cached on the phone for good and a new photo is simply a new address.
+- Shown on the People list, a member's page, Who's going, and More. Chat keeps its coloured names for now.
+
+---
+
+## D-130 — Needs your attention points at the thing to do
+
+**Date:** 29 October 2026
+**Status:** Accepted
+
+- A tester opened an item from **Needs your attention** and could not tell what it wanted done. Two changes:
+- **The event is easier to spot:** each item's second line now shows the event's name in teal, medium weight, then the date in grey ("**Wedding** · 21 Dec"), instead of everything in one grey line.
+- **Tapping it lights up the answer:** the event opens with the matching part glowing orange — three soft pulses, about two seconds — then settling back. *Jobs not handed out* → the Jobs row; *members haven't responded* or *decide the lineup* → People; *venue / times / dress not set* or *new date needed* → Details; *no rehearsal* or *nothing attached* → Set list & rehearsals; *payments owed* → Customer & money; *resume* → Status; a past event to close → the **Mark completed** button itself, when it is confirmed, or Status otherwise.
+- It plays once, when the event is opened; coming back from a section does not play it again. The phone's Reduce Motion setting turns it off.
+
+---
+
+## D-131 — One verified email, one account
+
+**Date:** 13 November 2026
+**Status:** Accepted — replaces the "no matching by email" rule in AUTHENTICATION_AND_ONBOARDING.md
+
+- A tester signed up with Google, came back weeks later, typed the same Gmail address for an emailed code, and landed in a new, empty account with no groups. Nothing was lost, but it looked as if everything had been.
+- Now an account can have several sign-ins. A new sign-in with a **verified** email an account already has opens that account. Verified: the token says so, or — when it says nothing — the connection is the emailed code (that is the proof) or Google (which only signs in with addresses it has verified). Anything else is never matched, so typing another person's address opens nothing of theirs.
+- Done in Sahno (`user_identities`), not with Auth0 account linking, which needs custom dashboard scripting; ours is covered by the integration tests.
+- The emailed code's "name" is the address; on a linked account it never replaces the real name.
+- Duplicates made before this, empty ones only (in no organisation, ever), were folded into the older account by the migration. Two accounts that both have groups are left as they are, to be looked at by hand.

@@ -14,7 +14,13 @@ import { Button, Card, CountBadge, Screen, Text } from '@/components/ui';
 import { useAvailability } from '@/hooks/use-availability';
 import { useEngagementCustomer, useFinancialAccess } from '@/hooks/use-commercial';
 import { useDiscussion } from '@/hooks/use-discussion';
-import { formatEngagementDate, STATUS_WORDS, useEngagements } from '@/hooks/use-engagements';
+import { Glow } from '@/components/glow';
+import {
+  formatEngagementDate,
+  STATUS_WORDS,
+  useEngagements,
+  type EngagementFocus,
+} from '@/hooks/use-engagements';
 import { useActiveOrg } from '@/hooks/use-organisations';
 import {
   useRehearsals,
@@ -37,7 +43,8 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
  * chat any more.
  */
 export default function EngagementOverview() {
-  const { engagementId } = useLocalSearchParams<{ engagementId: string }>();
+  // `focus`: opened from Needs your attention, so that part glows (D-130).
+  const { engagementId, focus } = useLocalSearchParams<{ engagementId: string; focus?: EngagementFocus }>();
   const router = useRouter();
   const { active } = useActiveOrg();
   const engagementsQuery = useEngagements();
@@ -191,7 +198,11 @@ export default function EngagementOverview() {
       ) : null}
 
       {/* The organiser's usual next move, in plain sight (D-094). */}
-      {isOrganiser ? <NextStepButton engagement={engagement} /> : null}
+      {isOrganiser ? (
+        <Glow active={focus === 'next'}>
+          <NextStepButton engagement={engagement} />
+        </Glow>
+      ) : null}
 
       {/* A member's answer, right here: for them the header and strip above
           are the whole of Details, and their answer was all People held. */}
@@ -210,19 +221,20 @@ export default function EngagementOverview() {
             icon="flag-outline"
             title="Status"
             summary={`${STATUS_WORDS[engagement.status]} · change`}
+            glow={focus === 'status'}
             onPress={() => go('status')}
           />
         ) : null}
         {/* Organisers keep Details and People: dates and details to edit,
             and the whole lineup to manage. */}
         {isOrganiser ? (
-          <Row icon="information-circle-outline" title="Details" summary="Date, venue, times, dress" onPress={() => go('details')} />
+          <Row icon="information-circle-outline" title="Details" summary="Date, venue, times, dress" glow={focus === 'details'} onPress={() => go('details')} />
         ) : null}
         {isOrganiser ? (
-          <Row icon="people-outline" title="People" summary={peopleSummary} onPress={() => go('people')} />
+          <Row icon="people-outline" title="People" summary={peopleSummary} glow={focus === 'people'} onPress={() => go('people')} />
         ) : null}
-        <Row icon="clipboard-outline" title="Jobs" summary={jobsSummary} onPress={() => go('jobs')} />
-        <Row icon="folder-open-outline" title="Set list & rehearsals" summary={filesSummary} onPress={() => go('files')} />
+        <Row icon="clipboard-outline" title="Jobs" summary={jobsSummary} glow={focus === 'jobs'} onPress={() => go('jobs')} />
+        <Row icon="folder-open-outline" title="Set list & rehearsals" summary={filesSummary} glow={focus === 'files'} onPress={() => go('files')} />
         <Row
           icon="chatbubble-outline"
           title="Chat"
@@ -236,6 +248,7 @@ export default function EngagementOverview() {
             title="Readiness"
             summary={readinessSummary}
             tone={readinessOutstanding ? 'attention' : 'default'}
+            glow={focus === 'readiness'}
             onPress={() => go('readiness')}
           />
         ) : null}
@@ -253,6 +266,7 @@ export default function EngagementOverview() {
                     : 'Who this is for'
             }
             tone={hasFinance && owed > 0 ? 'attention' : 'default'}
+            glow={focus === 'money'}
             onPress={() => go('money')}
           />
         ) : null}
@@ -334,6 +348,7 @@ function Row({
   onPress,
   last = false,
   badge = 0,
+  glow = false,
 }: {
   icon: IconName;
   title: string;
@@ -343,34 +358,38 @@ function Row({
   last?: boolean;
   /** An unread count shown as a bubble before the chevron; nothing at zero. */
   badge?: number;
+  /** Lit up briefly: this is what the person came here to do (D-130). */
+  glow?: boolean;
 }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={[title, summary, badge > 0 ? `${badge} unread` : null].filter(Boolean).join('. ')}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        last ? styles.rowLast : null,
-        pressed ? styles.rowPressed : null,
-      ]}
-    >
-      <View style={[styles.rowIcon, tone === 'attention' ? styles.rowIconAttention : null]}>
-        <Ionicons
-          name={icon}
-          size={18}
-          color={tone === 'attention' ? '#8A4A05' : colors.tealText}
-        />
-      </View>
-      <View style={styles.rowText}>
-        <Text style={styles.rowTitle}>{title}</Text>
-        <Text variant="caption" color="secondary" numberOfLines={1}>
-          {summary ?? ' '}
-        </Text>
-      </View>
-      <CountBadge count={badge} />
-      <Ionicons name="chevron-forward" size={18} color={colors.text.muted} />
-    </Pressable>
+    <Glow active={glow} inset={spacing.sm}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={[title, summary, badge > 0 ? `${badge} unread` : null].filter(Boolean).join('. ')}
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.row,
+          last ? styles.rowLast : null,
+          pressed ? styles.rowPressed : null,
+        ]}
+      >
+        <View style={[styles.rowIcon, tone === 'attention' ? styles.rowIconAttention : null]}>
+          <Ionicons
+            name={icon}
+            size={18}
+            color={tone === 'attention' ? '#8A4A05' : colors.tealText}
+          />
+        </View>
+        <View style={styles.rowText}>
+          <Text style={styles.rowTitle}>{title}</Text>
+          <Text variant="caption" color="secondary" numberOfLines={1}>
+            {summary ?? ' '}
+          </Text>
+        </View>
+        <CountBadge count={badge} />
+        <Ionicons name="chevron-forward" size={18} color={colors.text.muted} />
+      </Pressable>
+    </Glow>
   );
 }
 

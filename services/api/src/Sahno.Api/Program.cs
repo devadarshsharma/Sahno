@@ -36,6 +36,7 @@ builder.Services.AddScoped<ILiveUpdates, SignalRLiveUpdates>();
 builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddScoped<EnsureUserService>();
 builder.Services.AddScoped<UserProfileService>();
+builder.Services.AddScoped<AvatarService>();
 builder.Services.AddScoped<OrganisationService>();
 builder.Services.AddScoped<InvitationService>();
 builder.Services.AddScoped<MembershipService>();

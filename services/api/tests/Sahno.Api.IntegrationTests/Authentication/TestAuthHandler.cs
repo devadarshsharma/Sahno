@@ -12,6 +12,7 @@ public static class TestAuthDefaults
     public const string SubjectHeader = "X-Test-Subject";
     public const string EmailHeader = "X-Test-Email";
     public const string NameHeader = "X-Test-Name";
+    public const string EmailVerifiedHeader = "X-Test-Email-Verified";
 }
 
 /// <summary>
@@ -41,6 +42,12 @@ public sealed class TestAuthHandler(
         if (!string.IsNullOrWhiteSpace(email))
         {
             claims.Add(new Claim("email", email));
+        }
+
+        var emailVerified = Request.Headers[TestAuthDefaults.EmailVerifiedHeader].ToString();
+        if (!string.IsNullOrWhiteSpace(emailVerified))
+        {
+            claims.Add(new Claim("email_verified", emailVerified));
         }
 
         var name = Request.Headers[TestAuthDefaults.NameHeader].ToString();

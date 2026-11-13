@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
+import { ProfilePhoto } from '@/components/profile-photo';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { useMe } from '@/hooks/use-me';
 import { useActiveOrg } from '@/hooks/use-organisations';
@@ -24,6 +25,9 @@ export default function More() {
 
       <Card style={styles.card}>
         <Text variant="subheading">Account</Text>
+        {meQuery.data ? (
+          <ProfilePhoto userId={meQuery.data.userId} name={meQuery.data.displayName} />
+        ) : null}
         {/* The Sahno record, not the identity-provider claim: for email
             sign-ins the provider's name is just the address again. */}
         {meQuery.data?.displayName ? (

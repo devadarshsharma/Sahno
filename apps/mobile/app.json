@@ -30,6 +30,14 @@
         }
       ],
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Sahno uses a photo you choose as your profile picture, seen by the people in your groups.",
+          "cameraPermission": "Sahno lets you take a photo for your profile picture, seen by the people in your groups.",
+          "microphonePermission": false
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/images/notification-icon.png",

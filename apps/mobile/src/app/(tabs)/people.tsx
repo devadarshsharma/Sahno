@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import type { Member } from '@/api/members';
+import { Avatar } from '@/components/avatar';
 import { Button, Screen, Text } from '@/components/ui';
 import { sortedForDisplay, useMembers } from '@/hooks/use-members';
 import { useActiveOrg } from '@/hooks/use-organisations';
@@ -127,11 +128,7 @@ function MemberRow({
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed ? styles.rowPressed : null]}
     >
-      <View style={styles.avatar}>
-        <Text variant="subheading" color="accent">
-          {initialOf(name)}
-        </Text>
-      </View>
+      <Avatar userId={member.userId} name={member.displayName} size={44} />
 
       <View style={styles.rowText}>
         <View style={styles.nameLine}>
@@ -176,10 +173,6 @@ function RoleBadge({ role }: { role: 'Owner' | 'Admin' }) {
   );
 }
 
-function initialOf(name: string): string {
-  return name.trim().charAt(0).toUpperCase() || '?';
-}
-
 const styles = StyleSheet.create({
   inviteButton: {
     width: 36,
@@ -215,14 +208,6 @@ const styles = StyleSheet.create({
   },
   rowPressed: {
     backgroundColor: colors.surface.subtle,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.tealSoft,
   },
   rowText: {
     flex: 1,

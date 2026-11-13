@@ -11,6 +11,7 @@ import {
   type Participant,
 } from '@/api/availability';
 import { ApiError } from '@/api/client';
+import { Avatar } from '@/components/avatar';
 import { YourClashNotice } from '@/components/clash-notice';
 import { Button, Card, showAlert, showToast, Text, TextAction } from '@/components/ui';
 import {
@@ -342,11 +343,7 @@ export function GoingCard({ engagementId }: { engagementId: string }) {
             accessible
             accessibilityLabel={[name, person.function].filter(Boolean).join(', ')}
           >
-            <View style={styles.goingInitial}>
-              <Text variant="label" style={styles.goingInitialText}>
-                {(person.displayName ?? '?').trim().charAt(0).toUpperCase()}
-              </Text>
-            </View>
+            <Avatar userId={person.userId} name={person.displayName} size={32} />
             <View style={styles.goingText}>
               <Text variant="bodySmall">{name}</Text>
               {person.function ? (
@@ -436,17 +433,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     minHeight: 44,
-  },
-  goingInitial: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.full,
-    backgroundColor: colors.tealSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  goingInitialText: {
-    color: colors.tealText,
   },
   goingText: {
     flex: 1,

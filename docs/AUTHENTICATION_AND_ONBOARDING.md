@@ -35,12 +35,14 @@ The product does not present separate **Create account** and **Sign in** choices
 
 ### Accepted MVP limitation — no account linking (D-075)
 
-The MVP runs on the Auth0 Free plan and does not implement account linking. Each sign-in method (Google, Apple, email code) resolves to its own Auth0 subject, and the API maps one subject to one Sahno user — so signing in through a different method creates a separate Sahno account. This is accepted for the MVP:
+Each sign-in method (Google, Apple, email code) resolves to its own Auth0 subject. Sahno links them itself (D-131), with no Auth0 account linking:
 
-- The sign-in screen tells returning people to use the same method they originally chose.
-- Identities are never matched or merged automatically by email address (Apple private-relay addresses make that unsafe), and no Auth0 Action performs automatic linking.
-- The sign-in method is retained implicitly in the stored Auth0 subject prefix (`google-oauth2|…`, `apple|…`, `email|…`), which is enough to later show "Signed in with Google/Apple/Email" in account settings. An account-settings feature is not part of the first auth slice.
-- Secure, explicit account linking plus a deliberate duplicate-user merge workflow are deferred backlog items (`MVP_BUILD_BACKLOG.md`, Slice 1 deferred follow-up).
+- An account can have several sign-ins (`user_identities`: subject → user). The first is also kept as `users.external_subject`.
+- A sign-in Sahno has not seen before, carrying a **verified** email that an account already has (compared without case), opens that account instead of creating a new one. Verified means the token's `https://sahno.app/email_verified` (or `email_verified`) claim is `true`; when the claim is absent, only the `email|` and `google-oauth2|` connections are trusted, since both hand over only addresses the person has proved they own.
+- An unverified email is never matched, so typing somebody else's address cannot open their account. Apple "Hide My Email" relay addresses are unique and simply never match.
+- On a linked account, an emailed-code sign-in's name claim (which is the address itself) never replaces a real name.
+- The `AddUserIdentities` migration folded the duplicates made before this: an emailed-code or Google account in no organisation, whose address an older account has, gives its sign-in to the older account and is deleted.
+- To make verification explicit for every connection, the post-login Action can add `api.accessToken.setCustomClaim('https://sahno.app/email_verified', event.user.email_verified)`.
 
 ## Account deletion requirement
 

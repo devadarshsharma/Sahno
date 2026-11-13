@@ -11,6 +11,7 @@ import {
   updateOwnMembership,
   type Member,
 } from '@/api/members';
+import { Avatar } from '@/components/avatar';
 import { Button, Card, Screen, showAlert, Text, TextInput } from '@/components/ui';
 import { useMemberMutation, useMembers } from '@/hooks/use-members';
 import { useActiveOrg } from '@/hooks/use-organisations';
@@ -109,7 +110,10 @@ function ContactCard({ member }: { member: Member }) {
 
   return (
     <Card style={styles.card}>
-      <Text variant="subheading">Contact</Text>
+      <View style={styles.contactHead}>
+        <Avatar userId={member.userId} name={member.displayName} size={56} />
+        <Text variant="subheading">Contact</Text>
+      </View>
       {member.email ? <Text>{member.email}</Text> : null}
       {member.phoneNumber ? <Text>{member.phoneNumber}</Text> : null}
       {hasContact ? null : (
@@ -396,6 +400,11 @@ function RemoveCard({
 }
 
 const styles = StyleSheet.create({
+  contactHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
   centered: {
     flex: 1,
     alignItems: 'center',

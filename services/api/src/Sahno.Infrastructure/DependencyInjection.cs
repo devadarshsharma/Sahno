@@ -40,6 +40,7 @@ public static class DependencyInjection
                     provider.GetRequiredService<DbConnectionTimingInterceptor>()));
 
         services.AddScoped<IUserStore, UserStore>();
+        services.AddScoped<IUserAvatarStore, UserAvatarStore>();
         services.AddScoped<IOrganisationStore, OrganisationStore>();
         services.AddScoped<IMembershipStore, MembershipStore>();
         services.AddScoped<IInvitationStore, InvitationStore>();

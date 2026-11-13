@@ -12,6 +12,10 @@ public sealed class SahnoDbContext(DbContextOptions<SahnoDbContext> options)
 {
     public DbSet<User> Users => Set<User>();
 
+    public DbSet<UserAvatar> UserAvatars => Set<UserAvatar>();
+
+    public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
+
     public DbSet<Organisation> Organisations => Set<Organisation>();
 
     public DbSet<Membership> Memberships => Set<Membership>();

@@ -1269,6 +1269,54 @@ namespace Sahno.Infrastructure.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("Sahno.Domain.Users.UserAvatar", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("content");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("user_avatars", (string)null);
+                });
+
+            modelBuilder.Entity("Sahno.Domain.Users.UserIdentity", b =>
+                {
+                    b.Property<string>("Subject")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("subject");
+
+                    b.Property<DateTimeOffset>("LinkedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("linked_at_utc");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Subject");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("user_identities", (string)null);
+                });
+
             modelBuilder.Entity("Sahno.Domain.Engagements.DetailRequest", b =>
                 {
                     b.HasOne("Sahno.Domain.Engagements.Engagement", null)
@@ -1319,6 +1367,24 @@ namespace Sahno.Infrastructure.Migrations
                     b.HasOne("Sahno.Domain.Repertoire.Piece", null)
                         .WithMany()
                         .HasForeignKey("PieceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Sahno.Domain.Users.UserAvatar", b =>
+                {
+                    b.HasOne("Sahno.Domain.Users.User", null)
+                        .WithOne()
+                        .HasForeignKey("Sahno.Domain.Users.UserAvatar", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Sahno.Domain.Users.UserIdentity", b =>
+                {
+                    b.HasOne("Sahno.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

@@ -30,6 +30,7 @@ The organisation decides what it records about its bookings and its customers. W
 - Your email address, and the name you choose to be shown by.
 - If you sign in with Apple or Google, an identifier from that provider. We never see your Apple or Google password. If you sign in with an emailed code, we see only the email address.
 - Your phone number, if you add one.
+- A profile photo, if you add one. Only you and the people in your organisations can see it, and you can remove it at any time.
 
 **Your place in each organisation**
 - Your role (Owner, Admin or Member) and when you joined.
